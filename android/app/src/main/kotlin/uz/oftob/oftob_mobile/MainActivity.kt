@@ -1,0 +1,5 @@
+package uz.oftob.oftob_mobile
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()

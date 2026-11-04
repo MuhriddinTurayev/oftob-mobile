@@ -1,0 +1,239 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+/// Server xatosi: matni foydalanuvchiga ko'rsatiladi.
+class ApiException implements Exception {
+  ApiException(this.message, {this.status, this.code});
+
+  final String message;
+  final int? status;
+  final String? code;
+
+  bool get unauthorized => status == 401;
+
+  @override
+  String toString() => message;
+}
+
+/// Oftob CRM ochiq API (`/api/v1`) bilan ishlaydi.
+/// Ma'lumotlar bazasiga to'g'ridan-to'g'ri EMAS — faqat server orqali (kalit bilan).
+class ApiClient {
+  ApiClient({required String serverUrl, required this.apiKey, http.Client? client})
+      : base = normalizeUrl(serverUrl),
+        _http = client ?? http.Client();
+
+  final String base; // masalan https://oftob.37-60-247-120.sslip.io
+  final String apiKey;
+  final http.Client _http;
+
+  static String normalizeUrl(String raw) {
+    var s = raw.trim();
+    if (s.isEmpty) return s;
+    if (!s.startsWith('http://') && !s.startsWith('https://')) s = 'https://$s';
+    while (s.endsWith('/')) {
+      s = s.substring(0, s.length - 1);
+    }
+    if (s.endsWith('/api/v1')) s = s.substring(0, s.length - 7);
+    return s;
+  }
+
+  Map<String, String> get _headers => {
+        'Authorization': 'Bearer $apiKey',
+        'Accept': 'application/json',
+        'Accept-Language': 'uz',
+        'Content-Type': 'application/json',
+      };
+
+  Uri _uri(String path, [Map<String, dynamic>? query]) {
+    final q = <String, String>{'lang': 'uz'};
+    query?.forEach((k, v) {
+      if (v != null && '$v'.isNotEmpty) q[k] = '$v';
+    });
+    final u = Uri.parse('$base/api/v1$path');
+    return u.replace(queryParameters: q);
+  }
+
+  Future<dynamic> _send(Future<http.Response> Function() call) async {
+    final http.Response r;
+    try {
+      r = await call().timeout(const Duration(seconds: 25));
+    } on TimeoutException {
+      throw ApiException('Server javob bermadi. Internet va manzilni tekshiring.');
+    } on FormatException {
+      throw ApiException('Server manzili noto\'g\'ri.');
+    } catch (e) {
+      throw ApiException('Serverga ulanib bo\'lmadi. Internet va manzilni tekshiring.');
+    }
+    dynamic body;
+    try {
+      body = r.body.isEmpty ? null : jsonDecode(utf8.decode(r.bodyBytes));
+    } catch (_) {
+      body = null;
+    }
+    if (r.statusCode >= 200 && r.statusCode < 300) return body;
+
+    String msg = 'Xato (${r.statusCode})';
+    String? code;
+    if (body is Map) {
+      final err = body['error'];
+      if (err is Map) {
+        msg = '${err['message'] ?? msg}';
+        code = err['code'] as String?;
+      } else if (body['errors'] is Map) {
+        final first = (body['errors'] as Map).values.first;
+        msg = first is List && first.isNotEmpty ? '${first.first}' : '$first';
+      } else if (body['message'] != null) {
+        msg = '${body['message']}';
+      }
+    }
+    switch (code) {
+      case 'invalid_key':
+        msg = 'API kalit noto\'g\'ri.';
+      case 'key_revoked':
+        msg = 'API kalit bekor qilingan. Yangisini oling.';
+      case 'key_expired':
+        msg = 'API kalit muddati tugagan.';
+      case 'subscription_inactive':
+        msg = 'Kompaniya tarifi faol emas.';
+      case 'insufficient_scope':
+        msg = 'Bu bo\'lim uchun kalitda ruxsat yo\'q.';
+      case 'rate_limited':
+        msg = 'So\'rovlar juda ko\'p. Biroz kuting.';
+    }
+    throw ApiException(msg, status: r.statusCode, code: code);
+  }
+
+  Future<Map<String, dynamic>> _getMap(String path, [Map<String, dynamic>? q]) async {
+    final b = await _send(() => _http.get(_uri(path, q), headers: _headers));
+    return (b is Map ? Map<String, dynamic>.from(b) : <String, dynamic>{});
+  }
+
+  List<Map<String, dynamic>> _list(dynamic data) =>
+      (data is List ? data : const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+
+  /* ---------------- umumiy ---------------- */
+
+  /// Kalit egasi, kompaniya, ruxsatlar.
+  Future<Me> me() async => Me.fromJson((await _getMap('/me'))['data'] as Map);
+
+  /* ---------------- obyektlar ---------------- */
+
+  Future<List<Map<String, dynamic>>> objects() async => _list((await _getMap('/objects'))['data']);
+
+  Future<Paged> apartments(String objectId, {String? status, int page = 1}) async {
+    final m = await _getMap('/objects/${Uri.encodeComponent(objectId)}/apartments', {'status': status, 'page': page, 'per_page': 50});
+    return Paged(_list(m['data']), PageMeta.from(m['meta']));
+  }
+
+  /// Kvartira holatini o'zgartirish (bron / sotuv / bo'sh). Faqat o'zgargan maydonlarni yuboring.
+  Future<Map<String, dynamic>> apartmentUpdate(String objectId, String apartmentId, Map<String, dynamic> body) async {
+    final b = await _send(() => _http.patch(
+          _uri('/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}'),
+          headers: _headers,
+          body: jsonEncode(body),
+        ));
+    return Map<String, dynamic>.from((b as Map)['data'] as Map);
+  }
+
+  /* ---------------- lidlar ---------------- */
+
+  Future<Paged> leads({int page = 1}) async {
+    final m = await _getMap('/leads', {'page': page, 'per_page': 30});
+    return Paged(_list(m['data']), PageMeta.from(m['meta']));
+  }
+
+  Future<void> leadCreate({String? name, String? phone, String? source, int? rooms, int? budget, String? message}) async {
+    final body = <String, dynamic>{
+      if (name != null && name.isNotEmpty) 'name': name,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      if (source != null && source.isNotEmpty) 'source': source,
+      if (rooms != null) 'rooms': rooms,
+      if (budget != null) 'budget': budget,
+      if (message != null && message.isNotEmpty) 'message': message,
+    };
+    await _send(() => _http.post(_uri('/leads'), headers: _headers, body: jsonEncode(body)));
+  }
+
+  /* ---------------- kassa ---------------- */
+
+  Future<List<Map<String, dynamic>>> cashDesks() async => _list((await _getMap('/cash/desks'))['data']);
+
+  Future<Paged> cashOps({int page = 1, int? desk}) async {
+    final m = await _getMap('/cash/operations', {'page': page, 'per_page': 30, 'desk': desk});
+    return Paged(_list(m['data']), PageMeta.from(m['meta']));
+  }
+
+  /* ---------------- ombor ---------------- */
+
+  Future<Paged> stockItems({int page = 1, String? q, bool low = false}) async {
+    final m = await _getMap('/stock/items', {'page': page, 'per_page': 40, 'q': q, 'low': low ? 1 : null});
+    return Paged(_list(m['data']), PageMeta.from(m['meta']));
+  }
+
+  /* ---------------- vazifalar ---------------- */
+
+  Future<Paged> tasks({int page = 1, String? status}) async {
+    final m = await _getMap('/tasks', {'page': page, 'per_page': 40, 'status': status});
+    return Paged(_list(m['data']), PageMeta.from(m['meta']));
+  }
+
+  Future<void> taskUpdate(int id, {String? status, int? progress}) async {
+    final body = <String, dynamic>{if (status != null) 'status': status, if (progress != null) 'progress': progress};
+    await _send(() => _http.patch(_uri('/tasks/$id'), headers: _headers, body: jsonEncode(body)));
+  }
+
+  void close() => _http.close();
+}
+
+class PageMeta {
+  const PageMeta({this.page = 1, this.lastPage = 1, this.total = 0});
+
+  factory PageMeta.from(dynamic m) {
+    if (m is! Map) return const PageMeta();
+    return PageMeta(
+      page: (m['page'] as num?)?.toInt() ?? 1,
+      lastPage: (m['last_page'] as num?)?.toInt() ?? 1,
+      total: (m['total'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  final int page;
+  final int lastPage;
+  final int total;
+
+  bool get hasMore => page < lastPage;
+}
+
+class Paged {
+  const Paged(this.items, this.meta);
+  final List<Map<String, dynamic>> items;
+  final PageMeta meta;
+}
+
+class Me {
+  Me({required this.company, required this.currency, required this.keyName, required this.roleName, required this.readOnly, required this.scopes});
+
+  factory Me.fromJson(Map j) {
+    final c = (j['company'] as Map?) ?? const {};
+    final k = (j['key'] as Map?) ?? const {};
+    return Me(
+      company: '${c['name'] ?? ''}',
+      currency: '${c['currency'] ?? ''}',
+      keyName: '${k['name'] ?? ''}',
+      roleName: '${k['role_name'] ?? k['role'] ?? ''}',
+      readOnly: k['read_only'] == true,
+      scopes: ((k['scopes'] as List?) ?? const []).map((e) => '$e').toSet(),
+    );
+  }
+
+  final String company;
+  final String currency;
+  final String keyName;
+  final String roleName;
+  final bool readOnly;
+  final Set<String> scopes;
+
+  bool can(String scope) => scopes.contains(scope);
+}

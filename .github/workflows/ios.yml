@@ -1,0 +1,41 @@
+name: iPhone (iOS) yig'ish
+
+# Mac kerak emas: GitHub'ning macOS serverida yig'iladi.
+# Ishga tushirish: GitHub → Actions → "iPhone (iOS) yig'ish" → Run workflow
+# Natija: Actions sahifasidagi "oftob-ios" artifact (ichida Oftob.ipa — imzosiz).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
+      # Imzosiz yig'ish (Apple hisobi shart emas)
+      - run: flutter build ios --release --no-codesign
+
+      # .app → .ipa
+      - name: IPA yaratish
+        run: |
+          mkdir -p build/ipa/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ipa/Payload/
+          cd build/ipa && zip -qry Oftob.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oftob-ios
+          path: build/ipa/Oftob.ipa
+          if-no-files-found: error
