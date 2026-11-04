@@ -10,7 +10,7 @@ import 'api.dart';
 class Session extends ChangeNotifier {
   Session({FlutterSecureStorage? storage}) : _storage = storage ?? const FlutterSecureStorage();
 
-  static const defaultServer = 'https://oftob.37-60-247-120.sslip.io';
+  static const defaultServer = 'https://oftob.5-189-163-130.sslip.io';
 
   final FlutterSecureStorage _storage;
 

@@ -72,7 +72,7 @@ Ilovada faqat kalitga ruxsat berilgan bo'limlar ko'rinadi:
 
 | Holat | Manzil |
 |---|---|
-| Ishlab turgan server | `https://oftob.37-60-247-120.sslip.io` (standart) |
+| Ishlab turgan server | `https://oftob.5-189-163-130.sslip.io` (standart) |
 | Kompyuteringizdagi Laravel, telefon (Wi-Fi) | `http://192.168.1.55:8000` — faqat **debug** build |
 | Android emulyator → kompyuter | `http://10.0.2.2:8000` — faqat **debug** build |
 
