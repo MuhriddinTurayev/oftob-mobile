@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -24,13 +25,16 @@ class WebShell extends StatefulWidget {
   State<WebShell> createState() => _WebShellState();
 }
 
-class _WebShellState extends State<WebShell> {
+class _WebShellState extends State<WebShell> with WidgetsBindingObserver {
   late final WebViewController _c;
   int _progress = 0;
   bool _canGoBack = false;
   bool _failed = false;
   bool _ready = false; // birinchi sahifa yuklandi — ilova ekrani yo'qoladi
   bool _triedCompanyLink = false;
+  bool _showBar = false; // yuklanish chizig'i faqat uzoq (700 ms+) to'liq yuklanishda
+  Timer? _barTimer;
+  DateTime? _lastRecover;
   Color _bg = const Color(0xFFF4F5FA);
 
   Session get s => widget.session;
@@ -45,7 +49,7 @@ class _WebShellState extends State<WebShell> {
   var m = document.querySelector('meta[name=viewport]');
   if (m) { m.setAttribute('content', vp); } else { m = document.createElement('meta'); m.name = 'viewport'; m.content = vp; document.head.appendChild(m); }
   var st = document.createElement('style');
-  st.textContent = 'html{-webkit-text-size-adjust:100%;overscroll-behavior:none}'
+  st.textContent = 'html{-webkit-text-size-adjust:100%;overscroll-behavior-x:none}'
     + '*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}'
     + 'body{-webkit-user-select:none;user-select:none}'
     + 'input,textarea,[contenteditable=true]{-webkit-user-select:text;user-select:text}'
@@ -63,18 +67,88 @@ class _WebShellState extends State<WebShell> {
       ..setBackgroundColor(_bg)
       ..setNavigationDelegate(NavigationDelegate(
         onProgress: (p) => mounted ? setState(() => _progress = p) : null,
-        onPageStarted: (_) => mounted ? setState(() => _failed = false) : null,
+        onPageStarted: (_) {
+          if (!mounted) return;
+          setState(() => _failed = false);
+          _barTimer?.cancel();
+          _barTimer = Timer(const Duration(milliseconds: 700), () {
+            if (mounted && _progress < 100) setState(() => _showBar = true);
+          });
+        },
         onPageFinished: (_) => _onLoaded(),
         onWebResourceError: (e) {
-          if (e.isForMainFrame ?? true) {
-            if (mounted) setState(() => _failed = true);
+          if (!(e.isForMainFrame ?? true)) return;
+          // WKWebView kontent jarayoni xotira yoki tizim sabab o'chirilsa (oq ekran) — xato ko'rsatmay, sahifani qayta ochamiz
+          if (e.errorType == WebResourceErrorType.webContentProcessTerminated) {
+            _recover();
+            return;
           }
+          if (mounted) setState(() => _failed = true);
         },
         onNavigationRequest: _onNavigate,
       ));
+    WidgetsBinding.instance.addObserver(this);
     _setupAndroid();
     _setupIos();
-    _c.loadRequest(_start);
+    _setupMedia();
+    _boot();
+  }
+
+  /// Sayt "ilova ichidaman" ekanini birinchi chizishdan oldin biladi (cookie): sahifa "veb ko'rinishida" yonib o'tmaydi.
+  Future<void> _boot() async {
+    try {
+      await WebViewCookieManager().setCookie(WebViewCookie(
+        name: 'oftob_app',
+        value: !kIsWeb && Platform.isIOS ? 'ios' : 'android',
+        domain: _server.host,
+        path: '/',
+      ));
+    } catch (_) {}
+    await _c.loadRequest(_start);
+  }
+
+  @override
+  void dispose() {
+    _barTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _health();
+  }
+
+  /// Ilova orqa fondan qaytganda sahifa tirikligini tekshiradi (iOS xotira tanqisligida kontent jarayonini o'ldiradi).
+  Future<void> _health() async {
+    try {
+      final r = await _c.runJavaScriptReturningResult('document.readyState').timeout(const Duration(seconds: 3));
+      final t = '$r';
+      if (!t.contains('complete') && !t.contains('interactive') && !t.contains('loading')) _recover();
+    } catch (_) {
+      _recover();
+    }
+  }
+
+  /// Joriy sahifani qayta ochish (5 soniyada bir martadan ko'p emas — cheksiz aylanmasligi uchun).
+  Future<void> _recover() async {
+    final now = DateTime.now();
+    if (_lastRecover != null && now.difference(_lastRecover!) < const Duration(seconds: 5)) return;
+    _lastRecover = now;
+    String? u;
+    try {
+      u = await _c.currentUrl();
+    } catch (_) {}
+    final uri = u == null ? null : Uri.tryParse(u);
+    await _c.loadRequest(uri != null && uri.hasScheme ? uri : _start);
+  }
+
+  /// Mikrofon/kamera: faqat o'z sahifalarimiz so'raydi (tashqi saytlar brauzerga o'tadi), shuning uchun WebKit'ning
+  /// har safargi qo'shimcha so'rovi o'rniga ruxsat beramiz. iOS'ning o'z (tizim) so'rovi baribir bir marta chiqadi.
+  void _setupMedia() {
+    _c.platform.setOnPlatformPermissionRequest((request) async {
+      await request.grant();
+    });
   }
 
   /// GPS (xodimlar kelgan/ketgan belgisi) va rasm tanlash Android WebView'da ishlashi uchun.
@@ -131,6 +205,7 @@ class _WebShellState extends State<WebShell> {
   Future<void> _onLoaded() async {
     try {
       await _c.runJavaScript(_appJs);
+      await _c.runJavaScript("document.documentElement.classList.add('in-${!kIsWeb && Platform.isIOS ? 'ios' : 'android'}')");
     } catch (_) {}
     final back = await _c.canGoBack();
     Color? bg;
@@ -142,6 +217,7 @@ class _WebShellState extends State<WebShell> {
     setState(() {
       _canGoBack = back;
       _progress = 100;
+      _showBar = false;
       _ready = true;
       if (bg != null) _bg = bg;
     });
@@ -232,7 +308,7 @@ class _WebShellState extends State<WebShell> {
               ),
             ),
             // yuklanish chizig'i — faqat to'liq yuklanishda (sahifalar orasida o'tish saytning o'zida silliq)
-            if (_progress < 100 && _ready)
+            if (_showBar && _progress < 100 && _ready)
               Positioned(top: top, left: 0, right: 0, child: LinearProgressIndicator(value: _progress / 100, minHeight: 2, backgroundColor: Colors.transparent)),
             // holat paneli ustida uzoq bosish → ilova menyusi
             Positioned(top: 0, left: 0, right: 0, height: top < 24 ? 24 : top, child: GestureDetector(behavior: HitTestBehavior.translucent, onLongPress: _openMenu)),

@@ -68,6 +68,8 @@
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Xodimning ishga kelgan/ketgan joyini belgilash uchun joylashuv kerak.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SI-yordamchiga ovozli savol berish uchun mikrofon kerak.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Chek va hisobot uchun rasmga olish.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
