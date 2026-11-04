@@ -12,6 +12,9 @@
 Platforma rejimida API kalit **kerak emas**: sayt qanday kirsangiz, ilovada ham shunday kirasiz.
 Kirish saqlanadi (cookie), keyingi safar to'g'ridan-to'g'ri ochiladi. Menyu (⋮): Bosh sahifa, Yangilash, Brauzerda ochish, Chiqish.
 
+Ilova ko'rinishi: ilovaning o'z yuqori paneli yo'q — ekran to'liq saytning mobil dizayniga beriladi, holat paneli sahifa rangiga
+moslanadi. Ilova menyusi (bosh sahifa, yangilash, server, chiqish) yashirin: **ekranning eng yuqorisini (soat/batareya ustini) uzoq bosing**.
+
 Platforma rejimining hozirgi cheklovlari:
 - Google bilan kirish ilova ichida ishlamaydi (Google WebView'ni bloklaydi) — email/parol bilan kiring.
 - Fayl yuklab olish (PDF shartnoma, chek) hozircha ilova ichida ishlamaydi — Menyu → «Brauzerda ochish».

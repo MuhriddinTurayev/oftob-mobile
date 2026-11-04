@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -11,6 +12,9 @@ import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart' as wk;
 import '../session.dart';
 
 /// Platformaning o'zi (veb-dastur) ilova ichida: hamma bo'lim, rol va huquqlar xuddi saytdagidek ishlaydi.
+/// Ilova o'z panelini qo'shmaydi: ekran to'liq saytning mobil dizayniga beriladi (yuqori panel, pastki menyu — saytniki).
+/// Ilova sifatida sezilishi uchun: brauzer belgilari yo'q (kattalashtirish, matn belgilash, bosish "soyasi"),
+/// holat paneli sahifa rangiga moslanadi, ochilishda ilova ekrani ko'rsatiladi.
 class WebShell extends StatefulWidget {
   const WebShell({super.key, required this.session});
 
@@ -23,24 +27,44 @@ class WebShell extends StatefulWidget {
 class _WebShellState extends State<WebShell> {
   late final WebViewController _c;
   int _progress = 0;
-  String _title = 'Oftob CRM';
   bool _canGoBack = false;
   bool _failed = false;
+  bool _ready = false; // birinchi sahifa yuklandi — ilova ekrani yo'qoladi
   bool _triedCompanyLink = false;
+  Color _bg = const Color(0xFFF4F5FA);
 
   Session get s => widget.session;
   Uri get _server => Uri.parse(s.serverUrl);
   Uri get _start => s.slug.isEmpty ? _server.resolve('/login') : _server.resolve('/c/${s.slug}');
+
+  /// Brauzer belgilarini olib tashlaydi: kattalashtirish, matn belgilash, bosish soyasi, tortib yangilanish "sakrashi".
+  static const _appJs = r'''
+(function () {
+  if (window.__oftobApp) return; window.__oftobApp = 1;
+  var vp = 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
+  var m = document.querySelector('meta[name=viewport]');
+  if (m) { m.setAttribute('content', vp); } else { m = document.createElement('meta'); m.name = 'viewport'; m.content = vp; document.head.appendChild(m); }
+  var st = document.createElement('style');
+  st.textContent = 'html{-webkit-text-size-adjust:100%;overscroll-behavior:none}'
+    + '*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}'
+    + 'body{-webkit-user-select:none;user-select:none}'
+    + 'input,textarea,[contenteditable=true]{-webkit-user-select:text;user-select:text}'
+    + 'a,button,[role=button],select,label,summary{touch-action:manipulation}';
+  document.head.appendChild(st);
+  document.documentElement.classList.add('in-app');
+})();
+''';
 
   @override
   void initState() {
     super.initState();
     _c = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(_bg)
       ..setNavigationDelegate(NavigationDelegate(
         onProgress: (p) => mounted ? setState(() => _progress = p) : null,
         onPageStarted: (_) => mounted ? setState(() => _failed = false) : null,
-        onPageFinished: (_) => _refreshState(),
+        onPageFinished: (_) => _onLoaded(),
         onWebResourceError: (e) {
           if (e.isForMainFrame ?? true) {
             if (mounted) setState(() => _failed = true);
@@ -103,15 +127,36 @@ class _WebShellState extends State<WebShell> {
     return NavigationDecision.navigate;
   }
 
-  Future<void> _refreshState() async {
+  /// Sahifa yuklandi: ilova ko'rinishi, orqaga tugmasi holati, holat paneli rangi sahifaga moslanadi.
+  Future<void> _onLoaded() async {
+    try {
+      await _c.runJavaScript(_appJs);
+    } catch (_) {}
     final back = await _c.canGoBack();
-    final t = await _c.getTitle();
+    Color? bg;
+    try {
+      final raw = await _c.runJavaScriptReturningResult('getComputedStyle(document.body).backgroundColor');
+      bg = _parseColor('$raw');
+    } catch (_) {}
     if (!mounted) return;
     setState(() {
       _canGoBack = back;
-      if (t != null && t.isNotEmpty) _title = t.split('—').first.trim();
       _progress = 100;
+      _ready = true;
+      if (bg != null) _bg = bg;
     });
+    // holat paneli yozuvlari: qorong'i fonda oq, yorug' fonda qora
+    final dark = ThemeData.estimateBrightnessForColor(_bg) == Brightness.dark;
+    SystemChrome.setSystemUIOverlayStyle(dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark);
+  }
+
+  /// "rgb(244, 245, 250)" / "rgba(0, 0, 0, 0)" → rang (shaffof bo'lsa — null)
+  static Color? _parseColor(String raw) {
+    final m = RegExp(r'rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?').firstMatch(raw);
+    if (m == null) return null;
+    final a = m.group(4) == null ? 1.0 : double.tryParse(m.group(4)!) ?? 1.0;
+    if (a < 0.5) return null;
+    return Color.fromARGB(255, int.parse(m.group(1)!), int.parse(m.group(2)!), int.parse(m.group(3)!));
   }
 
   Future<void> _menu(String v) async {
@@ -123,12 +168,12 @@ class _WebShellState extends State<WebShell> {
       case 'browser':
         final u = await _c.currentUrl();
         if (u != null) await launchUrl(Uri.parse(u), mode: LaunchMode.externalApplication);
-      case 'logout':
+      case 'server':
         final ok = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Chiqish'),
-            content: const Text('Hisobdan chiqib, server tanlash oynasiga qaytasizmi?'),
+            title: const Text('Server / chiqish'),
+            content: Text('Hozirgi server:\n${s.serverUrl}\n\nHisobdan chiqib, server tanlash oynasiga qaytasizmi?'),
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Yo\'q')),
               FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Chiqish')),
@@ -139,50 +184,101 @@ class _WebShellState extends State<WebShell> {
     }
   }
 
+  /// Holat paneli (soat, batareya) ustini uzoq bosish — ilova menyusi: bosh sahifa, yangilash, server, chiqish.
+  /// Saytning o'z paneli ustida ikkinchi panel bo'lmasligi uchun menyu yashirin.
+  void _openMenu() {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          for (final e in const [
+            ('home', Icons.home_outlined, 'Bosh sahifa'),
+            ('reload', Icons.refresh, 'Yangilash'),
+            ('browser', Icons.open_in_browser, 'Brauzerda ochish'),
+            ('server', Icons.logout, 'Server / chiqish'),
+          ])
+            ListTile(
+              leading: Icon(e.$2),
+              title: Text(e.$3),
+              onTap: () {
+                Navigator.pop(ctx);
+                _menu(e.$1);
+              },
+            ),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final top = MediaQuery.of(context).padding.top;
     return PopScope(
       canPop: !_canGoBack,
       onPopInvokedWithResult: (didPop, _) async {
         if (!didPop && await _c.canGoBack()) await _c.goBack();
       },
       child: Scaffold(
-        appBar: AppBar(
-          toolbarHeight: 44,
-          title: Text(_title, style: const TextStyle(fontSize: 16), overflow: TextOverflow.ellipsis),
-          bottom: _progress < 100
-              ? PreferredSize(preferredSize: const Size.fromHeight(2), child: LinearProgressIndicator(value: _progress / 100, minHeight: 2))
-              : null,
-          actions: [
-            PopupMenuButton<String>(
-              onSelected: _menu,
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'home', child: Text('Bosh sahifa')),
-                PopupMenuItem(value: 'reload', child: Text('Yangilash')),
-                PopupMenuItem(value: 'browser', child: Text('Brauzerda ochish')),
-                PopupMenuItem(value: 'logout', child: Text('Chiqish / server')),
-              ],
+        backgroundColor: _bg,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: SafeArea(
+                child: _failed
+                    ? _ErrorView(url: s.serverUrl, onRetry: () => _c.loadRequest(_start), onChange: s.leaveWeb)
+                    : WebViewWidget(controller: _c),
+              ),
             ),
-          ],
-        ),
-        body: SafeArea(
-          top: false,
-          child: _failed
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
+            // yuklanish chizig'i — faqat to'liq yuklanishda (sahifalar orasida o'tish saytning o'zida silliq)
+            if (_progress < 100 && _ready)
+              Positioned(top: top, left: 0, right: 0, child: LinearProgressIndicator(value: _progress / 100, minHeight: 2, backgroundColor: Colors.transparent)),
+            // holat paneli ustida uzoq bosish → ilova menyusi
+            Positioned(top: 0, left: 0, right: 0, height: top < 24 ? 24 : top, child: GestureDetector(behavior: HitTestBehavior.translucent, onLongPress: _openMenu)),
+            // birinchi yuklanish: ilova ekrani
+            if (!_ready)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Theme.of(context).colorScheme.surface,
+                  child: Center(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.cloud_off, size: 48),
+                      Icon(Icons.apartment, size: 72, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(height: 12),
-                      Text('Serverga ulanib bo\'lmadi:\n${s.serverUrl}', textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(onPressed: () => _c.loadRequest(_start), icon: const Icon(Icons.refresh), label: const Text('Qayta urinish')),
-                      TextButton(onPressed: s.leaveWeb, child: const Text('Serverni o\'zgartirish')),
+                      Text('Oftob CRM', style: Theme.of(context).textTheme.headlineSmall),
+                      const SizedBox(height: 28),
+                      const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.5)),
                     ]),
                   ),
-                )
-              : WebViewWidget(controller: _c),
+                ),
+              ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.url, required this.onRetry, required this.onChange});
+
+  final String url;
+  final VoidCallback onRetry;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.cloud_off, size: 48),
+          const SizedBox(height: 12),
+          Text('Serverga ulanib bo\'lmadi:\n$url', textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Qayta urinish')),
+          TextButton(onPressed: onChange, child: const Text('Serverni o\'zgartirish')),
+        ]),
       ),
     );
   }
