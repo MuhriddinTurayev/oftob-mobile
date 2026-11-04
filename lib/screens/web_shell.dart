@@ -87,8 +87,10 @@ class _WebShellState extends State<WebShell> {
       }
       return uri.scheme == 'about' || uri.scheme == 'data' || uri.scheme == 'blob' ? NavigationDecision.navigate : NavigationDecision.prevent;
     }
-    // boshqa sayt (Telegram, Instagram …) — brauzerda
-    if (uri.host != _server.host && req.isMainFrame) {
+    // boshqa sayt (Telegram, Instagram …) — brauzerda. Platformaning o'z kompaniya manzillari
+    // (nom.oftob….sslip.io) ilova ichida qoladi.
+    final own = uri.host == _server.host || uri.host.endsWith('.${_server.host}');
+    if (!own && req.isMainFrame) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
       return NavigationDecision.prevent;
     }

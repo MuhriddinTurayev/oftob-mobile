@@ -12,6 +12,9 @@ class Session extends ChangeNotifier {
 
   static const defaultServer = 'https://oftob.5-189-163-130.sslip.io';
 
+  /// Ilovaning avvalgi versiyalarida xato yozilgan manzillar (platforma u yerda emas).
+  static const _badServers = ['37-60-247-120'];
+
   final FlutterSecureStorage _storage;
 
   // umumiy
@@ -32,7 +35,12 @@ class Session extends ChangeNotifier {
   Future<void> restore() async {
     try {
       final mode = await _storage.read(key: 'mode');
-      final url = await _storage.read(key: 'server');
+      var url = await _storage.read(key: 'server');
+      // Eski ilova versiyasi noto'g'ri manzilni saqlab qo'ygan (iPhone Keychain ilova o'chirilganda ham saqlaydi) — to'g'rilaymiz.
+      if (url != null && _badServers.any(url.contains)) {
+        url = defaultServer;
+        await _storage.write(key: 'server', value: url);
+      }
       if (url != null && url.isNotEmpty) serverUrl = url;
       slug = await _storage.read(key: 'slug') ?? '';
       if (mode == 'web') {
