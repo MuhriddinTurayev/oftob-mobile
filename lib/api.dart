@@ -101,7 +101,14 @@ class ApiClient {
         msg = 'Bu bo\'lim uchun kalitda ruxsat yo\'q.';
       case 'rate_limited':
         msg = 'So\'rovlar juda ko\'p. Biroz kuting.';
+      case 'invalid_credentials':
+        msg = 'Login yoki parol noto\'g\'ri.';
+      case 'user_disabled':
+        msg = 'Sizning kirishingiz o\'chirilgan. Rahbarga murojaat qiling.';
+      case 'api_disabled':
+        msg = 'Mobil kirish vaqtincha o\'chirilgan.';
     }
+    if (r.statusCode == 429 && code == null) msg = 'Juda ko\'p urinish. Bir necha daqiqadan keyin qayta urining.';
     throw ApiException(msg, status: r.statusCode, code: code);
   }
 
@@ -112,6 +119,30 @@ class ApiClient {
 
   List<Map<String, dynamic>> _list(dynamic data) =>
       (data is List ? data : const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+
+  /* ---------------- kirish (xodim) ---------------- */
+
+  /// Xodim kirishi: korxona kodi + login (email yoki telefon) + parol → shaxsiy kalit (roli bilan).
+  static Future<StaffLogin> login(String serverUrl, {required String company, required String email, required String password, String device = 'telefon', http.Client? client}) async {
+    final c = ApiClient(serverUrl: serverUrl, apiKey: '', client: client);
+    try {
+      final b = await c._send(() => c._http.post(
+            c._uri('/auth/login'),
+            headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Accept-Language': 'uz'},
+            body: jsonEncode({'company': company, 'email': email, 'password': password, 'device': device}),
+          ));
+      return StaffLogin.fromJson(Map<String, dynamic>.from((b as Map)['data'] as Map), c.base);
+    } finally {
+      if (client == null) c.close();
+    }
+  }
+
+  /// Chiqishda shu qurilmaning kaliti serverda bekor qilinadi (xato bo'lsa — e'tibor bermaymiz).
+  Future<void> logout() async {
+    try {
+      await _send(() => _http.post(_uri('/auth/logout'), headers: _headers));
+    } catch (_) {}
+  }
 
   /* ---------------- umumiy ---------------- */
 
@@ -236,4 +267,29 @@ class Me {
   final Set<String> scopes;
 
   bool can(String scope) => scopes.contains(scope);
+}
+
+/// Muvaffaqiyatli kirish natijasi.
+class StaffLogin {
+  StaffLogin({required this.token, required this.serverUrl, required this.userName, required this.roleName, required this.companyName, required this.companySlug});
+
+  factory StaffLogin.fromJson(Map<String, dynamic> j, String serverUrl) {
+    final u = (j['user'] as Map?) ?? const {};
+    final c = (j['company'] as Map?) ?? const {};
+    return StaffLogin(
+      token: '${j['token']}',
+      serverUrl: serverUrl,
+      userName: '${u['name'] ?? ''}',
+      roleName: '${u['role_name'] ?? u['role'] ?? ''}',
+      companyName: '${c['name'] ?? ''}',
+      companySlug: '${c['slug'] ?? ''}',
+    );
+  }
+
+  final String token;
+  final String serverUrl;
+  final String userName;
+  final String roleName;
+  final String companyName;
+  final String companySlug;
 }

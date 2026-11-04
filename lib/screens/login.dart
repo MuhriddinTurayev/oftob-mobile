@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../api.dart';
 import '../company.dart';
 import '../session.dart';
+import 'staff_login.dart';
 
 /// Kirish: foydalanuvchi faqat korxonani tanlaydi (kod yozadi yoki oxirgilaridan bosadi).
 /// Server manzili, port va boshqa texnik narsalar ko'rsatilmaydi.
@@ -63,7 +64,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _open(CompanyInfo c) async {
     HapticFeedback.selectionClick();
     await s.rememberCompany(c);
-    await s.startWeb(s.serverUrl, c.slug);
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => StaffLoginScreen(session: s, company: c)));
   }
 
   /// Platforma administratori (korxonasiz)

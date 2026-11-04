@@ -13,7 +13,8 @@ import 'company.dart';
 class Session extends ChangeNotifier {
   Session({FlutterSecureStorage? storage}) : _storage = storage ?? const FlutterSecureStorage();
 
-  static const defaultServer = 'https://oftob.5-189-163-130.sslip.io';
+  /// Sinov uchun: `flutter run --dart-define=OFTOB_SERVER=http://10.0.2.2:8099` (emulyatordan kompyuterdagi serverga)
+  static const defaultServer = String.fromEnvironment('OFTOB_SERVER', defaultValue: 'https://oftob.5-189-163-130.sslip.io');
 
   /// Ilovaning avvalgi versiyalarida xato yozilgan manzillar (platforma u yerda emas).
   static const _badServers = ['37-60-247-120'];
@@ -34,6 +35,7 @@ class Session extends ChangeNotifier {
   // API kalit rejimi
   ApiClient? api;
   Me? me;
+  String userName = ''; // kirgan xodim ismi (xodim kirishi bilan)
 
   bool get signedIn => api != null && me != null;
 
@@ -58,6 +60,7 @@ class Session extends ChangeNotifier {
       if (mode == 'web') {
         webActive = true;
       } else {
+        userName = await _storage.read(key: 'uname') ?? '';
         final key = await _storage.read(key: 'key');
         if (url != null && key != null && key.isNotEmpty) await _connect(url, key, persist: false);
       }
@@ -134,13 +137,30 @@ class Session extends ChangeNotifier {
     }
   }
 
+  /// Xodim kirishi (asosiy yo'l): korxona kodi + login + parol. Server shaxsiy kalit beradi, ilova shu kalit bilan ishlaydi.
+  Future<void> staffSignIn({required String company, required String email, required String password}) async {
+    final r = await ApiClient.login(serverUrl, company: company, email: email, password: password, device: defaultTargetPlatform == TargetPlatform.iOS ? 'iPhone' : 'Android');
+    await _connect(r.serverUrl, r.token, persist: true);
+    userName = r.userName;
+    slug = r.companySlug;
+    await _storage.write(key: 'uname', value: userName);
+    await _storage.write(key: 'slug', value: slug);
+    notifyListeners();
+  }
+
   Future<void> signOut() async {
-    api?.close();
+    final a = api;
     api = null;
     me = null;
+    userName = '';
     await _storage.delete(key: 'key');
     await _storage.delete(key: 'mode');
+    await _storage.delete(key: 'uname');
     notifyListeners();
+    if (a != null) {
+      await a.logout();
+      a.close();
+    }
   }
 
   /// Server 401 qaytarsa (kalit bekor qilingan) — chiqib ketamiz.

@@ -1,4 +1,6 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import 'screens/home.dart';
 import 'screens/login.dart';
@@ -20,8 +22,8 @@ class OftobApp extends StatelessWidget {
     return MaterialApp(
       title: 'Oftob CRM',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF1E6FD9), useMaterial3: true),
-      darkTheme: ThemeData(colorSchemeSeed: const Color(0xFF1E6FD9), brightness: Brightness.dark, useMaterial3: true),
+      theme: _theme(Brightness.light),
+      darkTheme: _theme(Brightness.dark),
       home: ListenableBuilder(
         listenable: session,
         builder: (context, _) {
@@ -32,4 +34,26 @@ class OftobApp extends StatelessWidget {
       ),
     );
   }
+
+  /// Sayt rangi (yashil) — ilova ham shu uslubda: yumaloq kartalar, tekis tab-bar.
+  static ThemeData _theme(Brightness b) => ThemeData(
+        colorSchemeSeed: const Color(0xFF107C41),
+        brightness: b,
+        useMaterial3: true,
+        visualDensity: VisualDensity.standard,
+        navigationBarTheme: NavigationBarThemeData(
+          height: 66,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          labelTextStyle: WidgetStateProperty.all(const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+        ),
+        appBarTheme: AppBarTheme(
+          scrolledUnderElevation: 0,
+          // holat paneli yozuvlari fonga qarab: yorug' mavzuda qora, qorong'i mavzuda oq (kirish oynasida ko'rinmay qolmasin)
+          systemOverlayStyle: b == Brightness.dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+        ),
+        pageTransitionsTheme: const PageTransitionsTheme(builders: {
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        }),
+      );
 }
