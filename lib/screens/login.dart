@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../api.dart';
+import '../company.dart';
 import '../session.dart';
 
+/// Kirish: foydalanuvchi faqat korxonani tanlaydi (kod yozadi yoki oxirgilaridan bosadi).
+/// Server manzili, port va boshqa texnik narsalar ko'rsatilmaydi.
+/// Dasturchi sozlamalari — logotipni uzoq bosganda.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.session});
 
@@ -13,48 +18,107 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  late final _url = TextEditingController(text: widget.session.serverUrl);
-  late final _slug = TextEditingController(text: widget.session.slug);
-  final _key = TextEditingController();
-  bool _full = true; // true — Platforma (to'liq), false — API kalit (tezkor)
+  final _code = TextEditingController();
+  CompanyInfo? _found;
   bool _busy = false;
-  bool _hide = true;
   String? _error;
+
+  Session get s => widget.session;
 
   @override
   void dispose() {
-    _url.dispose();
-    _slug.dispose();
-    _key.dispose();
+    _code.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (_url.text.trim().isEmpty) {
-      setState(() => _error = 'Server manzilini kiriting.');
+  Future<void> _search() async {
+    final code = parseCompanyCode(_code.text);
+    if (code == null) {
+      setState(() {
+        _found = null;
+        _error = 'Korxona kodini yozing, masalan: navruz-qurilish';
+      });
       return;
     }
-    if (_full) {
-      await widget.session.startWeb(_url.text, _slug.text);
-      return;
-    }
-    if (_key.text.trim().isEmpty) {
-      setState(() => _error = 'API kalitni kiriting.');
-      return;
-    }
+    FocusScope.of(context).unfocus();
     setState(() {
       _busy = true;
       _error = null;
+      _found = null;
     });
     try {
-      await widget.session.signIn(_url.text, _key.text);
+      final c = await lookupCompany(s.serverUrl, code);
+      if (!mounted) return;
+      setState(() {
+        _found = c;
+        _error = c == null ? 'Bunday korxona topilmadi. Kodni tekshiring.' : null;
+      });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
-    } catch (e) {
-      if (mounted) setState(() => _error = '$e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _open(CompanyInfo c) async {
+    HapticFeedback.selectionClick();
+    await s.rememberCompany(c);
+    await s.startWeb(s.serverUrl, c.slug);
+  }
+
+  /// Platforma administratori (korxonasiz)
+  Future<void> _admin() async => s.startWeb(s.serverUrl, '');
+
+  void _developer() {
+    final url = TextEditingController(text: s.serverUrl);
+    final key = TextEditingController();
+    String? err;
+    bool busy = false;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, set) => Padding(
+          padding: EdgeInsets.fromLTRB(24, 0, 24, 24 + MediaQuery.of(ctx).viewInsets.bottom),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text('Dasturchi sozlamalari', style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text('Oddiy foydalanuvchi uchun emas.', style: TextStyle(color: Theme.of(ctx).colorScheme.outline)),
+            const SizedBox(height: 16),
+            TextField(controller: url, keyboardType: TextInputType.url, autocorrect: false, decoration: const InputDecoration(labelText: 'Server', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            TextField(controller: key, obscureText: true, autocorrect: false, decoration: const InputDecoration(labelText: 'API kalit (ixtiyoriy)', border: OutlineInputBorder())),
+            if (err != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(err!, style: TextStyle(color: Theme.of(ctx).colorScheme.error))),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      set(() {
+                        busy = true;
+                        err = null;
+                      });
+                      try {
+                        if (key.text.trim().isNotEmpty) {
+                          await s.signIn(url.text, key.text);
+                        } else {
+                          await s.setServer(url.text);
+                        }
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      } on ApiException catch (e) {
+                        set(() {
+                          err = e.message;
+                          busy = false;
+                        });
+                      }
+                    },
+              child: const Text('Saqlash'),
+            ),
+          ]),
+        ),
+      ),
+    );
   }
 
   @override
@@ -64,81 +128,68 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.apartment, size: 64, color: cs.primary),
+                  GestureDetector(
+                    onLongPress: _developer,
+                    behavior: HitTestBehavior.opaque,
+                    child: Column(children: [
+                      Icon(Icons.apartment, size: 60, color: cs.primary),
+                      const SizedBox(height: 10),
+                      Text('Oftob CRM', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text('Xush kelibsiz', style: TextStyle(color: cs.outline)),
+                    ]),
+                  ),
+                  const SizedBox(height: 32),
+                  Text('Korxonani tanlang', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
-                  Text('Oftob CRM', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineMedium),
-                  const SizedBox(height: 4),
-                  Text('Qurilish va sotuv boshqaruvi', textAlign: TextAlign.center, style: TextStyle(color: cs.outline)),
-                  const SizedBox(height: 24),
-                  SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(value: true, label: Text('Platforma'), icon: Icon(Icons.dashboard_outlined)),
-                      ButtonSegment(value: false, label: Text('API kalit'), icon: Icon(Icons.key_outlined)),
-                    ],
-                    selected: {_full},
-                    onSelectionChanged: (v) => setState(() {
-                      _full = v.first;
+                  if (s.recent.isNotEmpty) ...[
+                    for (final c in s.recent)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _CompanyTile(c, onTap: () => _open(c), onRemove: () => s.forgetCompany(c.slug)),
+                      ),
+                    const SizedBox(height: 8),
+                    Text('Boshqa korxona', style: TextStyle(color: cs.outline, fontSize: 13)),
+                    const SizedBox(height: 8),
+                  ],
+                  TextField(
+                    controller: _code,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) => _search(),
+                    onChanged: (_) => setState(() {
+                      _found = null;
                       _error = null;
                     }),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _url,
-                    keyboardType: TextInputType.url,
-                    autocorrect: false,
-                    decoration: const InputDecoration(labelText: 'Server manzili', prefixIcon: Icon(Icons.dns_outlined), border: OutlineInputBorder()),
-                  ),
-                  const SizedBox(height: 16),
-                  if (_full) ...[
-                    TextField(
-                      controller: _slug,
-                      autocorrect: false,
-                      onSubmitted: (_) => _submit(),
-                      decoration: const InputDecoration(
-                        labelText: 'Kompaniya manzili (ixtiyoriy)',
-                        hintText: 'masalan: navruz',
-                        helperText: 'Xodimlar uchun: erp/c/… dagi so\'z. Platforma egasi bo\'sh qoldiradi.',
-                        prefixIcon: Icon(Icons.business_outlined),
-                        border: OutlineInputBorder(),
-                      ),
+                    decoration: InputDecoration(
+                      hintText: 'Korxona kodi',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      suffixIcon: _busy
+                          ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+                          : IconButton(icon: const Icon(Icons.arrow_forward), onPressed: _search),
                     ),
-                  ] else
-                    TextField(
-                      controller: _key,
-                      obscureText: _hide,
-                      autocorrect: false,
-                      enableSuggestions: false,
-                      onSubmitted: (_) => _submit(),
-                      decoration: InputDecoration(
-                        labelText: 'API kalit (oft_…)',
-                        prefixIcon: const Icon(Icons.key_outlined),
-                        border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(icon: Icon(_hide ? Icons.visibility : Icons.visibility_off), onPressed: () => setState(() => _hide = !_hide)),
-                      ),
-                    ),
-                  if (_error != null) ...[
+                  ),
+                  if (_error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_error!, style: TextStyle(color: cs.error))),
+                  if (_found != null) ...[
                     const SizedBox(height: 12),
-                    Text(_error!, style: TextStyle(color: cs.error)),
+                    _CompanyTile(_found!, onTap: () => _open(_found!), highlight: true),
                   ],
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    onPressed: _busy ? null : _submit,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: _busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Kirish'),
-                    ),
+                  const SizedBox(height: 28),
+                  Center(
+                    child: TextButton(onPressed: _admin, child: const Text('Platforma administratori')),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 4),
                   Text(
-                    _full
-                        ? 'Platformaning hamma bo\'limlari ochiladi. Email va parolni keyingi oynada kiritasiz.'
-                        : 'Tezkor rejim: faqat obyektlar, lidlar, kassa, ombor, vazifalar. Kalit: Kompaniya → API va integratsiyalar.',
+                    'Korxona kodini rahbaringizdan oling. U korxona havolasining boshidagi so\'z.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: cs.outline, fontSize: 12),
                   ),
@@ -146,6 +197,38 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompanyTile extends StatelessWidget {
+  const _CompanyTile(this.c, {required this.onTap, this.onRemove, this.highlight = false});
+
+  final CompanyInfo c;
+  final VoidCallback onTap;
+  final VoidCallback? onRemove;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: highlight ? cs.primaryContainer : cs.surfaceContainerHighest.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(children: [
+            CircleAvatar(backgroundColor: cs.primary, foregroundColor: cs.onPrimary, child: Text(c.initials, style: const TextStyle(fontWeight: FontWeight.w700))),
+            const SizedBox(width: 14),
+            Expanded(child: Text(c.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+            if (onRemove != null) IconButton(visualDensity: VisualDensity.compact, icon: Icon(Icons.close, size: 18, color: cs.outline), onPressed: onRemove, tooltip: 'Ro\'yxatdan olib tashlash'),
+            Icon(Icons.chevron_right, color: cs.outline),
+          ]),
         ),
       ),
     );

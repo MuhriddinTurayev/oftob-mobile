@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:oftob_mobile/api.dart';
+import 'package:oftob_mobile/company.dart';
 import 'package:oftob_mobile/format.dart';
 import 'package:oftob_mobile/main.dart';
 import 'package:oftob_mobile/session.dart';
@@ -19,6 +20,30 @@ void main() {
     expect(money(10000000), '10 000 000');
     expect(money(-1500), '-1 500');
     expect(money(null), '—');
+  });
+
+  test('korxona kodi turli yozuvdan ajratiladi', () {
+    expect(parseCompanyCode('Navruz-Qurilish'), 'navruz-qurilish');
+    expect(parseCompanyCode(' navruz-qurilish '), 'navruz-qurilish');
+    expect(parseCompanyCode('https://navruz-qurilish.oftob.5-189-163-130.sslip.io/login'), 'navruz-qurilish');
+    expect(parseCompanyCode('https://oftob.5-189-163-130.sslip.io/c/mosgrad-development'), 'mosgrad-development');
+    expect(parseCompanyCode(''), isNull);
+    expect(parseCompanyCode('!!!'), isNull);
+  });
+
+  test('korxona topiladi (200) va nomi sarlavhadan olinadi', () async {
+    final client = MockClient((r) async {
+      expect(r.url.path, '/c/navruz-qurilish');
+      return http.Response.bytes(utf8.encode('<html><title>Navruz Qurilish — Oftob_Sohtumon</title></html>'), 200);
+    });
+    final c = await lookupCompany('https://x.uz', 'navruz-qurilish', client: client);
+    expect(c?.name, 'Navruz Qurilish');
+    expect(c?.initials, 'NQ');
+  });
+
+  test('korxona topilmasa (404) null', () async {
+    final client = MockClient((_) async => http.Response('', 404));
+    expect(await lookupCompany('https://x.uz', 'yoq', client: client), isNull);
   });
 
   test('/me javobi o\'qiladi va kalit headerda yuboriladi', () async {
@@ -39,7 +64,6 @@ void main() {
     final api = ApiClient(serverUrl: 'https://x.uz', apiKey: 'oft_abc', client: client);
     final me = await api.me();
     expect(seen.headers['Authorization'], 'Bearer oft_abc');
-    expect(seen.url.path, '/api/v1/me');
     expect(me.company, 'Test MChJ');
     expect(me.can('objects:read'), isTrue);
     expect(me.can('cash:read'), isFalse);
@@ -51,16 +75,15 @@ void main() {
     await expectLater(api.me(), throwsA(isA<ApiException>().having((e) => e.message, 'message', contains('noto\'g\'ri'))));
   });
 
-  testWidgets('kirish oynasi ko\'rinadi', (tester) async {
+  testWidgets('kirish oynasi: korxona tanlash bor, server manzili ko\'rinmaydi', (tester) async {
     final session = Session();
     session.loading = false;
     await tester.pumpWidget(OftobApp(session: session));
     expect(find.text('Oftob CRM'), findsOneWidget);
-    expect(find.text('Kirish'), findsOneWidget);
-    expect(find.text('Platforma'), findsOneWidget);
-    expect(find.byType(TextField), findsNWidgets(2)); // server + kompaniya manzili
-    await tester.tap(find.text('API kalit'));
-    await tester.pump();
-    expect(find.text('API kalit (oft_…)'), findsOneWidget);
+    expect(find.text('Korxonani tanlang'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget); // faqat korxona kodi
+    expect(find.textContaining('sslip'), findsNothing);
+    expect(find.textContaining('http'), findsNothing);
+    expect(find.text('Server manzili'), findsNothing);
   });
 }

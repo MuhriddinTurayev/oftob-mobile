@@ -172,8 +172,8 @@ class _WebShellState extends State<WebShell> {
         final ok = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Server / chiqish'),
-            content: Text('Hozirgi server:\n${s.serverUrl}\n\nHisobdan chiqib, server tanlash oynasiga qaytasizmi?'),
+            title: const Text('Korxonani almashtirish'),
+            content: const Text('Hisobdan chiqib, korxona tanlash oynasiga qaytasizmi?'),
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Yo\'q')),
               FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Chiqish')),
@@ -197,7 +197,7 @@ class _WebShellState extends State<WebShell> {
             ('home', Icons.home_outlined, 'Bosh sahifa'),
             ('reload', Icons.refresh, 'Yangilash'),
             ('browser', Icons.open_in_browser, 'Brauzerda ochish'),
-            ('server', Icons.logout, 'Server / chiqish'),
+            ('server', Icons.swap_horiz, 'Korxonani almashtirish'),
           ])
             ListTile(
               leading: Icon(e.$2),
@@ -227,7 +227,7 @@ class _WebShellState extends State<WebShell> {
             Positioned.fill(
               child: SafeArea(
                 child: _failed
-                    ? _ErrorView(url: s.serverUrl, onRetry: () => _c.loadRequest(_start), onChange: s.leaveWeb)
+                    ? _ErrorView(onRetry: () => _c.loadRequest(_start), onChange: s.leaveWeb)
                     : WebViewWidget(controller: _c),
               ),
             ),
@@ -260,9 +260,8 @@ class _WebShellState extends State<WebShell> {
 }
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.url, required this.onRetry, required this.onChange});
+  const _ErrorView({required this.onRetry, required this.onChange});
 
-  final String url;
   final VoidCallback onRetry;
   final VoidCallback onChange;
 
@@ -274,10 +273,10 @@ class _ErrorView extends StatelessWidget {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.cloud_off, size: 48),
           const SizedBox(height: 12),
-          Text('Serverga ulanib bo\'lmadi:\n$url', textAlign: TextAlign.center),
+          const Text('Aloqa yo\'q.\nInternetni tekshirib, qayta urinib ko\'ring.', textAlign: TextAlign.center),
           const SizedBox(height: 16),
           FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Qayta urinish')),
-          TextButton(onPressed: onChange, child: const Text('Serverni o\'zgartirish')),
+          TextButton(onPressed: onChange, child: const Text('Korxonani almashtirish')),
         ]),
       ),
     );

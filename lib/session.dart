@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'api.dart';
+import 'company.dart';
 
 /// Ilovaning ikki rejimi:
 ///  * **Platforma** (asosiy) — veb-dasturning o'zi ilova ichida ochiladi, hamma funksiya ishlaydi (login/parol bilan);
@@ -20,6 +23,9 @@ class Session extends ChangeNotifier {
   // umumiy
   String serverUrl = defaultServer;
   bool loading = true;
+
+  // oxirgi kirilgan korxonalar (qurilmada, tez almashtirish uchun)
+  List<CompanyInfo> recent = [];
 
   // platforma (WebView) rejimi
   bool webActive = false;
@@ -43,6 +49,12 @@ class Session extends ChangeNotifier {
       }
       if (url != null && url.isNotEmpty) serverUrl = url;
       slug = await _storage.read(key: 'slug') ?? '';
+      try {
+        final r = await _storage.read(key: 'recent');
+        if (r != null) recent = (jsonDecode(r) as List).whereType<Map>().map((e) => CompanyInfo.fromJson(Map<String, dynamic>.from(e))).toList();
+      } catch (_) {
+        recent = [];
+      }
       if (mode == 'web') {
         webActive = true;
       } else {
@@ -67,6 +79,26 @@ class Session extends ChangeNotifier {
     await _storage.write(key: 'mode', value: 'web');
     await _storage.write(key: 'server', value: serverUrl);
     await _storage.write(key: 'slug', value: slug);
+    notifyListeners();
+  }
+
+  /// Korxonani ro'yxat boshiga qo'yadi (eng ko'pi bilan 6 ta)
+  Future<void> rememberCompany(CompanyInfo c) async {
+    recent = [c, ...recent.where((e) => e.slug != c.slug)].take(6).toList();
+    await _storage.write(key: 'recent', value: jsonEncode(recent.map((e) => e.toJson()).toList()));
+    notifyListeners();
+  }
+
+  Future<void> forgetCompany(String slug) async {
+    recent = recent.where((e) => e.slug != slug).toList();
+    await _storage.write(key: 'recent', value: jsonEncode(recent.map((e) => e.toJson()).toList()));
+    notifyListeners();
+  }
+
+  /// Dasturchi: server manzilini almashtirish (oddiy foydalanuvchiga ko'rsatilmaydi)
+  Future<void> setServer(String url) async {
+    serverUrl = ApiClient.normalizeUrl(url);
+    await _storage.write(key: 'server', value: serverUrl);
     notifyListeners();
   }
 
