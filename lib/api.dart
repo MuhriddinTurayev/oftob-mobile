@@ -196,6 +196,24 @@ class ApiClient {
     return Paged(_list(m['data']), PageMeta.from(m['meta']));
   }
 
+  /* ---------------- davomat ---------------- */
+
+  /// Kim ishga keldi: sana (YYYY-MM-DD) va ixtiyoriy obyekt bo'yicha.
+  Future<Map<String, dynamic>> attendance({String? date, String? object}) async {
+    final m = await _getMap('/attendance', {'date': date, 'object': object});
+    return Map<String, dynamic>.from((m['data'] as Map?) ?? const {});
+  }
+
+  /// Smenaga qo'yish (act='in') yoki smenadan olish (act='out'). Faqat bugun.
+  Future<Map<String, dynamic>> attendanceMark(String act, String object, List<String> staffIds, {String? time}) async {
+    final b = await _send(() => _http.post(
+          _uri('/attendance/$act'),
+          headers: _headers,
+          body: jsonEncode({'object': object, 'staff_ids': staffIds, if (time != null && time.isNotEmpty) 'time': time}),
+        ));
+    return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
+  }
+
   /* ---------------- ombor ---------------- */
 
   Future<Paged> stockItems({int page = 1, String? q, bool low = false}) async {
@@ -244,7 +262,7 @@ class Paged {
 }
 
 class Me {
-  Me({required this.company, required this.currency, required this.keyName, required this.roleName, required this.readOnly, required this.scopes});
+  Me({required this.company, required this.currency, required this.keyName, required this.roleName, required this.readOnly, required this.scopes, this.role = ''});
 
   factory Me.fromJson(Map j) {
     final c = (j['company'] as Map?) ?? const {};
@@ -254,6 +272,7 @@ class Me {
       currency: '${c['currency'] ?? ''}',
       keyName: '${k['name'] ?? ''}',
       roleName: '${k['role_name'] ?? k['role'] ?? ''}',
+      role: '${k['role'] ?? ''}',
       readOnly: k['read_only'] == true,
       scopes: ((k['scopes'] as List?) ?? const []).map((e) => '$e').toSet(),
     );
@@ -263,6 +282,7 @@ class Me {
   final String currency;
   final String keyName;
   final String roleName;
+  final String role; // kalit roli: admin, foreman, accountant …
   final bool readOnly;
   final Set<String> scopes;
 

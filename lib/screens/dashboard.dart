@@ -26,6 +26,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _desks = 0;
   int _apts = 0, _sold = 0, _booked = 0, _free = 0;
   int _open = 0, _overdue = 0;
+  int _attStaff = 0, _attWorking = 0, _attCame = 0;
   int _leadsTotal = 0;
   List<Map<String, dynamic>> _leads = const [];
   List<Map<String, dynamic>> _ops = const [];
@@ -85,6 +86,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _sold = sold;
         _booked = b;
         _free = f;
+      }),
+      part(me.can('attendance:read'), () async {
+        final a = await api.attendance();
+        final sum = Map<String, dynamic>.from((a['summary'] as Map?) ?? const {});
+        _attStaff = (sum['staff'] as num?)?.toInt() ?? 0;
+        _attWorking = (sum['working'] as num?)?.toInt() ?? 0;
+        _attCame = (sum['came'] as num?)?.toInt() ?? 0;
       }),
       part(me.can('tasks:read'), () async {
         final p = await api.tasks();
@@ -169,6 +177,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
           ]),
+          if (me.can('attendance:read')) ...[
+            const SizedBox(height: 12),
+            _Stat(
+              icon: Icons.how_to_reg_outlined,
+              title: 'Bugun ishda',
+              big: '$_attWorking',
+              sub: '$_attCame kishi keldi · $_attStaff ta xodimdan',
+              progress: _attStaff == 0 ? 0 : _attCame / _attStaff,
+              onTap: () => widget.onOpen?.call('Davomat'),
+            ),
+          ],
           if (me.can('leads:read')) ...[
             const SizedBox(height: 20),
             _Section(title: 'Yangi lidlar', trailing: '$_leadsTotal ta', onTap: () => widget.onOpen?.call('Lidlar')),
