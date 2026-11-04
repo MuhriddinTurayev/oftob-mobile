@@ -301,11 +301,13 @@ class _WebShellState extends State<WebShell> with WidgetsBindingObserver {
         body: Stack(
           children: [
             Positioned.fill(
-              child: SafeArea(
-                child: _failed
-                    ? _ErrorView(onRetry: () => _c.loadRequest(_start), onChange: s.leaveWeb)
-                    : WebViewWidget(controller: _c),
-              ),
+              // iPhone: sayt butun ekran (kamera/holat paneli ostigacha) — xavfsiz hudud CSS'da (env(safe-area-inset-*)).
+              // Android'da tizim panellari ustiga chiqmaslik uchun oddiy SafeArea qoladi.
+              child: _failed
+                  ? SafeArea(child: _ErrorView(onRetry: () => _c.loadRequest(_start), onChange: s.leaveWeb))
+                  : (!kIsWeb && Platform.isIOS
+                      ? WebViewWidget(controller: _c)
+                      : SafeArea(child: WebViewWidget(controller: _c))),
             ),
             // yuklanish chizig'i — faqat to'liq yuklanishda (sahifalar orasida o'tish saytning o'zida silliq)
             if (_showBar && _progress < 100 && _ready)
