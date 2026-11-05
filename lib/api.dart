@@ -177,8 +177,8 @@ class ApiClient {
 
   /* ---------------- lidlar ---------------- */
 
-  Future<Paged> leads({int page = 1}) async {
-    final m = await _getMap('/leads', {'page': page, 'per_page': 30});
+  Future<Paged> leads({int page = 1, int perPage = 30}) async {
+    final m = await _getMap('/leads', {'page': page, 'per_page': perPage});
     return Paged(_list(m['data']), PageMeta.from(m['meta']));
   }
 
