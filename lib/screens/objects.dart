@@ -365,6 +365,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
       methods = await widget.session.api!.payMethods();
     } catch (_) {}
     if (!mounted) return;
+    var queuedPay = false;
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -413,7 +414,8 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
                     return;
                   }
                   try {
-                    await widget.session.api!.apartmentPay(widget.objectId, '${a['id']}', amount: v, date: _iso(date), method: method);
+                    final res = await widget.session.api!.apartmentPay(widget.objectId, '${a['id']}', amount: v, date: _iso(date), method: method);
+                    queuedPay = res['queued'] == true;
                     if (ctx.mounted) Navigator.pop(ctx, true);
                   } catch (e) {
                     await widget.session.handleError(e);
@@ -432,7 +434,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      messenger.showSnackBar(const SnackBar(content: Text('To\'lov qabul qilindi va kassaga o\'tkazildi')));
+      messenger.showSnackBar(SnackBar(content: Text(queuedPay ? "Offline saqlandi — internet paydo bo'lganda avtomatik yuboriladi" : "To'lov qabul qilindi va kassaga o'tkazildi")));
     }
   }
 
@@ -466,6 +468,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
         children: [
           Row(children: [
             Expanded(child: Text('Kvartira ${a['number']}', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800))),
+            if (a['pending'] == true) const Padding(padding: EdgeInsets.only(right: 6), child: StatusChip('Yuborilmagan', Colors.orange)),
             StatusChip(aptStatus(st), statusColor(st)),
           ]),
           Text('${widget.objectName} · ${a['floor']}-qavat · ${roomsLabel(a['rooms'])} · ${area(a['area'] as num?)} m²', style: TextStyle(color: cs.outline, fontSize: 13)),

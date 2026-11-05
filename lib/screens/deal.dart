@@ -131,14 +131,15 @@ class _DealScreenState extends State<DealScreen> {
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       widget.onDone();
+      final queued = res['queued'] == true;
       final contract = res['contract'] == true;
       final warn = res['warning'];
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
-          title: Text(booking ? 'Bron qilindi' : 'Sotuv rasmiylashtirildi'),
-          content: Text([
+          icon: Icon(queued ? Icons.cloud_off : Icons.check_circle, color: queued ? Colors.orange : Colors.green, size: 48),
+          title: Text(queued ? 'Offline saqlandi' : (booking ? 'Bron qilindi' : 'Sotuv rasmiylashtirildi')),
+          content: Text(queued ? "Internet yo'q — amal telefonda saqlandi va internet paydo bo'lganda avtomatik yuboriladi. Boshlang'ich to'lov kassaga va shartnoma o'sha payt tuziladi. Kvartira ro'yxatda hozirdan yangi holatda ko'rinadi." : [
             if (!booking && down > 0) 'Boshlang\'ich to\'lov kassaga o\'tkazildi.',
             if (!booking && contract) 'Shartnoma tuzildi — "Hujjatlar" bo\'limidan ochish mumkin.',
             if (booking) 'Bron muddati tugagach, to\'lov bo\'lmasa kvartira o\'zi bo\'shaydi.',

@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import 'offline.dart';
+
 import 'api.dart';
 import 'company.dart';
 
@@ -60,6 +62,7 @@ class Session extends ChangeNotifier {
         userName = await _storage.read(key: 'uname') ?? '';
         userId = int.tryParse(await _storage.read(key: 'uid') ?? '') ?? 0;
         final key = await _storage.read(key: 'key');
+        if (userId > 0 && slug.isNotEmpty) await Offline.init('${slug}_$userId'); // internet bo'lmasa ham oxirgi saqlangan ma'lumot bilan kiradi
         if (key != null && key.isNotEmpty) await _connect(url, key, persist: false);
       }
     } catch (_) {
@@ -116,6 +119,7 @@ class Session extends ChangeNotifier {
   /// Xodim kirishi (asosiy yo'l): korxona kodi + login + parol. Server shaxsiy kalit beradi, ilova shu kalit bilan ishlaydi.
   Future<void> staffSignIn({required String company, required String email, required String password}) async {
     final r = await ApiClient.login(serverUrl, company: company, email: email, password: password, device: defaultTargetPlatform == TargetPlatform.iOS ? 'iPhone' : 'Android');
+    await Offline.init('${r.companySlug}_${r.userId}');
     await _connect(r.serverUrl, r.token, persist: true);
     userName = r.userName;
     userId = r.userId;
@@ -139,6 +143,8 @@ class Session extends ChangeNotifier {
     try {
       await WebViewCookieManager().clearCookies(); // 3D sahifasi uchun ochilgan sayt seansi ham yopiladi
     } catch (_) {}
+    await Offline.clearCache(); // boshqa odam ko'rmasin; yuborilmagan sotuv/to'lovlar fayli qoladi
+    Offline.disable();
     notifyListeners();
     if (a != null) {
       await a.logout();

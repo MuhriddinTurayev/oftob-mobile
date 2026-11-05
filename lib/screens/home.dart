@@ -2,6 +2,10 @@ import 'package:flutter/material.dart' hide Text;
 
 import 'package:flutter/services.dart';
 
+import 'dart:async';
+
+import '../offline.dart';
+import '../prefetch.dart';
 import '../session.dart';
 import 'attendance.dart';
 import 'cash.dart';
@@ -15,6 +19,7 @@ import 'objects.dart';
 import 'reports.dart';
 import 'sales.dart';
 import 'stock.dart';
+import 'sync_screen.dart';
 import 'tasks.dart';
 import '../l10n.dart';
 import '../widgets.dart';
@@ -49,18 +54,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _nc.start();
+    _syncTimer = Timer.periodic(const Duration(seconds: 30), (_) => _tickSync());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tickSync(first: true));
+  }
+
+  Timer? _syncTimer;
+
+  /// Offline navbatni yuborish, kerak bo'lsa ma'lumotni telefonga yangilash (kirganda va har 6 soatda), internet qaytganini bilish
+  Future<void> _tickSync({bool first = false}) async {
+    final api = s.api;
+    if (api == null || !Offline.enabled) return;
+    try {
+      if (Offline.pending.value > 0) {
+        final n = await Offline.sync(api);
+        if (n > 0 && mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$n ta offline amal serverga yuborildi')));
+      }
+      final last = DateTime.tryParse(Offline.lastPrefetch.value ?? '');
+      if (first || last == null || DateTime.now().difference(last) > const Duration(hours: 6)) {
+        if (Offline.progress.value == null && Offline.online.value) unawaited(prefetchAll(s));
+      } else if (!Offline.online.value) {
+        await api.me(); // internet qaytganini bilish uchun yengil so'rov
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _syncTimer?.cancel();
     _nc.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _nc.refresh();
+    if (state == AppLifecycleState.resumed) {
+      _nc.refresh();
+      _tickSync();
+    }
   }
 
   /// Ilova ochiq turganda yangi voqea kelsa — tepada qisqa xabar
@@ -153,7 +184,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Chiqish'),
-        content: const Text('Hisobdan chiqasizmi?'),
+        content: Text(Offline.pending.value > 0 ? 'Hisobdan chiqasizmi?\n\n${Offline.pending.value} ta yuborilmagan offline amal bor — ular telefonda saqlanadi va qayta kirib, internet bo\'lganda yuboriladi.' : 'Hisobdan chiqasizmi?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Yo\'q')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Chiqish')),
@@ -193,6 +224,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             onTap: () => _push(t),
           ),
         const SizedBox(height: 8),
+        ListenableBuilder(
+          listenable: Listenable.merge([Offline.pending, Offline.failed]),
+          builder: (context, _) {
+            final n = Offline.pending.value + Offline.failed.value;
+            return ListTile(
+              leading: Badge(isLabelVisible: n > 0, label: Text('$n'), child: Icon(Icons.cloud_sync_outlined, color: cs.primary)),
+              title: const Text('Sinxronlash', style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text("Offline ma'lumot va yuborilmagan amallar"),
+              trailing: const Icon(Icons.chevron_right),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s))),
+            );
+          },
+        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -225,7 +270,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final title = i == moreIndex ? 'Yana' : (i == 0 ? s.me!.company : tabs[i].label);
     return Scaffold(
       appBar: AppBar(title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), centerTitle: false, scrolledUnderElevation: 0, actions: [BellButton(center: _nc, onTap: _openNotifications), const SizedBox(width: 4)]),
-      body: IndexedStack(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()]),
+      body: Column(children: [
+        OfflineBar(onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s)))),
+        Expanded(child: IndexedStack(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()])),
+      ]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: i,
         onDestinationSelected: (v) {

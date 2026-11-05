@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'offline.dart';
+
 /// Server xatosi: matni foydalanuvchiga ko'rsatiladi.
 class ApiException implements Exception {
   ApiException(this.message, {this.status, this.code});
@@ -12,6 +14,9 @@ class ApiException implements Exception {
   final String? code;
 
   bool get unauthorized => status == 401;
+
+  /// Internetga yetib bo'lmadi (javob umuman kelmadi) — offline rejim shunda ishga tushadi
+  bool get isNetwork => code == 'network';
 
   @override
   String toString() => message;
@@ -58,17 +63,20 @@ class ApiClient {
     return u.replace(queryParameters: q);
   }
 
-  Future<dynamic> _send(Future<http.Response> Function() call) async {
+  Future<dynamic> _send(Future<http.Response> Function() call, {Duration timeout = const Duration(seconds: 25)}) async {
     final http.Response r;
     try {
-      r = await call().timeout(const Duration(seconds: 25));
+      r = await call().timeout(timeout);
     } on TimeoutException {
-      throw ApiException('Server javob bermadi. Internet va manzilni tekshiring.');
+      Offline.markOnline(false);
+      throw ApiException('Server javob bermadi. Internet va manzilni tekshiring.', code: 'network');
     } on FormatException {
       throw ApiException('Server manzili noto\'g\'ri.');
     } catch (e) {
-      throw ApiException('Serverga ulanib bo\'lmadi. Internet va manzilni tekshiring.');
+      Offline.markOnline(false);
+      throw ApiException('Serverga ulanib bo\'lmadi. Internet va manzilni tekshiring.', code: 'network');
     }
+    Offline.markOnline(true); // server javob berdi (xato bo'lsa ham) — internet bor
     dynamic body;
     try {
       body = r.body.isEmpty ? null : jsonDecode(utf8.decode(r.bodyBytes));
@@ -115,9 +123,65 @@ class ApiClient {
     throw ApiException(msg, status: r.statusCode, code: code);
   }
 
+  /// GET: javob lokal nusxaga yoziladi; internet bo'lmasa — oxirgi saqlangan nusxa qaytariladi (offline rejim).
   Future<Map<String, dynamic>> _getMap(String path, [Map<String, dynamic>? q]) async {
-    final b = await _send(() => _http.get(_uri(path, q), headers: _headers));
-    return (b is Map ? Map<String, dynamic>.from(b) : <String, dynamic>{});
+    final uri = _uri(path, q);
+    final qs = (uri.queryParameters.entries.toList()..sort((a, b) => a.key.compareTo(b.key))).map((e) => '${e.key}=${e.value}').join('&');
+    final key = '${uri.path.replaceFirst('/api/v1', '')}?$qs';
+    try {
+      final b = await _send(() => _http.get(uri, headers: _headers), timeout: Offline.online.value ? const Duration(seconds: 25) : const Duration(seconds: 6));
+      final m = b is Map ? Map<String, dynamic>.from(b) : <String, dynamic>{};
+      if (Offline.enabled) unawaited(Offline.put(key, m));
+      return m;
+    } on ApiException catch (e) {
+      if (e.isNetwork && Offline.enabled) {
+        final c = await Offline.get(key);
+        if (c != null) return c;
+      }
+      rethrow;
+    }
+  }
+
+  /// Navbatdagi (offline yig'ilgan) amalni yuboradi; Idempotency-Key tufayli takror yuborilsa ham bir marta bajariladi.
+  Future<dynamic> sendQueued(String method, String path, Map<String, dynamic> body, String idemKey, {Duration timeout = const Duration(seconds: 25)}) {
+    final uri = _uri(path);
+    final headers = {..._headers, 'Idempotency-Key': idemKey};
+    return _send(() => method == 'PATCH' ? _http.patch(uri, headers: headers, body: jsonEncode(body)) : _http.post(uri, headers: headers, body: jsonEncode(body)), timeout: timeout);
+  }
+
+  /// Offline'da ishlash uchun obyektning BARCHA kvartiralarini telefonga yuklaydi
+  Future<void> downloadAllApartments(String objectId) async {
+    final all = <Map<String, dynamic>>[];
+    var page = 1;
+    while (true) {
+      final m = await _getMap('/objects/${Uri.encodeComponent(objectId)}/apartments', {'page': page, 'per_page': 200});
+      all.addAll(_list(m['data']));
+      final meta = PageMeta.from(m['meta']);
+      if (!meta.hasMore || page >= 50) break;
+      page++;
+    }
+    await Offline.saveApartments(objectId, all);
+  }
+
+  /// Amalni yuboradi; internet bo'lmasa navbatga qo'yadi va telefondagi nusxaga darhol qo'llaydi (`queued: true` qaytadi).
+  Future<Map<String, dynamic>> _queueable({required String kind, required String method, required String path, required Map<String, dynamic> body, required String objectId, required String aptId, required String label}) async {
+    final id = Offline.newId();
+    try {
+      final b = await sendQueued(method, path, body, id, timeout: Offline.online.value ? const Duration(seconds: 25) : const Duration(seconds: 6));
+      return Map<String, dynamic>.from((b as Map)['data'] as Map);
+    } on ApiException catch (e) {
+      if (!(e.isNetwork && Offline.enabled)) rethrow;
+      final op = QueuedOp(id: id, kind: kind, objectId: objectId, aptId: aptId, method: method, path: path, body: body, label: label, createdAt: DateTime.now().toIso8601String());
+      num booking = 0;
+      if (kind == 'deal' && body['status'] == 'booked') {
+        try {
+          booking = ((await salesTerms())['booking'] as Map?)?['amount'] as num? ?? 0;
+        } catch (_) {}
+      }
+      final apt = await Offline.applyOptimistic(op, bookingAmount: booking);
+      await Offline.enqueue(op);
+      return {'queued': true, 'op': id, 'apartment': apt};
+    }
   }
 
   List<Map<String, dynamic>> _list(dynamic data) =>
@@ -194,18 +258,22 @@ class ApiClient {
   Future<List<Map<String, dynamic>>> objects() async => _list((await _getMap('/objects'))['data']);
 
   Future<Paged> apartments(String objectId, {String? status, int? rooms, int page = 1, int perPage = 50}) async {
-    final m = await _getMap('/objects/${Uri.encodeComponent(objectId)}/apartments', {'status': status, 'rooms': rooms, 'page': page, 'per_page': perPage});
-    return Paged(_list(m['data']), PageMeta.from(m['meta']));
+    try {
+      final m = await _getMap('/objects/${Uri.encodeComponent(objectId)}/apartments', {'status': status, 'rooms': rooms, 'page': page, 'per_page': perPage});
+      return Paged(_list(m['data']), PageMeta.from(m['meta']));
+    } on ApiException catch (e) {
+      // internet yo'q: telefondagi to'liq nusxadan (filtr va sahifalash bilan)
+      if (e.isNetwork) {
+        final local = await Offline.localApartments(objectId, status: status, rooms: rooms, page: page, perPage: perPage);
+        if (local != null) return local;
+      }
+      rethrow;
+    }
   }
 
   /// Kvartira holatini o'zgartirish (bron / sotuv / bo'sh). Faqat o'zgargan maydonlarni yuboring.
   Future<Map<String, dynamic>> apartmentUpdate(String objectId, String apartmentId, Map<String, dynamic> body) async {
-    final b = await _send(() => _http.patch(
-          _uri('/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}'),
-          headers: _headers,
-          body: jsonEncode(body),
-        ));
-    return Map<String, dynamic>.from((b as Map)['data'] as Map);
+    return _queueable(kind: 'update', method: 'PATCH', path: '/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}', body: body, objectId: objectId, aptId: apartmentId, label: 'Kvartira $apartmentId — o\'zgartirish');
   }
 
   /// Muddatli to'lov stavkalari, bron sharti (zadatok, kun), stavka/narxni kim o'zgartira olishi
@@ -213,12 +281,15 @@ class ApiClient {
 
   /// Sotish yoki bron — saytdagi «Продать / Забронировать» ning o'zi (boshlang'ich to'lov kassaga, grafik, shartnoma).
   Future<Map<String, dynamic>> apartmentDeal(String objectId, String apartmentId, Map<String, dynamic> body) async {
-    final b = await _send(() => _http.post(
-          _uri('/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}/deal'),
-          headers: _headers,
-          body: jsonEncode(body),
-        ));
-    return Map<String, dynamic>.from((b as Map)['data'] as Map);
+    return _queueable(
+      kind: 'deal',
+      method: 'POST',
+      path: '/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}/deal',
+      body: body,
+      objectId: objectId,
+      aptId: apartmentId,
+      label: 'Kvartira $apartmentId — ${body['status'] == 'booked' ? 'bron' : 'sotish'}',
+    );
   }
 
   /// Shartnoma (kind='contract') yoki to'lov cheki (kind='receipt', id=to'lov raqami) PDF baytlari
@@ -244,12 +315,15 @@ class ApiClient {
 
   /// To'lov qabul qilish (kassaga o'tadi, chek yaratiladi). Yangilangan kvartirani qaytaradi.
   Future<Map<String, dynamic>> apartmentPay(String objectId, String apartmentId, {required num amount, String? date, String? method}) async {
-    final b = await _send(() => _http.post(
-          _uri('/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}/payments'),
-          headers: _headers,
-          body: jsonEncode({'amount': amount, if (date != null) 'date': date, if (method != null && method.isNotEmpty) 'method': method}),
-        ));
-    return Map<String, dynamic>.from((b as Map)['data'] as Map);
+    return _queueable(
+      kind: 'pay',
+      method: 'POST',
+      path: '/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}/payments',
+      body: {'amount': amount, if (date != null) 'date': date, if (method != null && method.isNotEmpty) 'method': method},
+      objectId: objectId,
+      aptId: apartmentId,
+      label: 'Kvartira $apartmentId — to\'lov ${amount.round()}',
+    );
   }
 
   /// Saytdagi 3D / 360° sahifasi uchun 90 soniyalik bir martalik havola. view: '3d' | 'locate'

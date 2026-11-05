@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Text;
 
 
 import 'api.dart';
+import 'offline.dart';
 import 'session.dart';
 import 'l10n.dart';
 
@@ -231,6 +232,47 @@ class LangSwitch extends StatelessWidget {
           for (final c in L.codes) ChoiceChip(label: Text(L.name(c)), selected: cur == c, onSelected: (_) => L.set(c)),
         ],
       ),
+    );
+  }
+}
+
+/// Tepadagi holat paneli: offline rejim, yuborilmagan amallar, ma'lumot yuklanishi (hammasi joyida bo'lsa ko'rinmaydi)
+class OfflineBar extends StatelessWidget {
+  const OfflineBar({super.key, required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([Offline.online, Offline.pending, Offline.failed, Offline.progress]),
+      builder: (context, _) {
+        final online = Offline.online.value;
+        final p = Offline.pending.value, f = Offline.failed.value;
+        final loading = Offline.progress.value != null && online;
+        if (online && p == 0 && f == 0 && !loading) return const SizedBox.shrink();
+        final text = [
+          if (!online) "Offline — saqlangan ma'lumot",
+          if (loading) "Ma'lumotlar telefonga yuklanmoqda…",
+          if (p > 0) '$p ta amal yuborilmagan',
+          if (f > 0) '$f ta xato',
+        ].join(' · ');
+        return Material(
+          color: f > 0 ? Colors.red.shade700 : (online ? Colors.blueGrey.shade600 : Colors.orange.shade800),
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(children: [
+                Icon(online ? Icons.sync : Icons.cloud_off, size: 18, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(child: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13))),
+                const Icon(Icons.chevron_right, size: 18, color: Colors.white),
+              ]),
+            ),
+          ),
+        );
+      },
     );
   }
 }
