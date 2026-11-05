@@ -260,14 +260,45 @@ class ApiClient {
 
   /* ---------------- vazifalar ---------------- */
 
-  Future<Paged> tasks({int page = 1, String? status}) async {
-    final m = await _getMap('/tasks', {'page': page, 'per_page': 40, 'status': status});
+  Future<Paged> tasks({int page = 1, String? status, int? assignee}) async {
+    final m = await _getMap('/tasks', {'page': page, 'per_page': 40, 'status': status, 'assignee': assignee});
     return Paged(_list(m['data']), PageMeta.from(m['meta']));
   }
 
-  Future<void> taskUpdate(int id, {String? status, int? progress}) async {
-    final body = <String, dynamic>{if (status != null) 'status': status, if (progress != null) 'progress': progress};
+  /// Vazifani yangilash: faqat berilgan maydonlar o'zgaradi (holat, progress 0–100, muddat YYYY-MM-DD, ijrochi, muhimlik).
+  Future<void> taskUpdate(int id, {String? status, int? progress, String? dueDate, int? assigneeId, String? priority}) async {
+    final body = <String, dynamic>{
+      if (status != null) 'status': status,
+      if (progress != null) 'progress': progress,
+      if (dueDate != null) 'due_date': dueDate,
+      if (assigneeId != null) 'assignee_id': assigneeId,
+      if (priority != null) 'priority': priority,
+    };
     await _send(() => _http.patch(_uri('/tasks/$id'), headers: _headers, body: jsonEncode(body)));
+  }
+
+  /// Yangi vazifa (ijrochi Telegram orqali xabar oladi).
+  Future<void> taskCreate({required String title, String? description, String? objectId, int? assigneeId, String? dueDate, String priority = 'normal'}) async {
+    final body = <String, dynamic>{
+      'title': title,
+      if (description != null && description.isNotEmpty) 'description': description,
+      if (objectId != null && objectId.isNotEmpty) 'object_id': objectId,
+      if (assigneeId != null) 'assignee_id': assigneeId,
+      if (dueDate != null && dueDate.isNotEmpty) 'due_date': dueDate,
+      'priority': priority,
+    };
+    await _send(() => _http.post(_uri('/tasks'), headers: _headers, body: jsonEncode(body)));
+  }
+
+  /// Kompaniya xodimlari (ijrochi tanlash uchun): id, name, role_name.
+  Future<List<Map<String, dynamic>>> users() async => _list((await _getMap('/users'))['data']);
+
+  /* ---------------- ombor (harakatlar) ---------------- */
+
+  /// Ombor harakatlari: type = in | out | transfer | adjust.
+  Future<Paged> stockMoves({int page = 1, String? type}) async {
+    final m = await _getMap('/stock/moves', {'page': page, 'per_page': 40, 'type': type});
+    return Paged(_list(m['data']), PageMeta.from(m['meta']));
   }
 
   void close() => _http.close();
@@ -328,7 +359,7 @@ class Me {
 
 /// Muvaffaqiyatli kirish natijasi.
 class StaffLogin {
-  StaffLogin({required this.token, required this.serverUrl, required this.userName, required this.roleName, required this.companyName, required this.companySlug});
+  StaffLogin({required this.token, required this.serverUrl, required this.userId, required this.userName, required this.roleName, required this.companyName, required this.companySlug});
 
   factory StaffLogin.fromJson(Map<String, dynamic> j, String serverUrl) {
     final u = (j['user'] as Map?) ?? const {};
@@ -336,6 +367,7 @@ class StaffLogin {
     return StaffLogin(
       token: '${j['token']}',
       serverUrl: serverUrl,
+      userId: (u['id'] as num?)?.toInt() ?? 0,
       userName: '${u['name'] ?? ''}',
       roleName: '${u['role_name'] ?? u['role'] ?? ''}',
       companyName: '${c['name'] ?? ''}',
@@ -345,6 +377,7 @@ class StaffLogin {
 
   final String token;
   final String serverUrl;
+  final int userId;
   final String userName;
   final String roleName;
   final String companyName;

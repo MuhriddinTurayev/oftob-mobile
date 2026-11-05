@@ -36,6 +36,7 @@ class Session extends ChangeNotifier {
   ApiClient? api;
   Me? me;
   String userName = ''; // kirgan xodim ismi (xodim kirishi bilan)
+  int userId = 0; // kirgan xodim id ("mening vazifalarim" filtri uchun)
 
   bool get signedIn => api != null && me != null;
 
@@ -61,6 +62,7 @@ class Session extends ChangeNotifier {
         webActive = true;
       } else {
         userName = await _storage.read(key: 'uname') ?? '';
+        userId = int.tryParse(await _storage.read(key: 'uid') ?? '') ?? 0;
         final key = await _storage.read(key: 'key');
         if (url != null && key != null && key.isNotEmpty) await _connect(url, key, persist: false);
       }
@@ -142,8 +144,10 @@ class Session extends ChangeNotifier {
     final r = await ApiClient.login(serverUrl, company: company, email: email, password: password, device: defaultTargetPlatform == TargetPlatform.iOS ? 'iPhone' : 'Android');
     await _connect(r.serverUrl, r.token, persist: true);
     userName = r.userName;
+    userId = r.userId;
     slug = r.companySlug;
     await _storage.write(key: 'uname', value: userName);
+    await _storage.write(key: 'uid', value: '$userId');
     await _storage.write(key: 'slug', value: slug);
     notifyListeners();
   }
@@ -153,9 +157,11 @@ class Session extends ChangeNotifier {
     api = null;
     me = null;
     userName = '';
+    userId = 0;
     await _storage.delete(key: 'key');
     await _storage.delete(key: 'mode');
     await _storage.delete(key: 'uname');
+    await _storage.delete(key: 'uid');
     notifyListeners();
     if (a != null) {
       await a.logout();
