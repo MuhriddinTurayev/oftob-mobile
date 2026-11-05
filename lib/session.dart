@@ -160,6 +160,9 @@ class Session extends ChangeNotifier {
     await _storage.delete(key: 'mode');
     await _storage.delete(key: 'uname');
     await _storage.delete(key: 'uid');
+    try {
+      await WebViewCookieManager().clearCookies(); // 3D sahifasi uchun ochilgan sayt seansi ham yopiladi
+    } catch (_) {}
     notifyListeners();
     if (a != null) {
       await a.logout();

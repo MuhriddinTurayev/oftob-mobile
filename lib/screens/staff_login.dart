@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../api.dart';
 import '../company.dart';
 import '../session.dart';
+import 'forgot_password.dart';
 
 /// Xodim kirishi: korxona tanlangan, endi login (email yoki telefon) va parol.
 /// Parol qurilmada saqlanmaydi: server shaxsiy kalit beradi, ilova faqat shu kalitni saqlaydi.
@@ -31,6 +32,14 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
     _pass.dispose();
     _passFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _forgot() async {
+    final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => ForgotPasswordScreen(session: widget.session, company: widget.company, login: _login.text.trim())));
+    if (ok == true && mounted) {
+      _pass.clear();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Parol o'zgartirildi. Yangi parol bilan kiring.")));
+    }
   }
 
   Future<void> _submit() async {
@@ -128,7 +137,11 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
                           ]),
                         ),
                       ),
-                    const SizedBox(height: 20),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(onPressed: _busy ? null : _forgot, child: const Text('Parolni unutdingizmi?')),
+                    ),
+                    const SizedBox(height: 8),
                     SizedBox(
                       height: 52,
                       child: FilledButton(

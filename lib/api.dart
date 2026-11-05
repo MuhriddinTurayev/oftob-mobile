@@ -143,6 +143,37 @@ class ApiClient {
     }
   }
 
+  /// Parolni tiklash 1-qadam: kod xodimning Telegram'iga yuboriladi. Javob doim bir xil (akkaunt bor-yo'qligi oshkor bo'lmaydi).
+  static Future<void> forgot(String serverUrl, {required String company, required String login, http.Client? client}) async {
+    final c = ApiClient(serverUrl: serverUrl, apiKey: '', client: client);
+    try {
+      await c._send(() => c._http.post(c._uri('/auth/forgot'),
+          headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Accept-Language': 'uz'}, body: jsonEncode({'company': company, 'email': login})));
+    } on ApiException catch (e) {
+      if (e.status == 404 || e.status == 405) {
+        throw ApiException("Server hali yangilanmagan: parolni tiklash xizmati topilmadi. Administratorga murojaat qiling.", status: e.status);
+      }
+      rethrow;
+    } finally {
+      if (client == null) c.close();
+    }
+  }
+
+  /// Parolni tiklash 2-qadam: kod + yangi parol. Muvaffaqiyatli bo'lsa barcha eski kirishlar yopiladi.
+  static Future<void> resetPassword(String serverUrl, {required String company, required String login, required String code, required String password, http.Client? client}) async {
+    final c = ApiClient(serverUrl: serverUrl, apiKey: '', client: client);
+    try {
+      await c._send(() => c._http.post(c._uri('/auth/reset'),
+          headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Accept-Language': 'uz'},
+          body: jsonEncode({'company': company, 'email': login, 'code': code, 'password': password})));
+    } on ApiException catch (e) {
+      if (e.code == 'invalid_code') throw ApiException("Kod noto'g'ri yoki muddati tugagan. Yangi kod so'rang.", status: e.status, code: e.code);
+      rethrow;
+    } finally {
+      if (client == null) c.close();
+    }
+  }
+
   /// Chiqishda shu qurilmaning kaliti serverda bekor qilinadi (xato bo'lsa — e'tibor bermaymiz).
   Future<void> logout() async {
     try {
