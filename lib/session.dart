@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'offline.dart';
+import 'webcache.dart';
 
 import 'api.dart';
 import 'company.dart';
@@ -143,6 +144,7 @@ class Session extends ChangeNotifier {
     try {
       await WebViewCookieManager().clearCookies(); // 3D sahifasi uchun ochilgan sayt seansi ham yopiladi
     } catch (_) {}
+    await WebCache.reset();
     await Offline.clearCache(); // boshqa odam ko'rmasin; yuborilmagan sotuv/to'lovlar fayli qoladi
     Offline.disable();
     notifyListeners();

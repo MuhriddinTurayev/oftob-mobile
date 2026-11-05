@@ -52,6 +52,9 @@ class Offline {
   static Directory? _dir;
   static String scope = '';
 
+  /// Shu xodimning offline papkasi (3D keshi ham shu yerda `web/` ichida)
+  static Directory? get root => _dir;
+
   /// Oxirgi so'rov internetga yetganmi
   static final ValueNotifier<bool> online = ValueNotifier(true);
   static final ValueNotifier<int> pending = ValueNotifier(0);
@@ -367,6 +370,14 @@ class Offline {
   /// "Chiqish": ma'lumot nusxasi o'chadi (boshqa odam ko'rmasin), yuborilmagan amallar fayli qoladi.
   static Future<void> clearCache() async {
     final d = _dir;
+    if (d != null) {
+      try {
+        final w = Directory('${d.path}/web');
+        if (await w.exists()) await w.delete(recursive: true);
+        final rc = Directory('${d.path}/receipts');
+        if (await rc.exists() && ops.where((o) => o.file != null).isEmpty) await rc.delete(recursive: true);
+      } catch (_) {}
+    }
     if (d != null && await d.exists()) {
       await for (final e in d.list()) {
         if (e is File && !e.path.endsWith('queue.json')) {

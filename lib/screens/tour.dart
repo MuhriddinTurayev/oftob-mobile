@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../session.dart';
+import '../webcache.dart';
 import '../widgets.dart';
 import '../l10n.dart';
 
@@ -38,7 +39,8 @@ class _TourScreenState extends State<TourScreen> {
       _progress = 0;
     });
     try {
-      final url = await widget.session.api!.webLink(widget.objectId, widget.view, apartment: widget.apartment);
+      // sahifa telefon ichidagi kesh-proksi orqali ochiladi: internet bo'lmasa saqlangan nusxadan ishlaydi
+      final url = await WebCache.viewUrl(widget.session, widget.objectId, widget.view, apartment: widget.apartment);
       final c = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(Colors.black)
