@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() {
         _found = c;
-        _error = c == null ? 'Bunday korxona topilmadi. Kodni tekshiring.' : null;
+        _error = c == null ? 'Bunday korxona topilmadi. Kodni tekshiring.\n(server: ${Uri.parse(s.serverUrl).host})' : null;
       });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);

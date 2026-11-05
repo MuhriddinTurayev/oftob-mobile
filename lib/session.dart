@@ -16,8 +16,6 @@ class Session extends ChangeNotifier {
   /// Sinov uchun: `flutter run --dart-define=OFTOB_SERVER=http://10.0.2.2:8099` (emulyatordan kompyuterdagi serverga)
   static const defaultServer = String.fromEnvironment('OFTOB_SERVER', defaultValue: 'https://oftob.5-189-163-130.sslip.io');
 
-  /// Ilovaning avvalgi versiyalarida xato yozilgan manzillar (platforma u yerda emas).
-  static const _badServers = ['37-60-247-120'];
 
   final FlutterSecureStorage _storage;
 
@@ -44,13 +42,11 @@ class Session extends ChangeNotifier {
   Future<void> restore() async {
     try {
       final mode = await _storage.read(key: 'mode');
-      var url = await _storage.read(key: 'server');
-      // Eski ilova versiyasi noto'g'ri manzilni saqlab qo'ygan (iPhone Keychain ilova o'chirilganda ham saqlaydi) — to'g'rilaymiz.
-      if (url != null && _badServers.any(url.contains)) {
-        url = defaultServer;
-        await _storage.write(key: 'server', value: url);
-      }
-      if (url != null && url.isNotEmpty) serverUrl = url;
+      // Server manzili: eski versiyalar Keychain'ga turli (ba'zan noto'g'ri) manzillarni yozib ketgan — ularni e'tiborsiz qoldiramiz.
+      // Faqat dasturchi sozlamasida ataylab kiritilgan manzil ('server_custom') hisobga olinadi, aks holda doim standart server.
+      final custom = await _storage.read(key: 'server_custom');
+      final url = (custom != null && custom.isNotEmpty) ? custom : defaultServer;
+      serverUrl = url;
       slug = await _storage.read(key: 'slug') ?? '';
       try {
         final r = await _storage.read(key: 'recent');
@@ -66,7 +62,7 @@ class Session extends ChangeNotifier {
         userName = await _storage.read(key: 'uname') ?? '';
         userId = int.tryParse(await _storage.read(key: 'uid') ?? '') ?? 0;
         final key = await _storage.read(key: 'key');
-        if (url != null && key != null && key.isNotEmpty) await _connect(url, key, persist: false);
+        if (key != null && key.isNotEmpty) await _connect(url, key, persist: false);
       }
     } catch (_) {
       // saqlangan kalit ishlamadi — kirish oynasi ko'rsatiladi
@@ -105,7 +101,7 @@ class Session extends ChangeNotifier {
   /// Dasturchi: server manzilini almashtirish (oddiy foydalanuvchiga ko'rsatilmaydi)
   Future<void> setServer(String url) async {
     serverUrl = ApiClient.normalizeUrl(url);
-    await _storage.write(key: 'server', value: serverUrl);
+    await _storage.write(key: 'server_custom', value: serverUrl);
     notifyListeners();
   }
 
