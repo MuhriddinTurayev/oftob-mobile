@@ -132,6 +132,12 @@ class ApiClient {
             body: jsonEncode({'company': company, 'email': email, 'password': password, 'device': device}),
           ));
       return StaffLogin.fromJson(Map<String, dynamic>.from((b as Map)['data'] as Map), c.base);
+    } on ApiException catch (e) {
+      // yangi mobil kirish serverga hali yuklanmagan (marshrut yo'q)
+      if (e.status == 404 || e.status == 405) {
+        throw ApiException('Server hali yangilanmagan: mobil kirish xizmati topilmadi. Administratorga murojaat qiling.', status: e.status, code: e.code);
+      }
+      rethrow;
     } finally {
       if (client == null) c.close();
     }

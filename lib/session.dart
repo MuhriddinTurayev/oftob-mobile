@@ -60,9 +60,8 @@ class Session extends ChangeNotifier {
       }
       // Eski versiya «sayt rejimi»ni Keychain'ga yozib qo'ygan (u ilova o'chirilganda ham qoladi). Endi ilova asosan mahalliy:
       // korxona xodimlari uchun sayt rejimi eslab qolinmaydi (har safar kirish oynasi), faqat platforma administratori (korxonasiz) saytda qoladi.
-      if (mode == 'web' && (await _storage.read(key: 'slug') ?? '').isEmpty) {
-        webActive = true;
-      } else {
+      // Sayt rejimi hech qachon o'zi tiklanmaydi: ilova doim mahalliy kirish oynasi (yoki saqlangan mahalliy sessiya) bilan ochiladi.
+      {
         if (mode == 'web') await _storage.delete(key: 'mode');
         userName = await _storage.read(key: 'uname') ?? '';
         userId = int.tryParse(await _storage.read(key: 'uid') ?? '') ?? 0;
@@ -84,11 +83,7 @@ class Session extends ChangeNotifier {
     serverUrl = ApiClient.normalizeUrl(url);
     slug = companySlug.trim().toLowerCase().replaceAll(RegExp(r'^/+|/+$'), '').replaceFirst(RegExp(r'^c/'), '');
     webActive = true;
-    if (slug.isEmpty) {
-      await _storage.write(key: 'mode', value: 'web'); // faqat platforma administratori
-    } else {
-      await _storage.delete(key: 'mode');
-    }
+    await _storage.delete(key: 'mode'); // sayt rejimi eslab qolinmaydi
     await _storage.write(key: 'server', value: serverUrl);
     await _storage.write(key: 'slug', value: slug);
     notifyListeners();
