@@ -172,7 +172,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 10),
               alignment: Alignment.center,
-              decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12)),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.calendar_today_outlined, size: 16),
                 const SizedBox(width: 8),
@@ -316,7 +316,7 @@ class _Stat extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3),
         child: Material(
-          color: on ? color.withValues(alpha: 0.14) : cs.surfaceContainerHighest.withValues(alpha: 0.5),
+          color: on ? color.withValues(alpha: 0.14) : cs.surface,
           borderRadius: BorderRadius.circular(14),
           child: InkWell(
             borderRadius: BorderRadius.circular(14),

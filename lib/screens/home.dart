@@ -111,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(18)),
+          decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(18)),
           child: Row(children: [
             CircleAvatar(radius: 24, backgroundColor: cs.primary, foregroundColor: cs.onPrimary, child: Text(_initials(s.userName.isEmpty ? me.company : s.userName), style: const TextStyle(fontWeight: FontWeight.w800))),
             const SizedBox(width: 14),

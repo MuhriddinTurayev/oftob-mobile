@@ -309,7 +309,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if ('${d['note'] ?? ''}'.isNotEmpty)
         Padding(
           padding: const EdgeInsets.only(top: 12),
-          child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(14)), child: Text('${d['note']}')),
+          child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(14)), child: Text('${d['note']}')),
         ),
     ];
   }

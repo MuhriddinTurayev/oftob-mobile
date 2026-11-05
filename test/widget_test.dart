@@ -80,7 +80,7 @@ void main() {
     final session = Session();
     session.loading = false;
     await tester.pumpWidget(OftobApp(session: session));
-    expect(find.text('Oftob CRM'), findsOneWidget);
+    expect(find.text('Oftob Building'), findsOneWidget);
     expect(find.text('Korxonani tanlang'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget); // faqat korxona kodi
     expect(find.textContaining('sslip'), findsNothing);

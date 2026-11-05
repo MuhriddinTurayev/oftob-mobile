@@ -36,6 +36,7 @@ class ObjectsScreen extends StatelessWidget {
             final a = (o['apartments'] as Map?) ?? const {};
             final progress = ((o['progress'] as num?) ?? 0).toInt();
             return Card(
+              margin: const EdgeInsets.only(bottom: 12),
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => Navigator.push(

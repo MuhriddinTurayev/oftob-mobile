@@ -336,7 +336,7 @@ class _LeadSheet extends StatelessWidget {
             const SizedBox(height: 14),
             Text('Izoh', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
-            Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(14)), child: Text(msg)),
+            Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(14)), child: Text(msg)),
           ],
         ],
       ),

@@ -144,9 +144,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     onLongPress: _developer,
                     behavior: HitTestBehavior.opaque,
                     child: Column(children: [
-                      Icon(Icons.apartment, size: 60, color: cs.primary),
+                      Image.asset('assets/logo.png', height: 96),
                       const SizedBox(height: 10),
-                      Text('Oftob CRM', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                      Text('Oftob Building', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
                       const SizedBox(height: 2),
                       Text('Xush kelibsiz', style: TextStyle(color: cs.outline)),
                     ]),
@@ -223,7 +223,7 @@ class _CompanyTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Material(
-      color: highlight ? cs.primaryContainer : cs.surfaceContainerHighest.withValues(alpha: 0.5),
+      color: highlight ? cs.primaryContainer : cs.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),

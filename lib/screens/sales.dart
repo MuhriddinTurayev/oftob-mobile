@@ -118,7 +118,7 @@ class _SalesScreenState extends State<SalesScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12)),
                 child: Text('${_months[_month.month - 1]} ${_month.year}', style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
             ),

@@ -321,9 +321,9 @@ class _WebShellState extends State<WebShell> with WidgetsBindingObserver {
                   color: Theme.of(context).colorScheme.surface,
                   child: Center(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.apartment, size: 72, color: Theme.of(context).colorScheme.primary),
+                      Image.asset('assets/logo.png', height: 96),
                       const SizedBox(height: 12),
-                      Text('Oftob CRM', style: Theme.of(context).textTheme.headlineSmall),
+                      Text('Oftob Building', style: Theme.of(context).textTheme.headlineSmall),
                       const SizedBox(height: 28),
                       const SizedBox(width: 26, height: 26, child: CircularProgressIndicator(strokeWidth: 2.5)),
                     ]),
