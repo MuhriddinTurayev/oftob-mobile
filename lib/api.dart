@@ -378,9 +378,11 @@ class ApiClient {
     List<Map<String, dynamic>> lines = const [],
     String? receiptPath,
     bool noReceipt = false,
+    String? currency,
   }) async {
     final fields = <String, String>{
       'kind': kind,
+      if (currency != null && currency.isNotEmpty) 'currency': currency,
       'project_id': object,
       'date': date,
       if (what != null && what.trim().isNotEmpty) 'what': what.trim(),
@@ -403,6 +405,14 @@ class ApiClient {
       return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
     });
     return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
+  }
+
+  /// Valyutalar: barcha valyuta, kurs, qaysilari yoqilgan; can_manage — faqat rahbar
+  Future<Map<String, dynamic>> currencies() async => Map<String, dynamic>.from(((await _getMap('/currencies'))['data'] as Map?) ?? const {});
+
+  /// Rahbar qo'shimcha valyutalarni yoqadi (USD va kompaniya valyutasi doim mavjud)
+  Future<void> currenciesSave(List<String> codes) async {
+    await _send(() => _http.post(_uri('/currencies'), headers: _headers, body: jsonEncode({'codes': codes})));
   }
 
   /// Keyinroq chek qo'shish

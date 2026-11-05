@@ -641,6 +641,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   final _vendor = TextEditingController();
   final _amount = TextEditingController();
   final _lines = <_Line>[];
+  late final List<Map<String, dynamic>> _currencies = _list(widget.data['currencies']);
+  late String _curCode = '${widget.data['base_currency'] ?? ''}';
   String _kindV = 'cash';
   String? _object;
   int? _wh;
@@ -705,6 +707,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         ],
         receiptPath: _noReceipt ? null : _photo?.path,
         noReceipt: _noReceipt,
+        currency: _curCode == '${widget.data['base_currency'] ?? ''}' ? null : _curCode,
       );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
@@ -731,7 +734,11 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final me = Map<String, dynamic>.from(widget.data['me'] as Map);
-    final cur = _cur(widget.data['currency']);
+    final baseLabel = _cur(widget.data['currency']);
+    final foreign = _curCode.isNotEmpty && _curCode != '${widget.data['base_currency'] ?? ''}';
+    final cur = foreign ? _curCode : baseLabel;
+    final rate = _n(_currencies.firstWhere((c) => '${c['code']}' == _curCode, orElse: () => const {'rate': 1})['rate']);
+    final foreignTotal = (_lines.isEmpty || _linesTotal <= 0) ? (num.tryParse(_amount.text.replaceAll(' ', '')) ?? 0) : _linesTotal;
     return Scaffold(
       appBar: AppBar(title: const Text('Xarid hisoboti')),
       body: ListView(
@@ -757,6 +764,14 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             selected: {_kindV},
             onSelectionChanged: (v) => setState(() => _kindV = v.first),
           ),
+          if (_currencies.length > 1) ...[
+            const SizedBox(height: 14),
+            Text('Xarid valyutasi', style: TextStyle(color: cs.outline, fontSize: 13)),
+            const SizedBox(height: 6),
+            Wrap(spacing: 8, runSpacing: 4, children: [
+              for (final c in _currencies) ChoiceChip(label: Text('${c['code']}'), selected: _curCode == '${c['code']}', onSelected: (_) => setState(() => _curCode = '${c['code']}')),
+            ]),
+          ],
           const SizedBox(height: 12),
           TextField(controller: _what, decoration: InputDecoration(labelText: tr('Nima sotib olindi'))),
           const SizedBox(height: 12),
@@ -800,6 +815,11 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(color: cs.primaryContainer, borderRadius: BorderRadius.circular(14)),
               child: Text('Jami: ${money(_linesTotal)} $cur (miqdor × narx)', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            ),
+          if (foreign)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text('≈ ${money(foreignTotal * rate)} $baseLabel · joriy kurs: 1 $_curCode = ${money(rate)} $baseLabel — balansdan shu kurs bo\'yicha yechiladi', style: TextStyle(color: cs.outline, fontSize: 13)),
             ),
           const SizedBox(height: 20),
           Text('Chek surati', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),

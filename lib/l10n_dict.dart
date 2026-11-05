@@ -479,4 +479,12 @@ const Map<String, List<String>> kDict = {
   "Valyuta": ["Валюта", "Асъор"],
   "l ·": ["л ·", "л ·"],
   "bitim)": ["сделок)", "муомила)"],
+  "Valyutalar": ["Валюты", "Асъорҳо"],
+  "Xarid valyutasi": ["Валюта покупки", "Асъори харид"],
+  "Doim mavjud": ["Всегда доступна", "Ҳамеша дастрас"],
+  "Kompaniya valyutasi": ["Валюта компании", "Асъори ширкат"],
+  "Valyutalarni faqat rahbar yoqadi.": ["Валюты включает только руководитель.", "Асъорҳоро танҳо роҳбар фаъол мекунад."],
+  "Prorab xaridni shu valyutalarda kiritishi mumkin: summa kurs bo'yicha kompaniya valyutasiga o'tadi. Kassa, shartnoma va hisobotlar kompaniya valyutasi va dollarda qoladi.": ["Прораб может вводить покупку в этих валютах: сумма пересчитывается в валюту компании по курсу. Кассы, договоры и отчёты остаются в валюте компании и долларах.", "Прораб метавонад харидро бо ин асъорҳо ворид кунад: маблағ аз рӯи қурб ба асъори ширкат мегузарад. Хазина, шартнома ва ҳисоботҳо дар асъори ширкат ва доллар мемонанд."],
+  "· joriy kurs: 1": ["· текущий курс: 1", "· қурби ҷорӣ: 1"],
+  "— balansdan shu kurs bo'yicha yechiladi": ["— спишется с баланса по этому курсу", "— аз тавозун бо ҳамин қурб кам мешавад"],
 };
