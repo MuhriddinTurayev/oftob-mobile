@@ -8,6 +8,7 @@ import 'crew.dart';
 import 'dashboard.dart';
 import 'funds.dart';
 import 'leads.dart';
+import 'notifications.dart';
 import 'objects.dart';
 import 'reports.dart';
 import 'sales.dart';
@@ -33,10 +34,61 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _index = 0;
+  late final NotificationCenter _nc = NotificationCenter(widget.session, onFresh: _fresh);
 
   Session get s => widget.session;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _nc.start();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _nc.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _nc.refresh();
+  }
+
+  /// Ilova ochiq turganda yangi voqea kelsa — tepada qisqa xabar
+  void _fresh(List<Map<String, dynamic>> fresh) {
+    if (!mounted) return;
+    HapticFeedback.mediumImpact();
+    final f = fresh.first;
+    final more = fresh.length > 1 ? ' (+${fresh.length - 1})' : '';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 6),
+        content: Text('${f['title']}: ${f['body']}$more', maxLines: 2, overflow: TextOverflow.ellipsis),
+        action: SnackBarAction(label: "Ko'rish", onPressed: _openNotifications),
+      ));
+  }
+
+  void _openNotifications() {
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => NotificationsScreen(center: _nc, onGo: _go)));
+  }
+
+  /// Bildirishnomadan tegishli bo'limga o'tish
+  void _go(String go) {
+    final me = s.me!;
+    _open(switch (go) {
+      'tasks' => 'Vazifalar',
+      'leads' => 'Lidlar',
+      'funds' => me.role == 'foreman' ? 'Pul' : 'Prorab puli',
+      _ => '',
+    });
+  }
 
   /// Rol (kalit ruxsatlari) bo'yicha: asosiy tablar
   List<_Tab> get _primary {
@@ -168,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final i = _index.clamp(0, moreIndex);
     final title = i == moreIndex ? 'Yana' : (i == 0 ? s.me!.company : tabs[i].label);
     return Scaffold(
-      appBar: AppBar(title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), centerTitle: false, scrolledUnderElevation: 0),
+      appBar: AppBar(title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), centerTitle: false, scrolledUnderElevation: 0, actions: [BellButton(center: _nc, onTap: _openNotifications), const SizedBox(width: 4)]),
       body: IndexedStack(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: i,

@@ -277,6 +277,9 @@ class ApiClient {
         ));
   }
 
+  /// So'nggi 14 kunlik voqealar lentasi (vazifa, pul, hisobot, lid) — rolga qarab
+  Future<List<Map<String, dynamic>>> notifications() async => _list((await _getMap('/notifications'))['data']);
+
   /* ---------------- prorab puli va chek ---------------- */
 
   Map<String, String> get authHeaders => {'Authorization': 'Bearer $apiKey', 'Accept': 'image/*'};

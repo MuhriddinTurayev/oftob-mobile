@@ -46,3 +46,17 @@ String roomsLabel(Object? rooms) => '$rooms' == '0' ? 'Tijorat' : '$rooms xona';
 
 /// Masofa: 540 m, 12,5 km
 String distLabel(num m) => m < 1000 ? '${m.round()} m' : '${(m / 1000).toStringAsFixed(1).replaceAll('.', ',')} km';
+
+/// "5 daqiqa oldin", "Kecha 14:30", "03.11 09:10"
+String timeAgo(String? iso) {
+  final t = DateTime.tryParse(iso ?? '')?.toLocal();
+  if (t == null) return '';
+  final d = DateTime.now().difference(t);
+  String two(int v) => v.toString().padLeft(2, '0');
+  if (d.inMinutes < 1) return 'hozir';
+  if (d.inMinutes < 60) return '${d.inMinutes} daqiqa oldin';
+  if (d.inHours < 24 && DateTime.now().day == t.day) return '${d.inHours} soat oldin';
+  final y = DateTime.now().subtract(const Duration(days: 1));
+  if (t.year == y.year && t.month == y.month && t.day == y.day) return 'Kecha ${two(t.hour)}:${two(t.minute)}';
+  return '${two(t.day)}.${two(t.month)} ${two(t.hour)}:${two(t.minute)}';
+}
