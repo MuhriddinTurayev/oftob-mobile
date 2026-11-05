@@ -75,6 +75,7 @@ class _ShiftCardState extends State<ShiftCard> {
     try {
       final d = await s.api!.shiftAct(act, lat: fix?.lat, lng: fix?.lng, acc: fix?.acc);
       if (!mounted) return;
+      final queued = d['queued'] == true;
       setState(() {
         _st = d;
         _busy = false;
@@ -85,7 +86,7 @@ class _ShiftCardState extends State<ShiftCard> {
           : dist == null
               ? 'joylashuv saqlandi'
               : (dist <= 300 ? 'obyektda' : 'obyektdan ${distLabel(dist)} uzoqda');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(switch (act) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(queued ? "Offline saqlandi (vaqt va joylashuv bilan) — internet paydo bo'lganda yuboriladi" : switch (act) {
         'start' => 'Ish kuni boshlandi · $where',
         'end' => 'Ish kuni tugadi · $where',
         _ => 'Ish kuni qayta ochildi',

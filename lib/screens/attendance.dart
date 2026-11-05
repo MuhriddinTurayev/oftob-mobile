@@ -179,10 +179,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     var done = 0, skipped = 0;
+    var queued = false;
     final errors = <String>{};
     try {
       for (final e in byObject.entries) {
         final r = await s.api!.attendanceMark(act, e.key, e.value);
+        if (r['queued'] == true) queued = true;
         done += (r['done'] as num?)?.toInt() ?? 0;
         skipped += (r['skipped'] as num?)?.toInt() ?? 0;
         errors.addAll(((r['errors'] as List?) ?? const []).map((x) => '$x'));
@@ -194,7 +196,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
     if (!mounted) return;
     setState(() => _busy = false);
-    final msg = '${act == 'in' ? 'Smenaga qo\'yildi' : 'Smenadan olindi'}: $done${skipped > 0 ? ' · o\'tkazib yuborildi: $skipped' : ''}${errors.isNotEmpty ? '\n${errors.join('; ')}' : ''}';
+    final msg = queued ? "Offline saqlandi ($done) — internet paydo bo'lganda yuboriladi" : '${act == 'in' ? 'Smenaga qo\'yildi' : 'Smenadan olindi'}: $done${skipped > 0 ? ' · o\'tkazib yuborildi: $skipped' : ''}${errors.isNotEmpty ? '\n${errors.join('; ')}' : ''}';
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     await _load(quiet: true);
   }

@@ -161,7 +161,10 @@ class _TasksScreenState extends State<TasksScreen> {
                         ]),
                       ),
                       const SizedBox(width: 10),
-                      StatusChip(taskStatus(st), _taskColor(st)),
+                      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                        StatusChip(taskStatus(st), _taskColor(st)),
+                        if (t['pending'] == true) const Padding(padding: EdgeInsets.only(top: 4), child: StatusChip('Yuborilmagan', Colors.orange)),
+                      ]),
                     ]),
                   ),
                 );
@@ -204,10 +207,14 @@ class _TaskSheetState extends State<_TaskSheet> {
   Future<void> _save({String? status, int? progress}) async {
     setState(() => _busy = true);
     try {
-      await widget.session.api!.taskUpdate(widget.task['id'] as int, status: status, progress: progress);
+      final queued = await widget.session.api!.taskUpdate(widget.task['id'] as int, status: status, progress: progress);
       HapticFeedback.mediumImpact();
       widget.onChanged();
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.pop(context);
+        if (queued) messenger.showSnackBar(const SnackBar(content: Text("Offline saqlandi — internet paydo bo'lganda yuboriladi")));
+      }
     } catch (e) {
       await widget.session.handleError(e);
       if (mounted) {
@@ -339,8 +346,12 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
       _error = null;
     });
     try {
-      await widget.session.api!.taskCreate(title: _title.text.trim(), description: _desc.text.trim(), objectId: _object, assigneeId: _assignee, dueDate: _due == null ? null : _d(_due!), priority: _prio);
-      if (mounted) Navigator.pop(context, true);
+      final queued = await widget.session.api!.taskCreate(title: _title.text.trim(), description: _desc.text.trim(), objectId: _object, assigneeId: _assignee, dueDate: _due == null ? null : _d(_due!), priority: _prio);
+      if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.pop(context, true);
+        if (queued) messenger.showSnackBar(const SnackBar(content: Text("Offline saqlandi — internet paydo bo'lganda yuboriladi va ijrochiga xabar boradi")));
+      }
     } on ApiException catch (e) {
       if (mounted) {
         setState(() {

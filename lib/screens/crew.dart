@@ -428,7 +428,7 @@ class _HireSheetState extends State<_HireSheet> {
       _error = null;
     });
     try {
-      await widget.session.api!.crewHire(
+      final queued = await widget.session.api!.crewHire(
         object: _object,
         name: _name.text.trim(),
         role: _role.text.trim(),
@@ -436,7 +436,11 @@ class _HireSheetState extends State<_HireSheet> {
         pay: _pay,
         rate: num.tryParse(_rate.text.replaceAll(' ', '').replaceAll(',', '.')) ?? 0,
       );
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.pop(context, true);
+        if (queued) messenger.showSnackBar(const SnackBar(content: Text("Offline saqlandi — internet paydo bo'lganda xodim qo'shiladi")));
+      }
     } on ApiException catch (e) {
       if (mounted) {
         setState(() {

@@ -150,6 +150,91 @@ class ApiClient {
     return _send(() => method == 'PATCH' ? _http.patch(uri, headers: headers, body: jsonEncode(body)) : _http.post(uri, headers: headers, body: jsonEncode(body)), timeout: timeout);
   }
 
+  String _hm(String iso) {
+    final t = DateTime.tryParse(iso)?.toLocal();
+    return t == null ? '' : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  }
+
+  /// Oddiy (fayl yo'q) amalni yuboradi; internet yo'q bo'lsa navbatga qo'yadi. `null` — yuborildi (server javobi `data`), `queued` — navbatda.
+  Future<({bool queued, Map<String, dynamic> data})> _queueGeneric({required String kind, required String method, required String path, required Map<String, dynamic> body, required String label, String objectId = '', String refId = ''}) async {
+    final id = Offline.newId();
+    try {
+      final b = await sendQueued(method, path, body, id, timeout: Offline.online.value ? const Duration(seconds: 25) : const Duration(seconds: 6));
+      return (queued: false, data: Map<String, dynamic>.from(((b is Map ? b['data'] : null) as Map?) ?? const {}));
+    } on ApiException catch (e) {
+      if (!(e.isNetwork && Offline.enabled)) rethrow;
+      await Offline.enqueue(QueuedOp(id: id, kind: kind, objectId: objectId, aptId: refId, method: method, path: path, body: body, label: label, createdAt: DateTime.now().toIso8601String()));
+      return (queued: true, data: <String, dynamic>{});
+    }
+  }
+
+  /// Saqlangan smena holatiga navbatdagi (yuborilmagan) bosishlarni qo'llaydi
+  Map<String, dynamic> _shiftWithQueue(Map<String, dynamic> base) {
+    final st = Map<String, dynamic>.from(base.isEmpty ? {'status': 'none'} : base);
+    for (final o in Offline.ops.where((o) => o.kind == 'shift' && o.state == 'pending')) {
+      final b = o.body;
+      switch (o.aptId) {
+        case 'start':
+          if (st['status'] == 'none' || st['status'] == null) {
+            st..['status'] = 'working'
+              ..['in'] = _hm('${b['at']}')
+              ..['out'] = null
+              ..['in_lat'] = b['lat']
+              ..['in_lng'] = b['lng']
+              ..['in_dist'] = null
+              ..['pending'] = true;
+          }
+        case 'end':
+          if (st['status'] == 'working') {
+            st..['status'] = 'left'
+              ..['out'] = _hm('${b['at']}')
+              ..['pending'] = true;
+          }
+        case 'reopen':
+          if (st['status'] == 'left') {
+            st..['status'] = 'working'
+              ..['out'] = null
+              ..['pending'] = true;
+          }
+      }
+    }
+    return st;
+  }
+
+  /// Davomat: yuborilmagan «smenaga qo'yish / olish» telefondagi ro'yxatda darhol ko'rinadi
+  Map<String, dynamic> _attendanceWithQueue(Map<String, dynamic> d, String? date) {
+    final pend = Offline.ops.where((o) => o.kind == 'attendance' && o.state == 'pending').toList();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    if (pend.isEmpty || (date != null && date != today && date != '${d['date']}')) return d;
+    final sites = ((d['sites'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    for (final o in pend) {
+      final ids = ((o.body['staff_ids'] as List?) ?? const []).map((e) => '$e').toSet();
+      for (final site in sites) {
+        if ('${site['id']}' != o.objectId) continue;
+        final workers = ((site['workers'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+        for (final w in workers) {
+          if (!ids.contains('${w['id']}')) continue;
+          if (o.aptId == 'in' && w['status'] != 'working') {
+            w..['status'] = 'working'
+              ..['in'] = _hm('${o.body['at']}')
+              ..['out'] = null
+              ..['pending'] = true;
+          } else if (o.aptId == 'out' && w['status'] == 'working') {
+            w..['status'] = 'left'
+              ..['out'] = _hm('${o.body['at']}')
+              ..['pending'] = true;
+          }
+        }
+        site['workers'] = workers;
+        site['working'] = workers.where((w) => w['status'] == 'working').length;
+        site['left'] = workers.where((w) => w['status'] == 'left').length;
+        site['absent'] = workers.where((w) => w['status'] == 'absent').length;
+        site['came'] = workers.length - (site['absent'] as int);
+      }
+    }
+    return {...d, 'sites': sites};
+  }
+
   /// Navbatdagi amalni turiga qarab yuboradi (xarid — chek surati bilan multipart, qolganlari — JSON)
   Future<dynamic> sendQueuedOp(QueuedOp op) {
     if (op.kind == 'spend') {
@@ -392,31 +477,32 @@ class ApiClient {
   /// Kim ishga keldi: sana (YYYY-MM-DD) va ixtiyoriy obyekt bo'yicha.
   Future<Map<String, dynamic>> attendance({String? date, String? object}) async {
     final m = await _getMap('/attendance', {'date': date, 'object': object});
-    return Map<String, dynamic>.from((m['data'] as Map?) ?? const {});
+    return _attendanceWithQueue(Map<String, dynamic>.from((m['data'] as Map?) ?? const {}), date);
   }
 
   /* ---------------- «Men ishga keldim» (smena) ---------------- */
 
-  Future<Map<String, dynamic>> shift() async => Map<String, dynamic>.from(((await _getMap('/shift'))['data'] as Map?) ?? const {});
+  Future<Map<String, dynamic>> shift() async => _shiftWithQueue(Map<String, dynamic>.from(((await _getMap('/shift'))['data'] as Map?) ?? const {}));
 
   /// act: start | end | reopen. Koordinatalar bo'lsa yuboriladi (lokatsiyasiz ham belgilash mumkin).
   Future<Map<String, dynamic>> shiftAct(String act, {double? lat, double? lng, double? acc}) async {
-    final b = await _send(() => _http.post(
-          _uri('/shift/$act'),
-          headers: _headers,
-          body: jsonEncode({if (lat != null && lng != null) 'lat': lat, if (lat != null && lng != null) 'lng': lng, if (acc != null) 'acc': acc}),
-        ));
-    return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
+    // bosilgan HAQIQIY vaqt yuboriladi: offline'da keyin sinxronlansa ham server shu vaqtni yozadi
+    final body = <String, dynamic>{if (lat != null && lng != null) 'lat': lat, if (lat != null && lng != null) 'lng': lng, if (acc != null) 'acc': acc, 'at': DateTime.now().toUtc().toIso8601String()};
+    final r = await _queueGeneric(kind: 'shift', method: 'POST', path: '/shift/$act', body: body, refId: act, label: 'Smena — ${act == 'start' ? 'ishga keldim' : (act == 'end' ? 'ketdim' : 'qaytdim')}');
+    if (!r.queued) return r.data;
+    Map<String, dynamic> base = const {};
+    try {
+      base = Map<String, dynamic>.from(((await _getMap('/shift'))['data'] as Map?) ?? const {});
+    } catch (_) {}
+    return _shiftWithQueue(base)..['queued'] = true;
   }
 
   /// Smenaga qo'yish (act='in') yoki smenadan olish (act='out'). Faqat bugun.
   Future<Map<String, dynamic>> attendanceMark(String act, String object, List<String> staffIds, {String? time}) async {
-    final b = await _send(() => _http.post(
-          _uri('/attendance/$act'),
-          headers: _headers,
-          body: jsonEncode({'object': object, 'staff_ids': staffIds, if (time != null && time.isNotEmpty) 'time': time}),
-        ));
-    return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
+    final body = <String, dynamic>{'object': object, 'staff_ids': staffIds, if (time != null && time.isNotEmpty) 'time': time, 'at': DateTime.now().toUtc().toIso8601String()};
+    final r = await _queueGeneric(kind: 'attendance', method: 'POST', path: '/attendance/$act', body: body, objectId: object, refId: act, label: "Davomat — ${act == 'in' ? 'smenaga qo\'yish' : 'smenadan olish'} (${staffIds.length})");
+    if (!r.queued) return r.data;
+    return {'done': staffIds.length, 'skipped': 0, 'errors': <String>[], 'queued': true};
   }
 
   /* ---------------- xodimlar (Crew) ---------------- */
@@ -427,13 +513,17 @@ class ApiClient {
     return Map<String, dynamic>.from((m['data'] as Map?) ?? const {});
   }
 
-  /// Yangi xodim qabul qilish.
-  Future<void> crewHire({required String object, required String name, required String role, String? phone, String pay = 'hour', num rate = 0}) async {
-    await _send(() => _http.post(
-          _uri('/crew'),
-          headers: _headers,
-          body: jsonEncode({'object': object, 'name': name, 'role': role, if (phone != null && phone.isNotEmpty) 'phone': phone, 'pay': pay, 'rate': rate}),
-        ));
+  /// Yangi xodim qabul qilish. `true` — internet yo'q, navbatga qo'yildi.
+  Future<bool> crewHire({required String object, required String name, required String role, String? phone, String pay = 'hour', num rate = 0}) async {
+    final r = await _queueGeneric(
+      kind: 'crew',
+      method: 'POST',
+      path: '/crew',
+      body: {'object': object, 'name': name, 'role': role, if (phone != null && phone.isNotEmpty) 'phone': phone, 'pay': pay, 'rate': rate},
+      objectId: object,
+      label: 'Xodim qo\'shish — $name',
+    );
+    return r.queued;
   }
 
   /// So'nggi 14 kunlik voqealar lentasi (vazifa, pul, hisobot, lid) — rolga qarab
@@ -568,11 +658,21 @@ class ApiClient {
 
   Future<Paged> tasks({int page = 1, String? status, int? assignee}) async {
     final m = await _getMap('/tasks', {'page': page, 'per_page': 40, 'status': status, 'assignee': assignee});
-    return Paged(_list(m['data']), PageMeta.from(m['meta']));
+    final items = _list(m['data']);
+    // yuborilmagan holat/progress o'zgarishlari ro'yxatda darhol ko'rinadi
+    for (final o in Offline.ops.where((o) => o.kind == 'task' && o.state == 'pending')) {
+      for (final t in items) {
+        if ('${t['id']}' != o.aptId) continue;
+        if (o.body['status'] != null) t['status'] = o.body['status'];
+        if (o.body['progress'] != null) t['progress'] = o.body['progress'];
+        t['pending'] = true;
+      }
+    }
+    return Paged(items, PageMeta.from(m['meta']));
   }
 
   /// Vazifani yangilash: faqat berilgan maydonlar o'zgaradi (holat, progress 0–100, muddat YYYY-MM-DD, ijrochi, muhimlik).
-  Future<void> taskUpdate(int id, {String? status, int? progress, String? dueDate, int? assigneeId, String? priority}) async {
+  Future<bool> taskUpdate(int id, {String? status, int? progress, String? dueDate, int? assigneeId, String? priority}) async {
     final body = <String, dynamic>{
       if (status != null) 'status': status,
       if (progress != null) 'progress': progress,
@@ -580,11 +680,12 @@ class ApiClient {
       if (assigneeId != null) 'assignee_id': assigneeId,
       if (priority != null) 'priority': priority,
     };
-    await _send(() => _http.patch(_uri('/tasks/$id'), headers: _headers, body: jsonEncode(body)));
+    final r = await _queueGeneric(kind: 'task', method: 'PATCH', path: '/tasks/$id', body: body, refId: '$id', label: 'Vazifa #$id — ${status != null ? taskStatusLabel(status) : 'progress ${progress ?? ''}%'}');
+    return r.queued;
   }
 
   /// Yangi vazifa (ijrochi Telegram orqali xabar oladi).
-  Future<void> taskCreate({required String title, String? description, String? objectId, int? assigneeId, String? dueDate, String priority = 'normal'}) async {
+  Future<bool> taskCreate({required String title, String? description, String? objectId, int? assigneeId, String? dueDate, String priority = 'normal'}) async {
     final body = <String, dynamic>{
       'title': title,
       if (description != null && description.isNotEmpty) 'description': description,
@@ -593,7 +694,8 @@ class ApiClient {
       if (dueDate != null && dueDate.isNotEmpty) 'due_date': dueDate,
       'priority': priority,
     };
-    await _send(() => _http.post(_uri('/tasks'), headers: _headers, body: jsonEncode(body)));
+    final r = await _queueGeneric(kind: 'taskNew', method: 'POST', path: '/tasks', body: body, label: 'Yangi vazifa — $title');
+    return r.queued;
   }
 
   /// Kompaniya xodimlari (ijrochi tanlash uchun): id, name, role_name.
@@ -689,3 +791,11 @@ class StaffLogin {
   final String companyName;
   final String companySlug;
 }
+
+String taskStatusLabel(String s) => switch (s) {
+      'todo' => 'qilish kerak',
+      'doing' => 'jarayonda',
+      'review' => 'tekshiruvda',
+      'done' => 'bajarildi',
+      _ => s,
+    };

@@ -286,10 +286,21 @@ class Offline {
       for (final op in List<QueuedOp>.of(ops)) {
         if (op.state != 'pending') continue;
         try {
-          await api.sendQueuedOp(op);
+          final res = await api.sendQueuedOp(op);
+          if (op.kind == 'attendance') {
+            // server 200 qaytaradi, lekin hech kim belgilanmasa (masalan: «faqat bugun» qoidasi) — bu xato
+            final data = (res is Map ? res['data'] : null) as Map?;
+            final errs = ((data?['errors'] as List?) ?? const []).map((e) => '$e').toList();
+            if (data != null && ((data['done'] as num?) ?? 0) == 0 && errs.isNotEmpty) {
+              op.state = 'failed';
+              op.error = errs.join('; ');
+              await _saveQueue();
+              continue;
+            }
+          }
           ops.remove(op);
           await _deleteFile(op.file);
-          touched.add(op.objectId);
+          if (op.kind == 'deal' || op.kind == 'pay' || op.kind == 'update') touched.add(op.objectId);
           done++;
           await _saveQueue();
         } on ApiException catch (e) {
