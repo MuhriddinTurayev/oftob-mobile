@@ -40,3 +40,6 @@ String formatDate(String? iso) {
   if (d.length != 3) return iso;
   return '${d[2]}.${d[1]}.${d[0]}';
 }
+
+/// Xonalar soni: 0 — tijorat xonasi
+String roomsLabel(Object? rooms) => '$rooms' == '0' ? 'Tijorat' : '$rooms xona';

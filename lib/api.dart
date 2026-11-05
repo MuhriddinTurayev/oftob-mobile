@@ -153,8 +153,8 @@ class ApiClient {
 
   Future<List<Map<String, dynamic>>> objects() async => _list((await _getMap('/objects'))['data']);
 
-  Future<Paged> apartments(String objectId, {String? status, int page = 1}) async {
-    final m = await _getMap('/objects/${Uri.encodeComponent(objectId)}/apartments', {'status': status, 'page': page, 'per_page': 50});
+  Future<Paged> apartments(String objectId, {String? status, int? rooms, int page = 1, int perPage = 50}) async {
+    final m = await _getMap('/objects/${Uri.encodeComponent(objectId)}/apartments', {'status': status, 'rooms': rooms, 'page': page, 'per_page': perPage});
     return Paged(_list(m['data']), PageMeta.from(m['meta']));
   }
 
@@ -166,6 +166,13 @@ class ApiClient {
           body: jsonEncode(body),
         ));
     return Map<String, dynamic>.from((b as Map)['data'] as Map);
+  }
+
+  /// Xaridorlar to'lovlari (sana oralig'i YYYY-MM-DD; sahifalanmaydi). meta: total, sum.
+  Future<({List<Map<String, dynamic>> items, num sum})> salesPayments({String? from, String? to, String? object}) async {
+    final m = await _getMap('/sales/payments', {'from': from, 'to': to, 'object': object});
+    final meta = (m['meta'] as Map?) ?? const {};
+    return (items: _list(m['data']), sum: (meta['sum'] as num?) ?? 0);
   }
 
   /* ---------------- lidlar ---------------- */

@@ -8,6 +8,7 @@ import 'crew.dart';
 import 'dashboard.dart';
 import 'leads.dart';
 import 'objects.dart';
+import 'sales.dart';
 import 'stock.dart';
 import 'tasks.dart';
 
@@ -55,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final primary = _primary.map((e) => e.label).toSet();
     return [
       if (me.can('attendance:read') && !primary.contains('Davomat')) _Tab('Davomat', Icons.how_to_reg_outlined, Icons.how_to_reg, (x) => AttendanceScreen(session: x)),
+      if (me.can('sales:read')) _Tab('Sotuv', Icons.key_outlined, Icons.key, (x) => SalesScreen(session: x)),
       if (me.can('crew:read') && !primary.contains('Xodimlar')) _Tab('Xodimlar', Icons.groups_outlined, Icons.groups, (x) => CrewScreen(session: x)),
       if (me.can('tasks:read')) _Tab('Vazifalar', Icons.checklist, Icons.checklist, (x) => TasksScreen(session: x)),
       if (me.can('stock:read')) _Tab('Ombor', Icons.inventory_2_outlined, Icons.inventory_2, (x) => StockScreen(session: x)),
