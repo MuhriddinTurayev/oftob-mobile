@@ -10,7 +10,7 @@ import 'api.dart';
 
 /// Navbatdagi (yuborilmagan) amal: kvartirani sotish/bron, to'lov qabul qilish, narx/holat o'zgartirish.
 class QueuedOp {
-  QueuedOp({required this.id, required this.kind, required this.objectId, required this.aptId, required this.method, required this.path, required this.body, required this.label, required this.createdAt, this.state = 'pending', this.error});
+  QueuedOp({required this.id, required this.kind, required this.objectId, required this.aptId, required this.method, required this.path, required this.body, required this.label, required this.createdAt, this.state = 'pending', this.error, this.file, this.amount = 0});
 
   factory QueuedOp.fromJson(Map<String, dynamic> j) => QueuedOp(
         id: '${j['id']}',
@@ -24,6 +24,8 @@ class QueuedOp {
         createdAt: '${j['createdAt']}',
         state: '${j['state'] ?? 'pending'}',
         error: j['error'] as String?,
+        file: j['file'] as String?,
+        amount: (j['amount'] as num?) ?? 0,
       );
 
   final String id;
@@ -37,8 +39,10 @@ class QueuedOp {
   final String createdAt;
   String state; // pending | failed
   String? error;
+  final String? file; // xarid chekining telefondagi nusxasi (offline saqlangan surat)
+  final num amount; // xarid: taxminiy summa (kompaniya valyutasida) — balansda ko'rsatish uchun
 
-  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'objectId': objectId, 'aptId': aptId, 'method': method, 'path': path, 'body': body, 'label': label, 'createdAt': createdAt, 'state': state, 'error': error};
+  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'objectId': objectId, 'aptId': aptId, 'method': method, 'path': path, 'body': body, 'label': label, 'createdAt': createdAt, 'state': state, 'error': error, 'file': file, 'amount': amount};
 }
 
 /// Offline rejim: server javoblarining lokal nusxasi, kvartiralarning to'liq ro'yxati va yuborilmagan sotuv/to'lovlar navbati.
@@ -230,9 +234,37 @@ class Offline {
   }
 
   static Future<void> discard(String id) async {
-    ops.removeWhere((o) => o.id == id);
+    final o = ops.where((e) => e.id == id).firstOrNull;
+    ops.removeWhere((e) => e.id == id);
     await _saveQueue();
+    await _deleteFile(o?.file);
   }
+
+  /// Chek suratini ilovaning doimiy papkasiga ko'chiradi (kamera vaqtinchalik fayli o'chib ketishi mumkin)
+  static Future<String?> stashFile(String? src) async {
+    final d = _dir;
+    if (src == null || d == null) return null;
+    try {
+      final dir = Directory('${d.path}/receipts');
+      await dir.create(recursive: true);
+      final ext = src.contains('.') ? src.substring(src.lastIndexOf('.')) : '.jpg';
+      final dst = '${dir.path}/${newId()}$ext';
+      await File(src).copy(dst);
+      return dst;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> _deleteFile(String? p) async {
+    if (p == null) return;
+    try {
+      await File(p).delete();
+    } catch (_) {}
+  }
+
+  /// Yuborilmagan xaridlarning (taxminiy) summasi: 'cash' | 'card' — balansdan ayirib ko'rsatiladi
+  static num pendingSpend(String kind) => ops.where((o) => o.kind == 'spend' && o.state == 'pending' && o.body['kind'] == kind).fold<num>(0, (a, o) => a + o.amount);
 
   static Future<void> retryFailed() async {
     for (final o in ops) {
@@ -254,8 +286,9 @@ class Offline {
       for (final op in List<QueuedOp>.of(ops)) {
         if (op.state != 'pending') continue;
         try {
-          await api.sendQueued(op.method, op.path, op.body, op.id);
+          await api.sendQueuedOp(op);
           ops.remove(op);
+          await _deleteFile(op.file);
           touched.add(op.objectId);
           done++;
           await _saveQueue();

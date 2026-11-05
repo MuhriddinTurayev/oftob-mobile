@@ -520,4 +520,12 @@ const Map<String, List<String>> kDict = {
   "Offline saqlandi — internet paydo bo'lganda avtomatik yuboriladi": ["Сохранено offline — будет отправлено автоматически, когда появится интернет", "Offline нигоҳ дошта шуд — ҳангоми пайдо шудани интернет худкор фиристода мешавад"],
   "Offline'da sotuv, bron va to'lovlar telefonda saqlanadi va internet paydo bo'lganda avtomatik yuboriladi. Shartnoma, chek va 3D uchun internet kerak.": ["В offline продажи, брони и платежи сохраняются на телефоне и отправляются автоматически, когда появится интернет. Для договора, чека и 3D нужен интернет.", "Дар offline фурӯш, брон ва пардохтҳо дар телефон нигоҳ дошта мешаванд ва ҳангоми пайдо шудани интернет худкор фиристода мешаванд. Барои шартнома, чек ва 3D интернет лозим аст."],
   "Offline ma'lumot va yuborilmagan amallar": ["Offline-данные и неотправленные операции", "Маълумоти offline ва амалҳои фиристоданашуда"],
+  "Yuborilmagan (offline)": ["Не отправлено (offline)", "Фиристоданашуда (offline)"],
+  "Internet paydo bo'lganda yuboriladi": ["Будет отправлено, когда появится интернет", "Ҳангоми пайдо шудани интернет фиристода мешавад"],
+  "· chek surati bor": ["· фото чека есть", "· акси чек ҳаст"],
+  "Offline saqlandi — internet paydo bo'lganda yuboriladi": ["Сохранено offline — будет отправлено, когда появится интернет", "Offline нигоҳ дошта шуд — ҳангоми пайдо шудани интернет фиристода мешавад"],
+  "Internet yo'q — hisobot va chek surati telefonda saqlandi. Internet paydo bo'lganda avtomatik yuboriladi va rahbar bilan buxgalterga xabar boradi. Balansdan hozirdan ayirib ko'rsatiladi.": ["Нет интернета — отчёт и фото чека сохранены на телефоне. Когда появится интернет, они отправятся автоматически, а руководитель и бухгалтер получат уведомление. Баланс уже сейчас показан с учётом этой покупки.", "Интернет нест — ҳисобот ва акси чек дар телефон нигоҳ дошта шуд. Ҳангоми пайдо шудани интернет худкор фиристода мешавад ва роҳбар бо ҳисобдор огоҳ карда мешаванд. Тавозун аллакай бо ин харид ҳисоб карда нишон дода мешавад."],
+  "Xarid hisoboti —": ["Отчёт о покупке —", "Ҳисоботи харид —"],
+  "Pul so'rovi —": ["Запрос денег —", "Дархости пул —"],
+  "xarid": ["покупка", "харид"],
 };

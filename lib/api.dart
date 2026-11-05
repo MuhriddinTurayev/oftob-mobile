@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -147,6 +148,25 @@ class ApiClient {
     final uri = _uri(path);
     final headers = {..._headers, 'Idempotency-Key': idemKey};
     return _send(() => method == 'PATCH' ? _http.patch(uri, headers: headers, body: jsonEncode(body)) : _http.post(uri, headers: headers, body: jsonEncode(body)), timeout: timeout);
+  }
+
+  /// Navbatdagi amalni turiga qarab yuboradi (xarid — chek surati bilan multipart, qolganlari — JSON)
+  Future<dynamic> sendQueuedOp(QueuedOp op) {
+    if (op.kind == 'spend') {
+      final fields = op.body.map((k, v) => MapEntry(k, '$v'));
+      return _postSpend(fields, op.file, op.id);
+    }
+    return sendQueued(op.method, op.path, op.body, op.id);
+  }
+
+  Future<dynamic> _postSpend(Map<String, String> fields, String? receiptPath, String idemKey) {
+    return _send(() async {
+      final req = http.MultipartRequest('POST', _uri('/funds/spend'))
+        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang, 'Idempotency-Key': idemKey})
+        ..fields.addAll(fields);
+      if (receiptPath != null && await File(receiptPath).exists()) req.files.add(await http.MultipartFile.fromPath('receipt', receiptPath));
+      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
+    }, timeout: const Duration(seconds: 100));
   }
 
   /// Offline'da ishlash uchun obyektning BARCHA kvartiralarini telefonga yuklaydi
@@ -430,9 +450,18 @@ class ApiClient {
   Future<Map<String, dynamic>> funds({int? user, String? status}) async =>
       Map<String, dynamic>.from(((await _getMap('/funds', {'user': user, 'status': status}))['data'] as Map?) ?? const {});
 
-  Future<void> fundsRequest({required num amount, required String kind, String? object, String? note}) async {
-    await _send(() => _http.post(_uri('/funds/request'),
-        headers: _headers, body: jsonEncode({'amount': amount, 'kind': kind, if (object != null && object.isNotEmpty) 'project_id': object, if (note != null && note.trim().isNotEmpty) 'note': note.trim()})));
+  /// Pul so'rash; internet yo'q bo'lsa navbatga tushadi. `true` — navbatga qo'yildi.
+  Future<bool> fundsRequest({required num amount, required String kind, String? object, String? note}) async {
+    final body = <String, dynamic>{'amount': amount, 'kind': kind, if (object != null && object.isNotEmpty) 'project_id': object, if (note != null && note.trim().isNotEmpty) 'note': note.trim()};
+    final id = Offline.newId();
+    try {
+      await sendQueued('POST', '/funds/request', body, id);
+      return false;
+    } on ApiException catch (e) {
+      if (!(e.isNetwork && Offline.enabled)) rethrow;
+      await Offline.enqueue(QueuedOp(id: id, kind: 'request', objectId: object ?? '', aptId: '', method: 'POST', path: '/funds/request', body: body, label: "Pul so'rovi — ${amount.round()}", createdAt: DateTime.now().toIso8601String()));
+      return true;
+    }
   }
 
   Future<void> fundsPost(String path, [Map<String, dynamic>? body]) async {
@@ -453,6 +482,7 @@ class ApiClient {
     String? receiptPath,
     bool noReceipt = false,
     String? currency,
+    num? estimate,
   }) async {
     final fields = <String, String>{
       'kind': kind,
@@ -471,14 +501,29 @@ class ApiClient {
         if (v != null && '$v'.isNotEmpty) fields['lines[$i][$k]'] = '$v';
       });
     }
-    final b = await _send(() async {
-      final req = http.MultipartRequest('POST', _uri('/funds/spend'))
-        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang})
-        ..fields.addAll(fields);
-      if (receiptPath != null) req.files.add(await http.MultipartFile.fromPath('receipt', receiptPath));
-      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
-    });
-    return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
+    final id = Offline.newId();
+    try {
+      final b = await _postSpend(fields, receiptPath, id);
+      return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
+    } on ApiException catch (e) {
+      if (!(e.isNetwork && Offline.enabled)) rethrow;
+      // internet yo'q: maydonlar va chek surati telefonda saqlanadi, internet qaytganda avtomatik yuboriladi
+      final saved = noReceipt ? null : await Offline.stashFile(receiptPath);
+      await Offline.enqueue(QueuedOp(
+        id: id,
+        kind: 'spend',
+        objectId: object,
+        aptId: '',
+        method: 'POST',
+        path: '/funds/spend',
+        body: Map<String, dynamic>.from(fields),
+        label: 'Xarid hisoboti — ${(what ?? '').trim().isEmpty ? (lines.isNotEmpty ? '${lines.first['name']}' : 'xarid') : what!.trim()}',
+        createdAt: DateTime.now().toIso8601String(),
+        file: saved,
+        amount: estimate ?? 0,
+      ));
+      return {'queued': true, 'op': id};
+    }
   }
 
   /// Valyutalar: barcha valyuta, kurs, qaysilari yoqilgan; can_manage — faqat rahbar

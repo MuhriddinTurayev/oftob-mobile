@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../format.dart';
+import '../offline.dart';
 import '../session.dart';
 import '../widgets.dart';
 import '../l10n.dart';
@@ -51,8 +52,28 @@ class _FundsScreenState extends State<FundsScreen> {
   Key _key = UniqueKey();
   int? _user;
   String? _status;
+  int _lastPending = Offline.pending.value;
 
   Session get s => widget.session;
+
+  @override
+  void initState() {
+    super.initState();
+    Offline.pending.addListener(_onQueue);
+  }
+
+  @override
+  void dispose() {
+    Offline.pending.removeListener(_onQueue);
+    super.dispose();
+  }
+
+  /// Navbat bo'shaganda (offline xaridlar yuborilganda) ma'lumot yangilanadi
+  void _onQueue() {
+    final n = Offline.pending.value;
+    if (n < _lastPending && mounted) _reload();
+    _lastPending = n;
+  }
 
   void _reload() => setState(() => _key = UniqueKey());
 
@@ -77,6 +98,12 @@ class _FundsScreenState extends State<FundsScreen> {
     final reqs = _list(d['requests']);
     final ops = _list(d['ops']);
     final noRc = _n(me['no_receipt']).toInt();
+    // yuborilmagan (offline) xaridlar balansdan ayirib ko'rsatiladi
+    final pendCash = Offline.pendingSpend('cash'), pendCard = Offline.pendingSpend('card');
+    me['cash'] = _n(me['cash']) - pendCash;
+    me['card'] = _n(me['card']) - pendCard;
+    me['total'] = _n(me['total']) - pendCash - pendCard;
+    final pend = Offline.ops.where((o) => o.kind == 'spend' || o.kind == 'request').toList();
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
@@ -123,6 +150,19 @@ class _FundsScreenState extends State<FundsScreen> {
             ),
           ),
         ]),
+        if (pend.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          const _Title('Yuborilmagan (offline)'),
+          for (final o in pend)
+            Card(
+              child: ListTile(
+                leading: Icon(o.kind == 'spend' ? Icons.receipt_long : Icons.request_quote_outlined, color: Colors.orange.shade800),
+                title: Text(o.label, style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(o.state == 'failed' ? (o.error ?? '') : 'Internet paydo bo\'lganda yuboriladi${o.file != null ? ' · chek surati bor' : ''}'),
+                trailing: o.state == 'failed' ? const StatusChip('Xato', Colors.red) : const StatusChip('Navbatda', Colors.orange),
+              ),
+            ),
+        ],
         if (reqs.isNotEmpty) ...[
           const SizedBox(height: 22),
           const _Title('So\'rovlarim'),
@@ -271,6 +311,7 @@ class _FundsScreenState extends State<FundsScreen> {
     final note = TextEditingController();
     var kind = 'cash';
     String? object = projects.length == 1 ? '${projects.first['id']}' : null;
+    var queuedReq = false;
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -308,7 +349,7 @@ class _FundsScreenState extends State<FundsScreen> {
                   final a = num.tryParse(amount.text.replaceAll(' ', ''));
                   if (a == null || a < 1) return;
                   try {
-                    await s.api!.fundsRequest(amount: a, kind: kind, object: object, note: note.text);
+                    queuedReq = await s.api!.fundsRequest(amount: a, kind: kind, object: object, note: note.text);
                     if (ctx.mounted) Navigator.pop(ctx, true);
                   } catch (e) {
                     if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('$e')));
@@ -322,7 +363,7 @@ class _FundsScreenState extends State<FundsScreen> {
       ),
     );
     if (ok == true) {
-      _toast('So\'rov yuborildi');
+      _toast(queuedReq ? "Offline saqlandi — internet paydo bo'lganda yuboriladi" : "So'rov yuborildi");
       _reload();
     }
   }
@@ -665,6 +706,13 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     _wh = w.isNotEmpty ? w.first['id'] as int : (_warehouses.isNotEmpty ? _warehouses.first['id'] as int : null);
   }
 
+  /// Taxminiy summa kompaniya valyutasida (yuborilmagan xarid balansdan ayirib ko'rsatilishi uchun)
+  num _estimate(bool hasLines, num? amount) {
+    final v = hasLines && _linesTotal > 0 ? _linesTotal : (amount ?? 0);
+    final rate = _n(_currencies.firstWhere((c) => '${c['code']}' == _curCode, orElse: () => const {'rate': 1})['rate']);
+    return v * (_curCode == '${widget.data['base_currency'] ?? ''}' ? 1 : (rate > 0 ? rate : 1));
+  }
+
   String get _iso => '${_date.year.toString().padLeft(4, '0')}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
 
   num get _linesTotal => _lines.fold<num>(0, (a, l) => a + (num.tryParse(l.qty.text.replaceAll(',', '.')) ?? 0) * (num.tryParse(l.price.text.replaceAll(' ', '')) ?? 0));
@@ -694,7 +742,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     }
     setState(() => _busy = true);
     try {
-      await s.api!.fundsSpend(
+      final res = await s.api!.fundsSpend(
         kind: _kindV,
         object: _object!,
         date: _iso,
@@ -708,15 +756,17 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         receiptPath: _noReceipt ? null : _photo?.path,
         noReceipt: _noReceipt,
         currency: _curCode == '${widget.data['base_currency'] ?? ''}' ? null : _curCode,
+        estimate: _estimate(hasLines, amount),
       );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
+      final queued = res['queued'] == true;
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
-          title: const Text('Hisobot yuborildi'),
-          content: const Text('Xarid hisobotingiz rahbar va buxgalterga yuborildi. Pul balansingizdan yechildi.'),
+          icon: Icon(queued ? Icons.cloud_off : Icons.check_circle, color: queued ? Colors.orange : Colors.green, size: 48),
+          title: Text(queued ? 'Offline saqlandi' : 'Hisobot yuborildi'),
+          content: Text(queued ? "Internet yo'q — hisobot va chek surati telefonda saqlandi. Internet paydo bo'lganda avtomatik yuboriladi va rahbar bilan buxgalterga xabar boradi. Balansdan hozirdan ayirib ko'rsatiladi." : 'Xarid hisobotingiz rahbar va buxgalterga yuborildi. Pul balansingizdan yechildi.'),
           actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Yaxshi'))],
         ),
       );
