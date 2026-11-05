@@ -24,7 +24,7 @@ class CompanyInfo {
   }
 }
 
-/// Foydalanuvchi yozgan narsadan kompaniya kodini ajratadi: "Navruz-Qurilish",
+/// Foydalanuvchi yozgan narsadan kompaniya kodini ajratadi: "Navruz Qurilish", "Navruz-Qurilish",
 /// "navruz-qurilish.oftob.….io", "…/c/navruz-qurilish" — hammasi "navruz-qurilish" bo'ladi.
 String? parseCompanyCode(String raw) {
   var s = raw.trim().toLowerCase();
@@ -33,7 +33,8 @@ String? parseCompanyCode(String raw) {
   final path = RegExp(r'/c/([a-z0-9-]+)').firstMatch(s);
   if (path != null) return path.group(1);
   if (s.contains('.')) s = s.split('.').first; // nom.oftob….io
-  s = s.replaceAll(RegExp(r'[/\s]+.*$'), '');
+  s = s.replaceAll(RegExp(r'/.*$'), '').trim();
+  s = s.replaceAll(RegExp(r'\s+'), '-'); // "Navruz Qurilish" → "navruz-qurilish"
   return RegExp(r'^[a-z0-9][a-z0-9-]{0,78}$').hasMatch(s) ? s : null;
 }
 

@@ -25,6 +25,7 @@ void main() {
   test('korxona kodi turli yozuvdan ajratiladi', () {
     expect(parseCompanyCode('Navruz-Qurilish'), 'navruz-qurilish');
     expect(parseCompanyCode(' navruz-qurilish '), 'navruz-qurilish');
+    expect(parseCompanyCode('Navruz Qurilish'), 'navruz-qurilish');
     expect(parseCompanyCode('https://navruz-qurilish.oftob.5-189-163-130.sslip.io/login'), 'navruz-qurilish');
     expect(parseCompanyCode('https://oftob.5-189-163-130.sslip.io/c/mosgrad-development'), 'mosgrad-development');
     expect(parseCompanyCode(''), isNull);
