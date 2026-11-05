@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
+import 'deal.dart';
 import 'tour.dart';
 
 Color statusColor(String? s) => switch (s) {
@@ -322,6 +323,18 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
     await _patch({'price': v}, ok: 'Narx saqlandi');
   }
 
+  /// Sotish / bron — to'liq shakl (muddat, boshlang'ich to'lov, foiz, shartnoma) alohida ekranda
+  Future<void> _openDeal() async {
+    var done = false;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => DealScreen(session: widget.session, objectId: widget.objectId, apt: widget.apt, onDone: () {
+        done = true;
+        widget.onChanged();
+      }),
+    ));
+    if (done && mounted) Navigator.pop(context);
+  }
+
   void _tour(String view, String title) {
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => TourScreen(session: widget.session, objectId: widget.objectId, view: view, title: title, apartment: '${widget.apt['id']}'),
@@ -533,15 +546,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
           if (_canWrite) ...[
             const Divider(height: 36),
             if (st == 'free') ...[
-              TextField(controller: _name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Xaridor ismi', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Telefon', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: OutlinedButton(onPressed: _busy ? null : () => _change('booked'), child: const Text('Bron qilish'))),
-                const SizedBox(width: 12),
-                Expanded(child: FilledButton(onPressed: _busy ? null : () => _change('sold'), child: const Text('Sotish'))),
-              ]),
+              FilledButton.icon(onPressed: _busy ? null : _openDeal, icon: const Icon(Icons.key), label: const Text('Sotish / bron qilish')),
               const SizedBox(height: 20),
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(child: TextField(controller: _price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Narx (so\'m)', border: OutlineInputBorder()))),
@@ -549,7 +554,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
                 SizedBox(height: 56, child: FilledButton.tonal(onPressed: _busy ? null : _savePrice, child: const Text('Saqlash'))),
               ]),
             ] else if (st == 'booked') ...[
-              FilledButton(onPressed: _busy ? null : () => _change('sold'), child: const Text('Sotishga o\'tkazish')),
+              FilledButton(onPressed: _busy ? null : _openDeal, child: const Text('Sotishga o\'tkazish')),
               const SizedBox(height: 10),
               OutlinedButton(onPressed: _busy ? null : () => _change('free'), child: const Text('Bronni bekor qilish')),
             ] else if (st == 'sold')

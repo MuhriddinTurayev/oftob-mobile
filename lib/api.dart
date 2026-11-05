@@ -174,6 +174,19 @@ class ApiClient {
     return Map<String, dynamic>.from((b as Map)['data'] as Map);
   }
 
+  /// Muddatli to'lov stavkalari, bron sharti (zadatok, kun), stavka/narxni kim o'zgartira olishi
+  Future<Map<String, dynamic>> salesTerms() async => Map<String, dynamic>.from(((await _getMap('/sales/terms'))['data'] as Map?) ?? const {});
+
+  /// Sotish yoki bron — saytdagi «Продать / Забронировать» ning o'zi (boshlang'ich to'lov kassaga, grafik, shartnoma).
+  Future<Map<String, dynamic>> apartmentDeal(String objectId, String apartmentId, Map<String, dynamic> body) async {
+    final b = await _send(() => _http.post(
+          _uri('/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}/deal'),
+          headers: _headers,
+          body: jsonEncode(body),
+        ));
+    return Map<String, dynamic>.from((b as Map)['data'] as Map);
+  }
+
   /// To'lov usullari (kompaniya sozlamasi): value — serverga yuboriladi, label — ko'rsatiladi
   Future<List<Map<String, dynamic>>> payMethods() async => _list((await _getMap('/sales/pay-methods'))['data']);
 
