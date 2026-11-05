@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../format.dart';
 import '../session.dart';
@@ -94,6 +95,64 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   List<Map<String, dynamic>> get _sites => ((_data?['sites'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 
   bool get _canMark => _data?['can_mark'] == true;
+
+  List<Map<String, dynamic>> get _office => ((_data?['office'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+
+  Future<void> _openMap(num lat, num lng) =>
+      launchUrl(Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng'), mode: LaunchMode.externalApplication);
+
+  /// «Men ishga keldim» bosgan prorablar va ofis xodimlari: kelgan/ketgan vaqt va joylashuv (xaritada ochiladi).
+  Widget _officeBlock(ColorScheme cs) {
+    final came = _office.where((o) => o['status'] != 'none').length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: cs.outlineVariant)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Expanded(child: Text('Prorablar va ofis xodimlari', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
+            Text('$came/${_office.length}', style: TextStyle(color: cs.outline, fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: 4),
+          for (final o in _office) _officeRow(o, cs),
+        ]),
+      ),
+    );
+  }
+
+  Widget _officeRow(Map<String, dynamic> o, ColorScheme cs) {
+    final st = '${o['status']}';
+    final lat = o['in_lat'] as num?;
+    final lng = o['in_lng'] as num?;
+    final dist = o['in_dist'] as num?;
+    final (label, color) = switch (st) {
+      'working' => ('Ishda', Colors.teal),
+      'left' => ('Ketdi', Colors.blueGrey),
+      _ => ('Kelmadi', cs.error),
+    };
+    final times = st == 'none' ? '' : '${o['in'] ?? ''}${o['out'] != null ? ' – ${o['out']}' : ''}';
+    final where = st == 'none' ? '' : (lat == null ? 'joylashuvsiz' : (dist == null ? 'joylashuv bor' : (dist <= 300 ? 'obyektda' : 'obyektdan ${distLabel(dist)}')));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(children: [
+        CircleAvatar(radius: 18, backgroundColor: color.withValues(alpha: 0.14), foregroundColor: color, child: Text('${o['name']}'.isEmpty ? '?' : '${o['name']}'[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w800))),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('${o['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Text([if ('${o['role']}'.isNotEmpty) '${o['role']}', if (times.isNotEmpty) times, if (where.isNotEmpty) where].join(' · '), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: (lat == null && st != 'none') ? Colors.orange.shade800 : cs.outline, fontSize: 12.5)),
+          ]),
+        ),
+        if (lat != null && lng != null) IconButton(tooltip: 'Xaritada ochish', visualDensity: VisualDensity.compact, onPressed: () => _openMap(lat, lng), icon: Icon(Icons.map_outlined, color: cs.primary)),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+          child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
+        ),
+      ]),
+    );
+  }
 
   bool _passes(Map w) {
     final st = '${w['status']}';
@@ -263,6 +322,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ),
             ),
           ),
+          if (_office.isNotEmpty) _officeBlock(cs),
           if (_canMark && _selected.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),

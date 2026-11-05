@@ -217,6 +217,20 @@ class ApiClient {
     return Map<String, dynamic>.from((m['data'] as Map?) ?? const {});
   }
 
+  /* ---------------- «Men ishga keldim» (smena) ---------------- */
+
+  Future<Map<String, dynamic>> shift() async => Map<String, dynamic>.from(((await _getMap('/shift'))['data'] as Map?) ?? const {});
+
+  /// act: start | end | reopen. Koordinatalar bo'lsa yuboriladi (lokatsiyasiz ham belgilash mumkin).
+  Future<Map<String, dynamic>> shiftAct(String act, {double? lat, double? lng, double? acc}) async {
+    final b = await _send(() => _http.post(
+          _uri('/shift/$act'),
+          headers: _headers,
+          body: jsonEncode({if (lat != null && lng != null) 'lat': lat, if (lat != null && lng != null) 'lng': lng, if (acc != null) 'acc': acc}),
+        ));
+    return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
+  }
+
   /// Smenaga qo'yish (act='in') yoki smenadan olish (act='out'). Faqat bugun.
   Future<Map<String, dynamic>> attendanceMark(String act, String object, List<String> staffIds, {String? time}) async {
     final b = await _send(() => _http.post(

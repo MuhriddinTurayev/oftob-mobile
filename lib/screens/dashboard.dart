@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
+import 'shift_card.dart';
 
 /// Bosh ekran: rahbar uchun bir qarashda — kassa, sotuv, vazifalar, yangi lidlar, oxirgi operatsiyalar.
 /// Faqat kalit (rol) ruxsat bergan bo'limlar ko'rsatiladi; har biri alohida yuklanadi — biri xato bersa, qolganlari ishlayveradi.
@@ -143,6 +144,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 2),
           Text('${me.company} · ${me.roleName}', style: TextStyle(color: cs.outline)),
           const SizedBox(height: 16),
+          if (me.can('shift:write')) ...[ShiftCard(session: s), const SizedBox(height: 12)],
           if (me.can('cash:read'))
             _CashCard(
               total: _cash[cur],

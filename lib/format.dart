@@ -43,3 +43,6 @@ String formatDate(String? iso) {
 
 /// Xonalar soni: 0 — tijorat xonasi
 String roomsLabel(Object? rooms) => '$rooms' == '0' ? 'Tijorat' : '$rooms xona';
+
+/// Masofa: 540 m, 12,5 km
+String distLabel(num m) => m < 1000 ? '${m.round()} m' : '${(m / 1000).toStringAsFixed(1).replaceAll('.', ',')} km';
