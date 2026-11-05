@@ -187,6 +187,24 @@ class ApiClient {
     return Map<String, dynamic>.from((b as Map)['data'] as Map);
   }
 
+  /// Shartnoma (kind='contract') yoki to'lov cheki (kind='receipt', id=to'lov raqami) PDF baytlari
+  Future<List<int>> downloadDocument(String objectId, String apartmentId, String kind, {String? id}) async {
+    final path = '/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}/documents/$kind${id != null ? '/${Uri.encodeComponent(id)}' : ''}';
+    final http.Response r;
+    try {
+      r = await _http.get(_uri(path), headers: {'Authorization': 'Bearer $apiKey', 'Accept': 'application/pdf, application/json', 'Accept-Language': 'uz'}).timeout(const Duration(seconds: 90));
+    } on TimeoutException {
+      throw ApiException('Server javob bermadi. Internetni tekshiring.');
+    } catch (_) {
+      throw ApiException("Serverga ulanib bo'lmadi. Internetni tekshiring.");
+    }
+    if (r.statusCode == 200 && r.bodyBytes.length > 4 && String.fromCharCodes(r.bodyBytes.take(4)) == '%PDF') return r.bodyBytes;
+    if (r.statusCode == 401) throw ApiException('Kirish muddati tugagan.', status: 401);
+    if (r.statusCode == 403) throw ApiException("Bu hujjatni ochishga ruxsat yo'q.");
+    if (r.statusCode == 404) throw ApiException('Hujjat topilmadi.');
+    throw ApiException("Hujjatni olib bo'lmadi (${r.statusCode}).");
+  }
+
   /// To'lov usullari (kompaniya sozlamasi): value — serverga yuboriladi, label — ko'rsatiladi
   Future<List<Map<String, dynamic>>> payMethods() async => _list((await _getMap('/sales/pay-methods'))['data']);
 

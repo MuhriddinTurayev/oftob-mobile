@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../documents.dart';
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
@@ -335,6 +336,11 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
     if (done && mounted) Navigator.pop(context);
   }
 
+  /// Shartnoma yoki chek PDF — telefondagi ko'rgichda ochiladi; share=true — ulashish (xaridorga yuborish)
+  void _doc(String kind, {String? id, required String name, bool share = false}) {
+    openDocument(context, widget.session, objectId: widget.objectId, apartmentId: '${widget.apt['id']}', kind: kind, id: id, fileName: name, share: share);
+  }
+
   void _tour(String view, String title) {
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => TourScreen(session: widget.session, objectId: widget.objectId, view: view, title: title, apartment: '${widget.apt['id']}'),
@@ -517,6 +523,16 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
                 ),
               ),
           ],
+          if (_canWrite && st == 'sold') ...[
+            const SizedBox(height: 16),
+            Text('Hujjatlar', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(onPressed: () => _doc('contract', name: 'Shartnoma-${a['number']}'), icon: const Icon(Icons.description_outlined), label: const Text('Shartnoma (PDF)'))),
+              const SizedBox(width: 8),
+              IconButton.outlined(tooltip: 'Ulashish', onPressed: () => _doc('contract', name: 'Shartnoma-${a['number']}', share: true), icon: const Icon(Icons.ios_share)),
+            ]),
+          ],
           if (_canSales && ((a['schedule'] as List?) ?? const []).isNotEmpty) ...[
             const SizedBox(height: 16),
             Text('To\'lov grafigi', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
@@ -541,6 +557,13 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
                 leading: CircleAvatar(radius: 16, backgroundColor: Colors.green.withValues(alpha: 0.12), foregroundColor: Colors.green.shade700, child: const Icon(Icons.south_west, size: 16)),
                 title: Text('+${money(p['amount'] as num?)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text('${formatDate('${p['date']}')}${p['method'] != null && '${p['method']}'.isNotEmpty ? ' · ${p['method']}' : ''}'),
+                trailing: _canWrite
+                    ? Row(mainAxisSize: MainAxisSize.min, children: [
+                        IconButton(tooltip: 'Chek', onPressed: () => _doc('receipt', id: '${p['id']}', name: 'Chek-${a['number']}-${p['id']}'), icon: const Icon(Icons.receipt_long_outlined)),
+                        IconButton(tooltip: 'Ulashish', onPressed: () => _doc('receipt', id: '${p['id']}', name: 'Chek-${a['number']}-${p['id']}', share: true), icon: const Icon(Icons.ios_share, size: 20)),
+                      ])
+                    : null,
+                onTap: _canWrite ? () => _doc('receipt', id: '${p['id']}', name: 'Chek-${a['number']}-${p['id']}') : null,
               ),
           ],
           if (_canWrite) ...[
