@@ -6,6 +6,7 @@ import 'attendance.dart';
 import 'cash.dart';
 import 'crew.dart';
 import 'dashboard.dart';
+import 'funds.dart';
 import 'leads.dart';
 import 'objects.dart';
 import 'reports.dart';
@@ -44,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _Tab('Bosh', Icons.home_outlined, Icons.home, (x) => DashboardScreen(session: x, onOpen: _open)),
       // prorab uchun davomat — eng asosiy ish; boshqa rollarda «Yana» ichida (Bosh ekrandagi karta orqali ham ochiladi)
       if (me.can('attendance:read') && me.role == 'foreman') _Tab('Davomat', Icons.how_to_reg_outlined, Icons.how_to_reg, (x) => AttendanceScreen(session: x)),
+      if (me.can('funds:read') && me.role == 'foreman') _Tab('Pul', Icons.payments_outlined, Icons.payments, (x) => FundsScreen(session: x)),
       if (me.can('crew:read') && me.role == 'foreman') _Tab('Xodimlar', Icons.groups_outlined, Icons.groups, (x) => CrewScreen(session: x)),
       if (me.can('objects:read')) _Tab('Obyektlar', Icons.apartment_outlined, Icons.apartment, (x) => ObjectsScreen(session: x)),
       if (me.can('cash:read')) _Tab('Kassa', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, (x) => CashScreen(session: x)),
@@ -57,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final primary = _primary.map((e) => e.label).toSet();
     return [
       if (me.can('attendance:read') && !primary.contains('Davomat')) _Tab('Davomat', Icons.how_to_reg_outlined, Icons.how_to_reg, (x) => AttendanceScreen(session: x)),
+      if (me.can('funds:read') && !primary.contains('Pul')) _Tab('Prorab puli', Icons.payments_outlined, Icons.payments, (x) => FundsScreen(session: x)),
       if (me.can('reports:read')) _Tab('Hisobotlar', Icons.description_outlined, Icons.description, (x) => ReportsScreen(session: x)),
       if (me.can('sales:read')) _Tab('Sotuv', Icons.key_outlined, Icons.key, (x) => SalesScreen(session: x)),
       if (me.can('crew:read') && !primary.contains('Xodimlar')) _Tab('Xodimlar', Icons.groups_outlined, Icons.groups, (x) => CrewScreen(session: x)),

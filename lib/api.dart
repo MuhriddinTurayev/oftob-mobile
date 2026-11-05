@@ -258,6 +258,76 @@ class ApiClient {
         ));
   }
 
+  /* ---------------- prorab puli va chek ---------------- */
+
+  Map<String, String> get authHeaders => {'Authorization': 'Bearer $apiKey', 'Accept': 'image/*'};
+
+  /// Chek suratining manzili (Image.network uchun `authHeaders` bilan)
+  String receiptUrl(int op) => _uri('/funds/receipt/$op').toString();
+
+  /// Prorab: o'z balansi, so'rovlari, xarajatlari. Rahbar/buxgalter: barcha prorablar. [status]: pending | norc
+  Future<Map<String, dynamic>> funds({int? user, String? status}) async =>
+      Map<String, dynamic>.from(((await _getMap('/funds', {'user': user, 'status': status}))['data'] as Map?) ?? const {});
+
+  Future<void> fundsRequest({required num amount, required String kind, String? object, String? note}) async {
+    await _send(() => _http.post(_uri('/funds/request'),
+        headers: _headers, body: jsonEncode({'amount': amount, 'kind': kind, if (object != null && object.isNotEmpty) 'project_id': object, if (note != null && note.trim().isNotEmpty) 'note': note.trim()})));
+  }
+
+  Future<void> fundsPost(String path, [Map<String, dynamic>? body]) async {
+    await _send(() => _http.post(_uri(path), headers: _headers, body: jsonEncode(body ?? const {})));
+  }
+
+  /// Xarid hisoboti (chek surati bilan). [lines] — omborga kiradigan materiallar: {name, qty, unit, price}
+  Future<Map<String, dynamic>> fundsSpend({
+    required String kind,
+    required String object,
+    required String date,
+    String? what,
+    String? vendor,
+    String? note,
+    num? amount,
+    int? warehouse,
+    List<Map<String, dynamic>> lines = const [],
+    String? receiptPath,
+    bool noReceipt = false,
+  }) async {
+    final fields = <String, String>{
+      'kind': kind,
+      'project_id': object,
+      'date': date,
+      if (what != null && what.trim().isNotEmpty) 'what': what.trim(),
+      if (vendor != null && vendor.trim().isNotEmpty) 'vendor': vendor.trim(),
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      if (amount != null && amount > 0) 'amount': '$amount',
+      if (warehouse != null && lines.isNotEmpty) 'warehouse_id': '$warehouse',
+      if (noReceipt) 'no_receipt': '1',
+    };
+    for (var i = 0; i < lines.length; i++) {
+      lines[i].forEach((k, v) {
+        if (v != null && '$v'.isNotEmpty) fields['lines[$i][$k]'] = '$v';
+      });
+    }
+    final b = await _send(() async {
+      final req = http.MultipartRequest('POST', _uri('/funds/spend'))
+        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': 'uz'})
+        ..fields.addAll(fields);
+      if (receiptPath != null) req.files.add(await http.MultipartFile.fromPath('receipt', receiptPath));
+      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
+    });
+    return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
+  }
+
+  /// Keyinroq chek qo'shish
+  Future<void> fundsAddReceipt(int op, String path) async {
+    await _send(() async {
+      final req = http.MultipartRequest('POST', _uri('/funds/$op/receipt'))
+        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': 'uz'});
+      req.files.add(await http.MultipartFile.fromPath('receipt', path));
+      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
+    });
+  }
+
   /* ---------------- hisobotlar ---------------- */
 
   /// Hisobotini ko'rish mumkin bo'lgan prorablar va sotuvchilar.
