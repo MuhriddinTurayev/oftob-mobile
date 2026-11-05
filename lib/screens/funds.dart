@@ -1,12 +1,14 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
+import '../l10n.dart';
 
 num _n(Object? v) => v is num ? v : (num.tryParse('$v') ?? 0);
 String _cur(Object? c) => '$c'.trim().toLowerCase() == 'сум' ? "so'm" : '${c ?? ''}';
@@ -189,7 +191,7 @@ class _FundsScreenState extends State<FundsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('So\'rovni rad etish'),
-        content: TextField(controller: c, decoration: const InputDecoration(labelText: 'Sabab (ixtiyoriy)')),
+        content: TextField(controller: c, decoration: InputDecoration(labelText: tr('Sabab (ixtiyoriy)'))),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Bekor')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Rad etish'))],
       ),
     );
@@ -282,7 +284,7 @@ class _FundsScreenState extends State<FundsScreen> {
               const SizedBox(height: 4),
               const Text('So\'rov buxgalter va rahbarga Telegram orqali ham boradi.'),
               const SizedBox(height: 14),
-              TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Summa')),
+              TextField(controller: amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Summa'))),
               const SizedBox(height: 12),
               SegmentedButton<String>(
                 segments: const [ButtonSegment(value: 'cash', label: Text('Naqd')), ButtonSegment(value: 'card', label: Text('Kartaga'))],
@@ -293,13 +295,13 @@ class _FundsScreenState extends State<FundsScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: object,
-                  decoration: const InputDecoration(labelText: 'Qaysi obyekt uchun'),
+                  decoration: InputDecoration(labelText: tr('Qaysi obyekt uchun')),
                   items: [for (final p in projects) DropdownMenuItem(value: '${p['id']}', child: Text('${p['name']}'))],
                   onChanged: (v) => set(() => object = v),
                 ),
               ],
               const SizedBox(height: 12),
-              TextField(controller: note, decoration: const InputDecoration(labelText: 'Nimaga kerak (masalan: sement, armatura)'), maxLines: 2),
+              TextField(controller: note, decoration: InputDecoration(labelText: tr('Nimaga kerak (masalan: sement, armatura)')), maxLines: 2),
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () async {
@@ -414,19 +416,19 @@ class _FundsScreenState extends State<FundsScreen> {
               const SizedBox(height: 14),
               DropdownButtonFormField<int>(
                 initialValue: who,
-                decoration: const InputDecoration(labelText: 'Prorab'),
+                decoration: InputDecoration(labelText: tr('Prorab')),
                 items: [for (final h in holders) DropdownMenuItem(value: h['user_id'] as int, child: Text('${h['name']}'))],
                 onChanged: (v) => set(() => who = v),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 initialValue: from,
-                decoration: const InputDecoration(labelText: 'Qaysi kassadan'),
+                decoration: InputDecoration(labelText: tr('Qaysi kassadan')),
                 items: [for (final x in sources) DropdownMenuItem(value: x['id'] as int, child: Text('${x['name']}', overflow: TextOverflow.ellipsis))],
                 onChanged: (v) => set(() => from = v),
               ),
               const SizedBox(height: 12),
-              TextField(controller: amountC, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Summa')),
+              TextField(controller: amountC, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Summa'))),
               const SizedBox(height: 12),
               SegmentedButton<String>(
                 segments: const [ButtonSegment(value: 'cash', label: Text('Naqd')), ButtonSegment(value: 'card', label: Text('Kartaga'))],
@@ -434,7 +436,7 @@ class _FundsScreenState extends State<FundsScreen> {
                 onSelectionChanged: (v) => set(() => k = v.first),
               ),
               const SizedBox(height: 12),
-              TextField(controller: noteC, decoration: const InputDecoration(labelText: 'Izoh (ixtiyoriy)')),
+              TextField(controller: noteC, decoration: InputDecoration(labelText: tr('Izoh (ixtiyoriy)'))),
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () async {
@@ -509,7 +511,7 @@ class _OpSheetState extends State<_OpSheet> {
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('Pul prorabga qaytadi, materiallar ombordan chiqariladi.'),
           const SizedBox(height: 10),
-          TextField(controller: c, decoration: const InputDecoration(labelText: 'Sabab')),
+          TextField(controller: c, decoration: InputDecoration(labelText: tr('Sabab'))),
         ]),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Bekor')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Qaytarish'))],
       ),
@@ -740,7 +742,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           if (_projects.length > 1)
             DropdownButtonFormField<String>(
               initialValue: _object,
-              decoration: const InputDecoration(labelText: 'Qaysi obyekt'),
+              decoration: InputDecoration(labelText: tr('Qaysi obyekt')),
               items: [for (final p in _projects) DropdownMenuItem(value: '${p['id']}', child: Text('${p['name']}'))],
               onChanged: (v) => setState(() {
                 _object = v;
@@ -756,9 +758,9 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             onSelectionChanged: (v) => setState(() => _kindV = v.first),
           ),
           const SizedBox(height: 12),
-          TextField(controller: _what, decoration: const InputDecoration(labelText: 'Nima sotib olindi')),
+          TextField(controller: _what, decoration: InputDecoration(labelText: tr('Nima sotib olindi'))),
           const SizedBox(height: 12),
-          TextField(controller: _vendor, decoration: const InputDecoration(labelText: 'Qayerdan (bozor, do\'kon nomi)')),
+          TextField(controller: _vendor, decoration: InputDecoration(labelText: tr('Qayerdan (bozor, do\'kon nomi)'))),
           const SizedBox(height: 12),
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -785,14 +787,14 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             const SizedBox(height: 8),
             DropdownButtonFormField<int>(
               initialValue: _wh,
-              decoration: const InputDecoration(labelText: 'Qaysi omborga'),
+              decoration: InputDecoration(labelText: tr('Qaysi omborga')),
               items: [for (final w in _warehouses) DropdownMenuItem(value: w['id'] as int, child: Text('${w['name']}'))],
               onChanged: (v) => setState(() => _wh = v),
             ),
           ],
           const SizedBox(height: 14),
           if (_lines.isEmpty || _linesTotal <= 0)
-            TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Jami summa ($cur)'), onChanged: (_) => setState(() {}))
+            TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Jami summa ($cur)')), onChanged: (_) => setState(() {}))
           else
             Container(
               padding: const EdgeInsets.all(14),
@@ -850,25 +852,25 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         padding: const EdgeInsets.all(12),
         child: Column(children: [
           Row(children: [
-            Expanded(child: TextField(controller: l.name, decoration: const InputDecoration(labelText: 'Material nomi'))),
+            Expanded(child: TextField(controller: l.name, decoration: InputDecoration(labelText: tr('Material nomi')))),
             IconButton(onPressed: () => setState(() => _lines.removeAt(i)), icon: const Icon(Icons.delete_outline)),
           ]),
           const SizedBox(height: 8),
           Row(children: [
-            Expanded(child: TextField(controller: l.qty, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Miqdor'), onChanged: (_) => setState(() {}))),
+            Expanded(child: TextField(controller: l.qty, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: tr('Miqdor')), onChanged: (_) => setState(() {}))),
             const SizedBox(width: 8),
             SizedBox(
               width: 96,
               child: DropdownButtonFormField<String>(
                 initialValue: _units.any((u) => '${u['value']}' == l.unit) ? l.unit : null,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Birlik'),
+                decoration: InputDecoration(labelText: tr('Birlik')),
                 items: [for (final u in _units) DropdownMenuItem(value: '${u['value']}', child: Text('${u['label']}'))],
                 onChanged: (v) => setState(() => l.unit = v ?? ''),
               ),
             ),
             const SizedBox(width: 8),
-            Expanded(child: TextField(controller: l.price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Narxi (1 birlik)'), onChanged: (_) => setState(() {}))),
+            Expanded(child: TextField(controller: l.price, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Narxi (1 birlik)')), onChanged: (_) => setState(() {}))),
           ]),
         ]),
       ),

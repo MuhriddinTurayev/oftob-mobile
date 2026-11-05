@@ -146,6 +146,16 @@ class Session extends ChangeNotifier {
     }
   }
 
+  /// Til o'zgarganda: rol nomi kabi server matnlarini yangi tilda qayta olish (jim; xato bo'lsa eskisi qoladi)
+  Future<void> refreshMe() async {
+    final a = api;
+    if (a == null || me == null) return;
+    try {
+      me = await a.me();
+      notifyListeners();
+    } catch (_) {}
+  }
+
   /// Server 401 qaytarsa (kalit bekor qilingan) — chiqib ketamiz.
   Future<void> handleError(Object e) async {
     if (e is ApiException && e.unauthorized) await signOut();

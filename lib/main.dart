@@ -1,14 +1,19 @@
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'screens/home.dart';
 import 'screens/login.dart';
 import 'session.dart';
+import 'l10n.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(OftobApp(session: Session()..restore()));
+  await L.load(); // saqlangan (yoki telefon) tili birinchi kadrdan to'g'ri bo'lsin
+  final session = Session()..restore();
+  L.notifier.addListener(session.refreshMe); // til o'zgarsa — rol nomi kabi server matnlari yangi tilda olinadi
+  runApp(OftobApp(session: session));
 }
 
 class OftobApp extends StatelessWidget {
@@ -18,21 +23,31 @@ class OftobApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Oftob Building',
-      debugShowCheckedModeBanner: false,
-      theme: _theme(Brightness.light),
-      darkTheme: _theme(Brightness.dark),
-      builder: (context, child) {
-        final mq = MediaQuery.of(context);
-        return MediaQuery(data: mq.copyWith(textScaler: TextScaler.linear(mq.textScaler.scale(1) * 1.08)), child: child!);
-      },
-      home: ListenableBuilder(
-        listenable: session,
-        builder: (context, _) {
-          if (session.loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-          return session.signedIn ? HomeScreen(session: session) : LoginScreen(session: session);
+    return ValueListenableBuilder<String>(
+      valueListenable: L.notifier,
+      builder: (context, lang, _) => MaterialApp(
+        title: 'Oftob Building',
+        debugShowCheckedModeBanner: false,
+        theme: _theme(Brightness.light),
+        darkTheme: _theme(Brightness.dark),
+        locale: materialLocale(lang, (l) => GlobalMaterialLocalizations.delegate.isSupported(l)),
+        supportedLocales: const [Locale('uz'), Locale('ru'), Locale('tg')],
+        localizationsDelegates: const [GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
+        localeResolutionCallback: (loc, supported) => loc,
+        builder: (context, child) {
+          final mq = MediaQuery.of(context);
+          return MediaQuery(data: mq.copyWith(textScaler: TextScaler.linear(mq.textScaler.scale(1) * 1.08)), child: child!);
         },
+        home: KeyedSubtree(
+          key: ValueKey(lang), // til almashganda butun ekran yangi tilda qayta quriladi
+          child: ListenableBuilder(
+            listenable: session,
+            builder: (context, _) {
+              if (session.loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              return session.signedIn ? HomeScreen(session: session) : LoginScreen(session: session);
+            },
+          ),
+        ),
       ),
     );
   }

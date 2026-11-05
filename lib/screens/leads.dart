@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -6,6 +7,7 @@ import '../api.dart';
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
+import '../l10n.dart';
 
 /// Kanal (manba) ko'rinishi: ikonka, rang, nom.
 ({IconData icon, Color color, String name}) _channel(String? ch) {
@@ -166,7 +168,7 @@ class _LeadsScreenState extends State<LeadsScreen> {
               child: TextField(
                 onChanged: (v) => setState(() => _q = v.trim()),
                 decoration: InputDecoration(
-                  hintText: 'Qidirish: ism, telefon, izoh',
+                  hintText: tr('Qidirish: ism, telefon, izoh'),
                   prefixIcon: const Icon(Icons.search),
                   isDense: true,
                   filled: true,
@@ -317,7 +319,7 @@ class _LeadSheet extends StatelessWidget {
               if (digits.length >= 9) ...[
                 const SizedBox(width: 10),
                 IconButton.filledTonal(
-                  tooltip: 'WhatsApp',
+                  tooltip: tr('WhatsApp'),
                   onPressed: () => launchUrl(Uri.parse('https://wa.me/${digits.length == 9 ? '998$digits' : digits}'), mode: LaunchMode.externalApplication),
                   icon: const Icon(Icons.chat),
                 ),
@@ -402,7 +404,7 @@ class _LeadFormState extends State<_LeadForm> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    InputDecoration dec(String l) => InputDecoration(labelText: l, filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none));
+    InputDecoration dec(String l) => InputDecoration(labelText: tr(l), filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none));
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(

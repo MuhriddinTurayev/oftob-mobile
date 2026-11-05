@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 
 import '../api.dart';
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
+import '../l10n.dart';
 
 Color _taskColor(String? s) => switch (s) {
       'done' => Colors.green,
@@ -352,7 +354,7 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    InputDecoration dec(String l) => InputDecoration(labelText: l, filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none));
+    InputDecoration dec(String l) => InputDecoration(labelText: tr(l), filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none));
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(

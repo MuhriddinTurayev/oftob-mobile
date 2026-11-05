@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 
 import '../session.dart';
@@ -14,6 +15,8 @@ import 'reports.dart';
 import 'sales.dart';
 import 'stock.dart';
 import 'tasks.dart';
+import '../l10n.dart';
+import '../widgets.dart';
 
 class _Tab {
   const _Tab(this.label, this.icon, this.activeIcon, this.builder);
@@ -71,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 6),
         content: Text('${f['title']}: ${f['body']}$more', maxLines: 2, overflow: TextOverflow.ellipsis),
-        action: SnackBarAction(label: "Ko'rish", onPressed: _openNotifications),
+        action: SnackBarAction(label: tr("Ko'rish"), onPressed: _openNotifications),
       ));
   }
 
@@ -188,6 +191,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             onTap: () => _push(t),
           ),
         const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [Icon(Icons.translate, color: cs.primary), const SizedBox(width: 12), const Text('Til', style: TextStyle(fontWeight: FontWeight.w600))]),
+            const SizedBox(height: 8),
+            const LangSwitch(),
+          ]),
+        ),
         ListTile(
           leading: Icon(Icons.logout, color: cs.error),
           title: Text('Chiqish', style: TextStyle(fontWeight: FontWeight.w600, color: cs.error)),
@@ -220,8 +231,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           setState(() => _index = v);
         },
         destinations: [
-          for (final t in tabs) NavigationDestination(icon: Icon(t.icon), selectedIcon: Icon(t.activeIcon), label: t.label),
-          const NavigationDestination(icon: Icon(Icons.menu), label: 'Yana'),
+          for (final t in tabs) NavigationDestination(icon: Icon(t.icon), selectedIcon: Icon(t.activeIcon), label: tr(t.label)),
+          NavigationDestination(icon: const Icon(Icons.menu), label: tr('Yana')),
         ],
       ),
     );

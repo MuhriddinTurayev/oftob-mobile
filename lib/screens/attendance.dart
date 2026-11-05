@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
+import '../l10n.dart';
 
 /// Davomat: kim ishga keldi, kim ishda, kim ketdi, kim kelmadi — obyektlar bo'yicha.
 /// Hisob veb-dasturdagi "Kim ishga keldi" bilan bir xil (server hisoblaydi). Prorab faqat o'z ishchilarini ko'radi.
@@ -144,7 +146,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             Text([if ('${o['role']}'.isNotEmpty) '${o['role']}', if (times.isNotEmpty) times, if (where.isNotEmpty) where].join(' · '), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: (lat == null && st != 'none') ? Colors.orange.shade800 : cs.outline, fontSize: 12.5)),
           ]),
         ),
-        if (lat != null && lng != null) IconButton(tooltip: 'Xaritada ochish', visualDensity: VisualDensity.compact, onPressed: () => _openMap(lat, lng), icon: Icon(Icons.map_outlined, color: cs.primary)),
+        if (lat != null && lng != null) IconButton(tooltip: tr('Xaritada ochish'), visualDensity: VisualDensity.compact, onPressed: () => _openMap(lat, lng), icon: Icon(Icons.map_outlined, color: cs.primary)),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
@@ -314,7 +316,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             child: TextField(
               onChanged: (v) => setState(() => _q = v.trim()),
               decoration: InputDecoration(
-                hintText: 'Qidirish: ism, lavozim, telefon',
+                hintText: tr('Qidirish: ism, lavozim, telefon'),
                 prefixIcon: const Icon(Icons.search),
                 isDense: true,
                 filled: true,

@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../session.dart';
 import '../widgets.dart';
+import '../l10n.dart';
 
 /// Saytdagi 3D va 360° sahifasini ilova ichida ochadi. Server 90 soniyalik bir martalik havola beradi
 /// (shaxsiy kalit bilan) — parol so'ralmaydi, havola faqat shu sahifaga olib boradi.

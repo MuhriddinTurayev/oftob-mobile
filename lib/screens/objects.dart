@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -10,6 +11,7 @@ import '../session.dart';
 import '../widgets.dart';
 import 'deal.dart';
 import 'tour.dart';
+import '../l10n.dart';
 
 Color statusColor(String? s) => switch (s) {
       'free' => Colors.green,
@@ -115,7 +117,7 @@ class _ApartmentsScreenState extends State<ApartmentsScreen> {
             child: TextField(
               onChanged: (v) => setState(() => _q = v.trim().toLowerCase()),
               decoration: InputDecoration(
-                hintText: 'Kvartira raqami yoki xaridor',
+                hintText: tr('Kvartira raqami yoki xaridor'),
                 prefixIcon: const Icon(Icons.search),
                 isDense: true,
                 filled: true,
@@ -377,7 +379,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
               const SizedBox(height: 4),
               Text('Qarz: ${money(debt)} so\'m', style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 14),
-              TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Summa (so\'m)')),
+              TextField(controller: amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Summa (so\'m)'))),
               const SizedBox(height: 12),
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -530,7 +532,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
             Row(children: [
               Expanded(child: OutlinedButton.icon(onPressed: () => _doc('contract', name: 'Shartnoma-${a['number']}'), icon: const Icon(Icons.description_outlined), label: const Text('Shartnoma (PDF)'))),
               const SizedBox(width: 8),
-              IconButton.outlined(tooltip: 'Ulashish', onPressed: () => _doc('contract', name: 'Shartnoma-${a['number']}', share: true), icon: const Icon(Icons.ios_share)),
+              IconButton.outlined(tooltip: tr('Ulashish'), onPressed: () => _doc('contract', name: 'Shartnoma-${a['number']}', share: true), icon: const Icon(Icons.ios_share)),
             ]),
           ],
           if (_canSales && ((a['schedule'] as List?) ?? const []).isNotEmpty) ...[
@@ -559,8 +561,8 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
                 subtitle: Text('${formatDate('${p['date']}')}${p['method'] != null && '${p['method']}'.isNotEmpty ? ' · ${p['method']}' : ''}'),
                 trailing: _canWrite
                     ? Row(mainAxisSize: MainAxisSize.min, children: [
-                        IconButton(tooltip: 'Chek', onPressed: () => _doc('receipt', id: '${p['id']}', name: 'Chek-${a['number']}-${p['id']}'), icon: const Icon(Icons.receipt_long_outlined)),
-                        IconButton(tooltip: 'Ulashish', onPressed: () => _doc('receipt', id: '${p['id']}', name: 'Chek-${a['number']}-${p['id']}', share: true), icon: const Icon(Icons.ios_share, size: 20)),
+                        IconButton(tooltip: tr('Chek'), onPressed: () => _doc('receipt', id: '${p['id']}', name: 'Chek-${a['number']}-${p['id']}'), icon: const Icon(Icons.receipt_long_outlined)),
+                        IconButton(tooltip: tr('Ulashish'), onPressed: () => _doc('receipt', id: '${p['id']}', name: 'Chek-${a['number']}-${p['id']}', share: true), icon: const Icon(Icons.ios_share, size: 20)),
                       ])
                     : null,
                 onTap: _canWrite ? () => _doc('receipt', id: '${p['id']}', name: 'Chek-${a['number']}-${p['id']}') : null,
@@ -572,7 +574,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
               FilledButton.icon(onPressed: _busy ? null : _openDeal, icon: const Icon(Icons.key), label: const Text('Sotish / bron qilish')),
               const SizedBox(height: 20),
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(child: TextField(controller: _price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Narx (so\'m)', border: OutlineInputBorder()))),
+                Expanded(child: TextField(controller: _price, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Narx (so\'m)'), border: OutlineInputBorder()))),
                 const SizedBox(width: 12),
                 SizedBox(height: 56, child: FilledButton.tonal(onPressed: _busy ? null : _savePrice, child: const Text('Saqlash'))),
               ]),

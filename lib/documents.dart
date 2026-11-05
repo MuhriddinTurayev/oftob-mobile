@@ -1,11 +1,13 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'session.dart';
+import 'l10n.dart';
 
 /// Shartnoma yoki chek PDF'ini serverdan (shaxsiy kalit bilan) yuklab, telefondagi PDF ko'rgichda ochadi
 /// yoki ulashish oynasini ko'rsatadi (Telegram, pochta va h.k. orqali xaridorga yuborish uchun).

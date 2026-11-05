@@ -20,6 +20,9 @@ class ApiException implements Exception {
 /// Oftob CRM ochiq API (`/api/v1`) bilan ishlaydi.
 /// Ma'lumotlar bazasiga to'g'ridan-to'g'ri EMAS — faqat server orqali (kalit bilan).
 class ApiClient {
+  /// Server matnlari tili: uz | ru | tg (ilova tili o'zgarganda L.set yangilaydi)
+  static String lang = 'uz';
+
   ApiClient({required String serverUrl, required this.apiKey, http.Client? client})
       : base = normalizeUrl(serverUrl),
         _http = client ?? http.Client();
@@ -42,12 +45,12 @@ class ApiClient {
   Map<String, String> get _headers => {
         'Authorization': 'Bearer $apiKey',
         'Accept': 'application/json',
-        'Accept-Language': 'uz',
+        'Accept-Language': ApiClient.lang,
         'Content-Type': 'application/json',
       };
 
   Uri _uri(String path, [Map<String, dynamic>? query]) {
-    final q = <String, String>{'lang': 'uz'};
+    final q = <String, String>{'lang': ApiClient.lang};
     query?.forEach((k, v) {
       if (v != null && '$v'.isNotEmpty) q[k] = '$v';
     });
@@ -128,7 +131,7 @@ class ApiClient {
     try {
       final b = await c._send(() => c._http.post(
             c._uri('/auth/login'),
-            headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Accept-Language': 'uz'},
+            headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Accept-Language': ApiClient.lang},
             body: jsonEncode({'company': company, 'email': email, 'password': password, 'device': device}),
           ));
       return StaffLogin.fromJson(Map<String, dynamic>.from((b as Map)['data'] as Map), c.base);
@@ -148,7 +151,7 @@ class ApiClient {
     final c = ApiClient(serverUrl: serverUrl, apiKey: '', client: client);
     try {
       await c._send(() => c._http.post(c._uri('/auth/forgot'),
-          headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Accept-Language': 'uz'}, body: jsonEncode({'company': company, 'email': login})));
+          headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Accept-Language': ApiClient.lang}, body: jsonEncode({'company': company, 'email': login})));
     } on ApiException catch (e) {
       if (e.status == 404 || e.status == 405) {
         throw ApiException("Server hali yangilanmagan: parolni tiklash xizmati topilmadi. Administratorga murojaat qiling.", status: e.status);
@@ -164,7 +167,7 @@ class ApiClient {
     final c = ApiClient(serverUrl: serverUrl, apiKey: '', client: client);
     try {
       await c._send(() => c._http.post(c._uri('/auth/reset'),
-          headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Accept-Language': 'uz'},
+          headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Accept-Language': ApiClient.lang},
           body: jsonEncode({'company': company, 'email': login, 'code': code, 'password': password})));
     } on ApiException catch (e) {
       if (e.code == 'invalid_code') throw ApiException("Kod noto'g'ri yoki muddati tugagan. Yangi kod so'rang.", status: e.status, code: e.code);
@@ -223,7 +226,7 @@ class ApiClient {
     final path = '/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}/documents/$kind${id != null ? '/${Uri.encodeComponent(id)}' : ''}';
     final http.Response r;
     try {
-      r = await _http.get(_uri(path), headers: {'Authorization': 'Bearer $apiKey', 'Accept': 'application/pdf, application/json', 'Accept-Language': 'uz'}).timeout(const Duration(seconds: 90));
+      r = await _http.get(_uri(path), headers: {'Authorization': 'Bearer $apiKey', 'Accept': 'application/pdf, application/json', 'Accept-Language': ApiClient.lang}).timeout(const Duration(seconds: 90));
     } on TimeoutException {
       throw ApiException('Server javob bermadi. Internetni tekshiring.');
     } catch (_) {
@@ -394,7 +397,7 @@ class ApiClient {
     }
     final b = await _send(() async {
       final req = http.MultipartRequest('POST', _uri('/funds/spend'))
-        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': 'uz'})
+        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang})
         ..fields.addAll(fields);
       if (receiptPath != null) req.files.add(await http.MultipartFile.fromPath('receipt', receiptPath));
       return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
@@ -406,7 +409,7 @@ class ApiClient {
   Future<void> fundsAddReceipt(int op, String path) async {
     await _send(() async {
       final req = http.MultipartRequest('POST', _uri('/funds/$op/receipt'))
-        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': 'uz'});
+        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang});
       req.files.add(await http.MultipartFile.fromPath('receipt', path));
       return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
     });

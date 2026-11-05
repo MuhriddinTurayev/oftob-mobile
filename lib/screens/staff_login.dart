@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 
 import '../api.dart';
 import '../company.dart';
 import '../session.dart';
 import 'forgot_password.dart';
+import '../l10n.dart';
 
 /// Xodim kirishi: korxona tanlangan, endi login (email yoki telefon) va parol.
 /// Parol qurilmada saqlanmaydi: server shaxsiy kalit beradi, ilova faqat shu kalitni saqlaydi.
@@ -161,7 +163,7 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
   }
 
   InputDecoration _dec(BuildContext context, String label, IconData icon) => InputDecoration(
-        labelText: label,
+        labelText: tr(label),
         prefixIcon: Icon(icon),
         filled: true,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),

@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
+import '../l10n.dart';
 
 enum _Kind { foreman, sales }
 

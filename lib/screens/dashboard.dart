@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/widgets.dart' as w show Text;
+
 
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
 import 'shift_card.dart';
+import '../l10n.dart';
 
 /// Bosh ekran: rahbar uchun bir qarashda — kassa, sotuv, vazifalar, yangi lidlar, oxirgi operatsiyalar.
 /// Faqat kalit (rol) ruxsat bergan bo'limlar ko'rsatiladi; har biri alohida yuklanadi — biri xato bersa, qolganlari ishlayveradi.
@@ -242,9 +245,9 @@ class _CashCard extends StatelessWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text.rich(TextSpan(children: [
+              child: w.Text.rich(TextSpan(children: [
                 TextSpan(text: money(total ?? 0), style: TextStyle(color: cs.onPrimary, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                TextSpan(text: '  ${currency == 'UZS' ? 'so\'m' : currency}', style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.8), fontSize: 16, fontWeight: FontWeight.w600)),
+                TextSpan(text: tr('  ${currency == 'UZS' ? 'so\'m' : currency}'), style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.8), fontSize: 16, fontWeight: FontWeight.w600)),
               ])),
             ),
             if (others.isNotEmpty) ...[

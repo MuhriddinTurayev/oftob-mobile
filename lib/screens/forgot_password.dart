@@ -1,11 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 
 import '../api.dart';
 import '../company.dart';
 import '../session.dart';
+import '../l10n.dart';
 
 /// Parolni tiklash: 6 xonali kod xodimning Telegram'iga yuboriladi (10 daqiqa amal qiladi), kod + yangi parol kiritiladi.
 /// Muvaffaqiyatli bo'lsa `true` bilan yopiladi — kirish ekrani "yangi parol bilan kiring" deydi.
@@ -121,7 +123,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   InputDecoration _dec(String label, IconData icon) => InputDecoration(
-        labelText: label,
+        labelText: tr(label),
         prefixIcon: Icon(icon),
         filled: true,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
@@ -180,7 +182,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     autocorrect: false,
                     enableSuggestions: false,
                     decoration: _dec('Yangi parol', Icons.lock_outline).copyWith(
-                      helperText: 'Kamida 8 belgi, harf va raqam',
+                      helperText: tr('Kamida 8 belgi, harf va raqam'),
                       suffixIcon: IconButton(icon: Icon(_show ? Icons.visibility_off_outlined : Icons.visibility_outlined), onPressed: () => setState(() => _show = !_show)),
                     ),
                   ),

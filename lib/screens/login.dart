@@ -1,10 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 
 import '../api.dart';
 import '../company.dart';
 import '../session.dart';
 import 'staff_login.dart';
+import '../l10n.dart';
+import '../widgets.dart';
 
 /// Kirish: foydalanuvchi faqat korxonani tanlaydi (kod yozadi yoki oxirgilaridan bosadi).
 /// Server manzili, port va boshqa texnik narsalar ko'rsatilmaydi.
@@ -89,9 +92,9 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 4),
             Text('Oddiy foydalanuvchi uchun emas.', style: TextStyle(color: Theme.of(ctx).colorScheme.outline)),
             const SizedBox(height: 16),
-            TextField(controller: url, keyboardType: TextInputType.url, autocorrect: false, decoration: const InputDecoration(labelText: 'Server', border: OutlineInputBorder())),
+            TextField(controller: url, keyboardType: TextInputType.url, autocorrect: false, decoration: InputDecoration(labelText: tr('Server'), border: OutlineInputBorder())),
             const SizedBox(height: 12),
-            TextField(controller: key, obscureText: true, autocorrect: false, decoration: const InputDecoration(labelText: 'API kalit (ixtiyoriy)', border: OutlineInputBorder())),
+            TextField(controller: key, obscureText: true, autocorrect: false, decoration: InputDecoration(labelText: tr('API kalit (ixtiyoriy)'), border: OutlineInputBorder())),
             if (err != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(err!, style: TextStyle(color: Theme.of(ctx).colorScheme.error))),
             const SizedBox(height: 16),
             FilledButton(
@@ -148,7 +151,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text('Xush kelibsiz', style: TextStyle(color: cs.outline)),
                     ]),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 18),
+                  const Center(child: LangSwitch()),
+                  const SizedBox(height: 22),
                   Text('Korxonani tanlang', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
                   if (s.recent.isNotEmpty) ...[
@@ -172,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       _error = null;
                     }),
                     decoration: InputDecoration(
-                      hintText: 'Korxona kodi',
+                      hintText: tr('Korxona kodi'),
                       prefixIcon: const Icon(Icons.search),
                       filled: true,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
@@ -227,7 +232,7 @@ class _CompanyTile extends StatelessWidget {
             CircleAvatar(backgroundColor: cs.primary, foregroundColor: cs.onPrimary, child: Text(c.initials, style: const TextStyle(fontWeight: FontWeight.w700))),
             const SizedBox(width: 14),
             Expanded(child: Text(c.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
-            if (onRemove != null) IconButton(visualDensity: VisualDensity.compact, icon: Icon(Icons.close, size: 18, color: cs.outline), onPressed: onRemove, tooltip: 'Ro\'yxatdan olib tashlash'),
+            if (onRemove != null) IconButton(visualDensity: VisualDensity.compact, icon: Icon(Icons.close, size: 18, color: cs.outline), onPressed: onRemove, tooltip: tr('Ro\'yxatdan olib tashlash')),
             Icon(Icons.chevron_right, color: cs.outline),
           ]),
         ),

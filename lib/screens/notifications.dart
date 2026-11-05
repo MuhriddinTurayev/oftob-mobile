@@ -1,11 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../format.dart';
 import '../session.dart';
+import '../l10n.dart';
 
 /// Bildirishnomalar markazi: serverdan voqealar lentasini har daqiqada (ilova ochiq turganda) so'raydi,
 /// o'qilmaganlarni sanaydi va yangi voqea kelganda [onFresh] orqali xabar beradi.
@@ -96,7 +98,7 @@ class BellButton extends StatelessWidget {
       builder: (context, _) {
         final n = center.unread;
         return IconButton(
-          tooltip: 'Bildirishnomalar',
+          tooltip: tr('Bildirishnomalar'),
           onPressed: onTap,
           icon: Badge(
             isLabelVisible: n > 0,

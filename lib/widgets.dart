@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 
 import 'api.dart';
 import 'session.dart';
+import 'l10n.dart';
 
 /// Sahifalab yuklanadigan ro'yxat: tortib yangilash, pastga tushganda yana yuklash, xatoda "Qayta urinish".
 class PagedList extends StatefulWidget {
@@ -210,6 +212,25 @@ class StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
       child: Text(text, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+/// Til tanlash: O'zbekcha / Русский / Тоҷикӣ (butun ilova shu tilga o'tadi)
+class LangSwitch extends StatelessWidget {
+  const LangSwitch({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<String>(
+      valueListenable: L.notifier,
+      builder: (context, cur, _) => Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        children: [
+          for (final c in L.codes) ChoiceChip(label: Text(L.name(c)), selected: cur == c, onSelected: (_) => L.set(c)),
+        ],
+      ),
     );
   }
 }

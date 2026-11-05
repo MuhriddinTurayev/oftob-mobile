@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -6,6 +7,7 @@ import '../api.dart';
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
+import '../l10n.dart';
 
 const _months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
 
@@ -200,7 +202,7 @@ class _CrewScreenState extends State<CrewScreen> {
             child: TextField(
               onChanged: (v) => setState(() => _q = v.trim()),
               decoration: InputDecoration(
-                hintText: 'Qidirish: ism, lavozim, telefon',
+                hintText: tr('Qidirish: ism, lavozim, telefon'),
                 prefixIcon: const Icon(Icons.search),
                 isDense: true,
                 filled: true,
@@ -448,7 +450,7 @@ class _HireSheetState extends State<_HireSheet> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    InputDecoration dec(String l) => InputDecoration(labelText: l, filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none));
+    InputDecoration dec(String l) => InputDecoration(labelText: tr(l), filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none));
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(

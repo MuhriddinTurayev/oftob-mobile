@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
+import '../l10n.dart';
 
 enum _Tab { balance, moves }
 
@@ -72,7 +74,7 @@ class _StockScreenState extends State<StockScreen> {
             textInputAction: TextInputAction.search,
             onSubmitted: (_) => _apply(),
             decoration: InputDecoration(
-              hintText: 'Material qidirish',
+              hintText: tr('Material qidirish'),
               prefixIcon: const Icon(Icons.search),
               isDense: true,
               filled: true,

@@ -1,11 +1,13 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
+import '../l10n.dart';
 
 num _n(Object? v) => v is num ? v : (num.tryParse('$v') ?? 0);
 num? _parse(String s) => num.tryParse(s.replaceAll(RegExp(r'[^0-9.]'), ''));
@@ -138,7 +140,7 @@ class _DealScreenState extends State<DealScreen> {
           title: Text(booking ? 'Bron qilindi' : 'Sotuv rasmiylashtirildi'),
           content: Text([
             if (!booking && down > 0) 'Boshlang\'ich to\'lov kassaga o\'tkazildi.',
-            if (!booking && contract) 'Shartnoma tuzildi — saytdagi kvartira kartasidan yuklab olish mumkin.',
+            if (!booking && contract) 'Shartnoma tuzildi — "Hujjatlar" bo\'limidan ochish mumkin.',
             if (booking) 'Bron muddati tugagach, to\'lov bo\'lmasa kvartira o\'zi bo\'shaydi.',
             if (warn != null) '$warn',
           ].join('\n\n')),
@@ -190,7 +192,7 @@ class _DealScreenState extends State<DealScreen> {
             ),
           const SizedBox(height: 14),
           if (_canPrice)
-            TextField(controller: _price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Narx (so\'m)'), onChanged: (_) => setState(() {}))
+            TextField(controller: _price, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Narx (so\'m)')), onChanged: (_) => setState(() {}))
           else
             Container(
               padding: const EdgeInsets.all(14),
@@ -198,12 +200,12 @@ class _DealScreenState extends State<DealScreen> {
               child: Row(children: [const Expanded(child: Text('Narxi')), Text('${money(price)} so\'m', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17))]),
             ),
           const SizedBox(height: 12),
-          TextField(controller: _name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Xaridor (F.I.Sh.)')),
+          TextField(controller: _name, textCapitalization: TextCapitalization.words, decoration: InputDecoration(labelText: tr('Xaridor (F.I.Sh.)'))),
           const SizedBox(height: 12),
-          TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Telefon')),
+          TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('Telefon'))),
           if (!booking) ...[
             const SizedBox(height: 12),
-            TextField(controller: _passport, textCapitalization: TextCapitalization.characters, decoration: const InputDecoration(labelText: 'Pasport (shartnoma uchun)')),
+            TextField(controller: _passport, textCapitalization: TextCapitalization.characters, decoration: InputDecoration(labelText: tr('Pasport (shartnoma uchun)'))),
             const SizedBox(height: 18),
             Text('To\'lov muddati', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
@@ -215,7 +217,7 @@ class _DealScreenState extends State<DealScreen> {
             TextField(
               controller: _down,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: 'Boshlang\'ich to\'lov (so\'m)', helperText: _wasBooked && _paidBefore > 0 ? 'Bron zadatogi ${money(_paidBefore)} so\'m allaqachon kiritilgan — u hisobga olinadi' : null),
+              decoration: InputDecoration(labelText: tr('Boshlang\'ich to\'lov (so\'m)'), helperText: _wasBooked && _paidBefore > 0 ? 'Bron zadatogi ${money(_paidBefore)} so\'m allaqachon kiritilgan — u hisobga olinadi' : null),
               onChanged: (_) => setState(() {}),
             ),
             if (_months > 0) ...[
@@ -224,7 +226,7 @@ class _DealScreenState extends State<DealScreen> {
                 controller: _rate,
                 enabled: _canRate,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(labelText: 'Yillik foiz (%)', helperText: _canRate ? null : 'Foiz muddatga qarab jadvaldan olinadi'),
+                decoration: InputDecoration(labelText: tr('Yillik foiz (%)'), helperText: _canRate ? null : 'Foiz muddatga qarab jadvaldan olinadi'),
                 onChanged: (_) => setState(() {}),
               ),
             ],
@@ -256,7 +258,7 @@ class _DealScreenState extends State<DealScreen> {
             ]),
           ],
           const SizedBox(height: 12),
-          TextField(controller: _note, decoration: const InputDecoration(labelText: 'Izoh (ixtiyoriy)')),
+          TextField(controller: _note, decoration: InputDecoration(labelText: tr('Izoh (ixtiyoriy)'))),
           if (!booking && price > 0) ...[
             const SizedBox(height: 18),
             Container(

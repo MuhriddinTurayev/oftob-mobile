@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+
 import 'package:flutter/services.dart';
 
 import '../api.dart';
 import '../format.dart';
 import '../location.dart';
 import '../session.dart';
+import '../l10n.dart';
 
 /// «Men ishga keldim» kartasi: bosilganda joylashuv olinadi va smena boshlanadi. Keyin «Ketdim» (va xato yopilsa «Qaytdim»).
 /// Rahbar-admin bu tugmani ko'rmaydi — uning o'rniga davomat sahifasida hammaning kelishi va joyi chiqadi.
