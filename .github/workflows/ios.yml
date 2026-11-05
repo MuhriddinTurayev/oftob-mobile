@@ -25,7 +25,7 @@ jobs:
       - run: flutter test
 
       # Imzosiz yig'ish (Apple hisobi shart emas)
-      - run: flutter build ios --release --no-codesign
+      - run: flutter build ios --release --no-codesign --dart-define=BUILD_SHA=${{ github.sha }}
 
       # .app → .ipa
       - name: IPA yaratish

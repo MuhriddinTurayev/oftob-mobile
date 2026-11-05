@@ -18,6 +18,10 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+/// Qaysi nusxa ishlayotganini ko'rsatadi: «Mahalliy ilova» + GitHub yig'ish raqami (Actions `BUILD_SHA` beradi).
+const _sha = String.fromEnvironment('BUILD_SHA', defaultValue: 'dev');
+final _version = 'Mahalliy ilova · ${_sha.length > 7 ? _sha.substring(0, 7) : _sha}';
+
 class _LoginScreenState extends State<LoginScreen> {
   final _code = TextEditingController();
   CompanyInfo? _found;
@@ -195,6 +199,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(color: cs.outline, fontSize: 12),
                   ),
+                  const SizedBox(height: 16),
+                  Text(_version, textAlign: TextAlign.center, style: TextStyle(color: cs.outline.withValues(alpha: 0.7), fontSize: 11)),
                 ],
               ),
             ),
