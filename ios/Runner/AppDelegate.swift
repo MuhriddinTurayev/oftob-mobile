@@ -92,7 +92,7 @@ final class WebRefresh: NSObject {
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     let ok = super.application(application, didFinishLaunchingWithOptions: launchOptions)
-    WebRefresh.shared.start()
+    // WebRefresh (sayt uchun tortib yangilash) o'chirilgan: ilova endi sayt rejimini ochmaydi, 3D ko'rgichga xalaqit bermasligi uchun
     return ok
   }
 

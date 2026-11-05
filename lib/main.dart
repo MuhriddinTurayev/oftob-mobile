@@ -4,7 +4,6 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import 'screens/home.dart';
 import 'screens/login.dart';
-import 'screens/web_shell.dart';
 import 'session.dart';
 
 void main() {
@@ -32,7 +31,6 @@ class OftobApp extends StatelessWidget {
         listenable: session,
         builder: (context, _) {
           if (session.loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-          if (session.webActive) return WebShell(session: session);
           return session.signedIn ? HomeScreen(session: session) : LoginScreen(session: session);
         },
       ),

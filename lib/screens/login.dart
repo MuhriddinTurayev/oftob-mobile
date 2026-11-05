@@ -72,9 +72,6 @@ class _LoginScreenState extends State<LoginScreen> {
     await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => StaffLoginScreen(session: s, company: c)));
   }
 
-  /// Platforma administratori (korxonasiz)
-  Future<void> _admin() async => s.startWeb(s.serverUrl, '');
-
   void _developer() {
     final url = TextEditingController(text: s.serverUrl);
     final key = TextEditingController();
@@ -190,10 +187,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     _CompanyTile(_found!, onTap: () => _open(_found!), highlight: true),
                   ],
                   const SizedBox(height: 28),
-                  Center(
-                    child: TextButton(onPressed: _admin, child: const Text('Platforma administratori')),
-                  ),
-                  const SizedBox(height: 4),
                   Text(
                     'Korxona kodini rahbaringizdan oling. U korxona havolasining boshidagi so\'z.',
                     textAlign: TextAlign.center,

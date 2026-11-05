@@ -26,9 +26,7 @@ class Session extends ChangeNotifier {
   // oxirgi kirilgan korxonalar (qurilmada, tez almashtirish uchun)
   List<CompanyInfo> recent = [];
 
-  // platforma (WebView) rejimi
-  bool webActive = false;
-  String slug = ''; // kompaniya manzili: /c/<slug>
+  String slug = ''; // oxirgi kirilgan kompaniya manzili
 
   // API kalit rejimi
   ApiClient? api;
@@ -73,18 +71,6 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
-  /* ---------------- platforma (WebView) ---------------- */
-
-  Future<void> startWeb(String url, String companySlug) async {
-    serverUrl = ApiClient.normalizeUrl(url);
-    slug = companySlug.trim().toLowerCase().replaceAll(RegExp(r'^/+|/+$'), '').replaceFirst(RegExp(r'^c/'), '');
-    webActive = true;
-    await _storage.delete(key: 'mode'); // sayt rejimi eslab qolinmaydi
-    await _storage.write(key: 'server', value: serverUrl);
-    await _storage.write(key: 'slug', value: slug);
-    notifyListeners();
-  }
-
   /// Korxonani ro'yxat boshiga qo'yadi (eng ko'pi bilan 6 ta)
   Future<void> rememberCompany(CompanyInfo c) async {
     recent = [c, ...recent.where((e) => e.slug != c.slug)].take(6).toList();
@@ -102,16 +88,6 @@ class Session extends ChangeNotifier {
   Future<void> setServer(String url) async {
     serverUrl = ApiClient.normalizeUrl(url);
     await _storage.write(key: 'server_custom', value: serverUrl);
-    notifyListeners();
-  }
-
-  /// Platformadan chiqish: cookie (kirish) o'chadi, kirish oynasiga qaytadi.
-  Future<void> leaveWeb() async {
-    webActive = false;
-    await _storage.delete(key: 'mode');
-    try {
-      await WebViewCookieManager().clearCookies();
-    } catch (_) {}
     notifyListeners();
   }
 

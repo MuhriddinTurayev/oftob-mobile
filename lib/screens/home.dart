@@ -187,15 +187,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             onTap: () => _push(t),
           ),
-        if (s.slug.isNotEmpty)
-          ListTile(
-            leading: Icon(Icons.language, color: cs.primary),
-            title: const Text('To\'liq sayt versiyasi', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Davomat, hisobotlar va boshqa bo\'limlar'),
-            trailing: const Icon(Icons.chevron_right),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            onTap: () => s.startWeb(s.serverUrl, s.slug),
-          ),
         const SizedBox(height: 8),
         ListTile(
           leading: Icon(Icons.logout, color: cs.error),

@@ -375,8 +375,6 @@ class _WorkerSheet extends StatelessWidget {
                 subtitle: Text('${x['note'] ?? ''}'.isEmpty ? formatDate('${x['date']}') : '${formatDate('${x['date']}')} · ${x['note']}'),
               ),
           ],
-          const SizedBox(height: 12),
-          Text('To\'lov va ish hajmini yozish — saytda ("To\'liq sayt versiyasi").', style: TextStyle(color: cs.outline, fontSize: 12)),
         ],
       ),
     );

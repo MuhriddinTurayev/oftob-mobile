@@ -150,19 +150,6 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
                         child: _busy ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : const Text('Kirish', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: TextButton(
-                        onPressed: _busy
-                            ? null
-                            : () async {
-                                final nav = Navigator.of(context);
-                                await widget.session.startWeb(widget.session.serverUrl, c.slug);
-                                nav.popUntil((r) => r.isFirst);
-                              },
-                        child: const Text('To\'liq sayt versiyasini ochish'),
-                      ),
-                    ),
                   ],
                 ),
               ),
