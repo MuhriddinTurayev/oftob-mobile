@@ -238,6 +238,19 @@ class ApiClient {
         ));
   }
 
+  /* ---------------- hisobotlar ---------------- */
+
+  /// Hisobotini ko'rish mumkin bo'lgan prorablar va sotuvchilar.
+  Future<Map<String, dynamic>> reportPeople() async => Map<String, dynamic>.from(((await _getMap('/reports/people'))['data'] as Map?) ?? const {});
+
+  /// Prorab hisoboti: pul, xaridlar, yoqilg'i, ish haqi, ish hajmi, ombordan sarf. Sana: YYYY-MM-DD.
+  Future<Map<String, dynamic>> reportForeman({int? user, required String from, required String to}) async =>
+      Map<String, dynamic>.from(((await _getMap('/reports/foreman', {'user': user, 'from': from, 'to': to}))['data'] as Map?) ?? const {});
+
+  /// Sotuvchi hisoboti: sotuv, bron, to'lovlar, muddati o'tgan qarzlar, smena.
+  Future<Map<String, dynamic>> reportSales({int? user, required String from, required String to}) async =>
+      Map<String, dynamic>.from(((await _getMap('/reports/sales', {'user': user, 'from': from, 'to': to}))['data'] as Map?) ?? const {});
+
   /* ---------------- ombor ---------------- */
 
   Future<Paged> stockItems({int page = 1, String? q, bool low = false}) async {
