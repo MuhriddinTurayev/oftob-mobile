@@ -174,6 +174,25 @@ class ApiClient {
     return Map<String, dynamic>.from((b as Map)['data'] as Map);
   }
 
+  /// To'lov usullari (kompaniya sozlamasi): value — serverga yuboriladi, label — ko'rsatiladi
+  Future<List<Map<String, dynamic>>> payMethods() async => _list((await _getMap('/sales/pay-methods'))['data']);
+
+  /// To'lov qabul qilish (kassaga o'tadi, chek yaratiladi). Yangilangan kvartirani qaytaradi.
+  Future<Map<String, dynamic>> apartmentPay(String objectId, String apartmentId, {required num amount, String? date, String? method}) async {
+    final b = await _send(() => _http.post(
+          _uri('/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}/payments'),
+          headers: _headers,
+          body: jsonEncode({'amount': amount, if (date != null) 'date': date, if (method != null && method.isNotEmpty) 'method': method}),
+        ));
+    return Map<String, dynamic>.from((b as Map)['data'] as Map);
+  }
+
+  /// Saytdagi 3D / 360° sahifasi uchun 90 soniyalik bir martalik havola. view: '3d' | 'locate'
+  Future<String> webLink(String objectId, String view, {String? apartment}) async {
+    final b = await _send(() => _http.post(_uri('/web-link'), headers: _headers, body: jsonEncode({'object': objectId, 'view': view, if (apartment != null) 'apartment': apartment})));
+    return '${((b as Map)['data'] as Map)['url']}';
+  }
+
   /// Xaridorlar to'lovlari (sana oralig'i YYYY-MM-DD; sahifalanmaydi). meta: total, sum.
   Future<({List<Map<String, dynamic>> items, num sum})> salesPayments({String? from, String? to, String? object}) async {
     final m = await _getMap('/sales/payments', {'from': from, 'to': to, 'object': object});

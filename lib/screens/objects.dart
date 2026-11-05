@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -5,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
+import 'tour.dart';
 
 Color statusColor(String? s) => switch (s) {
       'free' => Colors.green,
@@ -319,6 +322,99 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
     await _patch({'price': v}, ok: 'Narx saqlandi');
   }
 
+  void _tour(String view, String title) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => TourScreen(session: widget.session, objectId: widget.objectId, view: view, title: title, apartment: '${widget.apt['id']}'),
+    ));
+  }
+
+  String _iso(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// To'lov qabul qilish: summa (ko'pincha keyingi to'lov), sana, usul. Server kassaga o'tkazadi va chek yaratadi.
+  Future<void> _pay() async {
+    final a = widget.apt;
+    final next = a['next'] as Map?;
+    final debt = (a['debt'] as num?) ?? 0;
+    final suggest = next != null ? math.min(debt, (next['amount'] as num)) : debt;
+    final amount = TextEditingController(text: suggest > 0 ? '${suggest.round()}' : '');
+    var date = DateTime.now();
+    String method = '';
+    List<Map<String, dynamic>> methods = const [];
+    try {
+      methods = await widget.session.api!.payMethods();
+    } catch (_) {}
+    if (!mounted) return;
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, set) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text('To\'lov qabul qilish', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+              Text('Kvartira ${a['number']} · ${(a['buyer'] as Map?)?['name'] ?? ''}', style: TextStyle(color: Theme.of(ctx).colorScheme.outline)),
+              const SizedBox(height: 4),
+              Text('Qarz: ${money(debt)} so\'m', style: const TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 14),
+              TextField(controller: amount, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Summa (so\'m)')),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: Theme.of(ctx).colorScheme.outlineVariant)),
+                leading: const Icon(Icons.event),
+                title: Text('Sana: ${formatDate(_iso(date))}'),
+                onTap: () async {
+                  final d = await showDatePicker(context: ctx, initialDate: date, firstDate: DateTime.now().subtract(const Duration(days: 365)), lastDate: DateTime.now());
+                  if (d != null) set(() => date = d);
+                },
+              ),
+              if (methods.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, runSpacing: 4, children: [
+                  for (final m in methods)
+                    ChoiceChip(
+                      label: Text('${m['label']}'),
+                      selected: method == '${m['value']}',
+                      onSelected: (v) => set(() => method = v ? '${m['value']}' : ''),
+                    ),
+                ]),
+              ],
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                icon: const Icon(Icons.payments),
+                label: const Text('To\'lovni qabul qilish'),
+                onPressed: () async {
+                  final v = num.tryParse(amount.text.replaceAll(RegExp(r'[^0-9.]'), ''));
+                  if (v == null || v < 1) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Summani kiriting')));
+                    return;
+                  }
+                  try {
+                    await widget.session.api!.apartmentPay(widget.objectId, '${a['id']}', amount: v, date: _iso(date), method: method);
+                    if (ctx.mounted) Navigator.pop(ctx, true);
+                  } catch (e) {
+                    await widget.session.handleError(e);
+                    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('$e')));
+                  }
+                },
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+    if (ok == true) {
+      HapticFeedback.mediumImpact();
+      widget.onChanged();
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.pop(context);
+      messenger.showSnackBar(const SnackBar(content: Text('To\'lov qabul qilindi va kassaga o\'tkazildi')));
+    }
+  }
+
   Widget _kv(String k, String v, {Color? color}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 5),
         child: Row(children: [
@@ -372,6 +468,27 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
               ],
             ]),
           ),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(child: OutlinedButton.icon(onPressed: () => _tour('3d', 'Kvartira ${a['number']} — 3D / 360°'), icon: const Icon(Icons.view_in_ar_outlined), label: const Text('3D / 360°'))),
+            const SizedBox(width: 10),
+            Expanded(child: OutlinedButton.icon(onPressed: () => _tour('locate', 'Uydagi joylashuvi'), icon: const Icon(Icons.apartment_outlined), label: const Text('Uyda joyi'))),
+          ]),
+          if (_canWrite && (st == 'booked' || st == 'sold') && debt > 0) ...[
+            const SizedBox(height: 10),
+            FilledButton.icon(onPressed: _busy ? null : _pay, icon: const Icon(Icons.payments), label: const Text('To\'lov qabul qilish')),
+          ],
+          if (_canSales && ((a['overdue'] as num?) ?? 0) > 0)
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: cs.errorContainer, borderRadius: BorderRadius.circular(14)),
+              child: Row(children: [
+                Icon(Icons.warning_amber_rounded, color: cs.error),
+                const SizedBox(width: 10),
+                Expanded(child: Text('Muddati o\'tgan qarz: ${money(a['overdue'] as num?)} so\'m', style: TextStyle(color: cs.onErrorContainer, fontWeight: FontWeight.w700))),
+              ]),
+            ),
           if (_canSales && buyer != null && '${buyer['name']}'.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text('Xaridor', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
@@ -385,6 +502,20 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
                   icon: const Icon(Icons.call_outlined),
                   label: Text(phone),
                 ),
+              ),
+          ],
+          if (_canSales && ((a['schedule'] as List?) ?? const []).isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text('To\'lov grafigi', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+            for (final r in ((a['schedule'] as List).whereType<Map>()))
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(children: [
+                  Icon(r['paid'] == true ? Icons.check_circle : Icons.radio_button_unchecked, size: 20, color: r['paid'] == true ? Colors.green.shade700 : cs.outline),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(formatDate('${r['date']}'), style: TextStyle(color: r['paid'] == true ? cs.outline : null, fontWeight: (a['next'] as Map?)?['date'] == r['date'] ? FontWeight.w800 : FontWeight.w500))),
+                  Text(money(r['amount'] as num?), style: TextStyle(fontWeight: FontWeight.w700, color: r['paid'] == true ? cs.outline : null)),
+                ]),
               ),
           ],
           if (_canSales && payments.isNotEmpty) ...[
