@@ -214,6 +214,23 @@ class ApiClient {
     return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
   }
 
+  /* ---------------- xodimlar (Crew) ---------------- */
+
+  /// Xodimlar va oy bo'yicha hisoblangan / to'langan / qolgan ish haqi. [month] — YYYY-MM.
+  Future<Map<String, dynamic>> crew({String? month, String? object}) async {
+    final m = await _getMap('/crew', {'month': month, 'object': object});
+    return Map<String, dynamic>.from((m['data'] as Map?) ?? const {});
+  }
+
+  /// Yangi xodim qabul qilish.
+  Future<void> crewHire({required String object, required String name, required String role, String? phone, String pay = 'hour', num rate = 0}) async {
+    await _send(() => _http.post(
+          _uri('/crew'),
+          headers: _headers,
+          body: jsonEncode({'object': object, 'name': name, 'role': role, if (phone != null && phone.isNotEmpty) 'phone': phone, 'pay': pay, 'rate': rate}),
+        ));
+  }
+
   /* ---------------- ombor ---------------- */
 
   Future<Paged> stockItems({int page = 1, String? q, bool low = false}) async {

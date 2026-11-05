@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../session.dart';
 import 'attendance.dart';
 import 'cash.dart';
+import 'crew.dart';
 import 'dashboard.dart';
 import 'leads.dart';
 import 'objects.dart';
@@ -41,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _Tab('Bosh', Icons.home_outlined, Icons.home, (x) => DashboardScreen(session: x, onOpen: _open)),
       // prorab uchun davomat — eng asosiy ish; boshqa rollarda «Yana» ichida (Bosh ekrandagi karta orqali ham ochiladi)
       if (me.can('attendance:read') && me.role == 'foreman') _Tab('Davomat', Icons.how_to_reg_outlined, Icons.how_to_reg, (x) => AttendanceScreen(session: x)),
+      if (me.can('crew:read') && me.role == 'foreman') _Tab('Xodimlar', Icons.groups_outlined, Icons.groups, (x) => CrewScreen(session: x)),
       if (me.can('objects:read')) _Tab('Obyektlar', Icons.apartment_outlined, Icons.apartment, (x) => ObjectsScreen(session: x)),
       if (me.can('cash:read')) _Tab('Kassa', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, (x) => CashScreen(session: x)),
       if (me.can('leads:read')) _Tab('Lidlar', Icons.people_alt_outlined, Icons.people_alt, (x) => LeadsScreen(session: x)),
@@ -53,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final primary = _primary.map((e) => e.label).toSet();
     return [
       if (me.can('attendance:read') && !primary.contains('Davomat')) _Tab('Davomat', Icons.how_to_reg_outlined, Icons.how_to_reg, (x) => AttendanceScreen(session: x)),
+      if (me.can('crew:read') && !primary.contains('Xodimlar')) _Tab('Xodimlar', Icons.groups_outlined, Icons.groups, (x) => CrewScreen(session: x)),
       if (me.can('tasks:read')) _Tab('Vazifalar', Icons.checklist, Icons.checklist, (x) => TasksScreen(session: x)),
       if (me.can('stock:read')) _Tab('Ombor', Icons.inventory_2_outlined, Icons.inventory_2, (x) => StockScreen(session: x)),
       if (me.can('objects:read') && !primary.contains('Obyektlar')) _Tab('Obyektlar', Icons.apartment_outlined, Icons.apartment, (x) => ObjectsScreen(session: x)),
