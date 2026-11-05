@@ -203,7 +203,8 @@ class _FundsScreenState extends State<FundsScreen> {
               child: TextButton(
                 onPressed: () async {
                   try {
-                    await s.api!.fundsPost('/funds/request/${r['id']}/cancel');
+                    final queued = await s.api!.fundsAct('f_cancel', '/funds/request/${r['id']}/cancel', {}, label: "So'rovni qaytarib olish", refId: '${r['id']}');
+                    if (queued) _toast("Offline saqlandi — internet paydo bo'lganda yuboriladi");
                     _reload();
                   } catch (e) {
                     _toast('$e');
@@ -237,7 +238,8 @@ class _FundsScreenState extends State<FundsScreen> {
     );
     if (ok != true) return;
     try {
-      await s.api!.fundsPost('/funds/request/${r['id']}/decline', {'reply': c.text.trim()});
+      final queued = await s.api!.fundsAct('f_decline', '/funds/request/${r['id']}/decline', {'reply': c.text.trim()}, label: "So'rovni rad etish — ${r['name'] ?? ''}", refId: '${r['id']}');
+      if (queued) _toast("Offline saqlandi — internet paydo bo'lganda yuboriladi");
       _reload();
     } catch (e) {
       _toast('$e');
@@ -282,6 +284,7 @@ class _FundsScreenState extends State<FundsScreen> {
                     padding: const EdgeInsets.only(top: 6),
                     child: Wrap(spacing: 6, runSpacing: 4, children: [
                       StatusChip(stLabel, stColor),
+                      if (o['pending'] == true) const StatusChip('Yuborilmagan', Colors.orange),
                       if (o['has_receipt'] == true) StatusChip('Chek bor', Colors.blueGrey) else StatusChip('Chek yo\'q', Colors.deepOrange),
                     ]),
                   ),
@@ -444,6 +447,7 @@ class _FundsScreenState extends State<FundsScreen> {
     int? who = holder ?? (holders.length == 1 ? holders.first['user_id'] as int : null);
     var k = kind ?? 'cash';
     int? from = sources.isNotEmpty ? sources.first['id'] as int : null;
+    var queuedIssue = false;
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -484,7 +488,8 @@ class _FundsScreenState extends State<FundsScreen> {
                   final a = num.tryParse(amountC.text.replaceAll(' ', ''));
                   if (who == null || from == null || a == null || a < 1) return;
                   try {
-                    await s.api!.fundsPost('/funds/issue', {'user_id': who, 'kind': k, 'from_desk': from, 'amount': a, if (noteC.text.trim().isNotEmpty) 'note': noteC.text.trim()});
+                    final name = holders.where((h) => h['user_id'] == who).map((h) => '${h['name']}').firstOrNull ?? '';
+                    queuedIssue = await s.api!.fundsAct('f_issue', '/funds/issue', {'user_id': who, 'kind': k, 'from_desk': from, 'amount': a, if (noteC.text.trim().isNotEmpty) 'note': noteC.text.trim()}, label: 'Pul berish — $name ${a.round()}');
                     if (ctx.mounted) Navigator.pop(ctx, true);
                   } catch (e) {
                     if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('$e')));
@@ -498,7 +503,7 @@ class _FundsScreenState extends State<FundsScreen> {
       ),
     );
     if (ok == true) {
-      _toast('Pul berildi');
+      _toast(queuedIssue ? "Offline saqlandi — internet paydo bo'lganda beriladi (kassa qoldig'i o'sha payt tekshiriladi)" : 'Pul berildi');
       _reload();
     }
   }
@@ -530,11 +535,15 @@ class _OpSheetState extends State<_OpSheet> {
 
   Map<String, dynamic> get o => widget.op;
 
-  Future<void> _run(Future<void> Function() fn) async {
+  Future<void> _run(Future<Object?> Function() fn) async {
     setState(() => _busy = true);
     try {
-      await fn();
-      if (mounted) Navigator.pop(context, true);
+      final res = await fn();
+      if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.pop(context, true);
+        if (res == true) messenger.showSnackBar(const SnackBar(content: Text("Offline saqlandi — internet paydo bo'lganda yuboriladi")));
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _busy = false);
@@ -558,7 +567,7 @@ class _OpSheetState extends State<_OpSheet> {
       ),
     );
     if (ok != true || c.text.trim().isEmpty) return;
-    await _run(() => widget.session.api!.fundsPost('/funds/${o['id']}/reject', {'reason': c.text.trim()}));
+    await _run(() => widget.session.api!.fundsAct('f_reject', '/funds/${o['id']}/reject', {'reason': c.text.trim()}, label: 'Hisobotni qaytarish #${o['id']}', refId: '${o['id']}'));
   }
 
   @override
@@ -615,14 +624,17 @@ class _OpSheetState extends State<_OpSheet> {
                   : () async {
                       final f = await pickReceipt(context);
                       if (f == null) return;
-                      await _run(() => api.fundsAddReceipt(o['id'] as int, f.path));
+                      await _run(() async {
+                        await api.fundsAddReceipt(o['id'] as int, f.path);
+                        return null;
+                      });
                     },
               icon: const Icon(Icons.add_a_photo),
               label: const Text('Chek qo\'shish'),
             ),
           if (canManage && st != 'rejected') ...[
             FilledButton.icon(
-              onPressed: _busy ? null : () => _run(() => api.fundsPost('/funds/${o['id']}/check')),
+              onPressed: _busy ? null : () => _run(() => api.fundsAct('f_check', '/funds/${o['id']}/check', {'checked': st != 'checked'}, label: st == 'checked' ? 'Tekshiruv belgisini olish #${o['id']}' : 'Tekshirildi #${o['id']}', refId: '${o['id']}')),
               icon: Icon(st == 'checked' ? Icons.undo : Icons.check_circle),
               label: Text(st == 'checked' ? 'Tekshirilgan belgisini olish' : 'Tekshirildi'),
             ),

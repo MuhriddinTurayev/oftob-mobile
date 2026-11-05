@@ -538,7 +538,7 @@ class ApiClient {
 
   /// Prorab: o'z balansi, so'rovlari, xarajatlari. Rahbar/buxgalter: barcha prorablar. [status]: pending | norc
   Future<Map<String, dynamic>> funds({int? user, String? status}) async =>
-      Map<String, dynamic>.from(((await _getMap('/funds', {'user': user, 'status': status}))['data'] as Map?) ?? const {});
+      _fundsWithQueue(Map<String, dynamic>.from(((await _getMap('/funds', {'user': user, 'status': status}))['data'] as Map?) ?? const {}));
 
   /// Pul so'rash; internet yo'q bo'lsa navbatga tushadi. `true` — navbatga qo'yildi.
   Future<bool> fundsRequest({required num amount, required String kind, String? object, String? note}) async {
@@ -554,8 +554,59 @@ class ApiClient {
     }
   }
 
-  Future<void> fundsPost(String path, [Map<String, dynamic>? body]) async {
-    await _send(() => _http.post(_uri(path), headers: _headers, body: jsonEncode(body ?? const {})));
+  /// Pul bo'limi amali (rahbar: berish/rad etish/tekshirish/qaytarish; prorab: so'rovni qaytarib olish).
+  /// Internet yo'q bo'lsa navbatga tushadi: `true` — navbatda. [kind]: f_issue | f_check | f_reject | f_decline | f_cancel; [refId] — so'rov/operatsiya raqami.
+  Future<bool> fundsAct(String kind, String path, Map<String, dynamic> body, {required String label, String refId = ''}) async {
+    final r = await _queueGeneric(kind: kind, method: 'POST', path: path, body: body, label: label, refId: refId);
+    return r.queued;
+  }
+
+  /// Yuborilmagan rahbar amallarining natijasi ekranda darhol ko'rinadi (so'rov yopiladi, balans o'zgaradi, hisobot belgilanadi)
+  Map<String, dynamic> _fundsWithQueue(Map<String, dynamic> d) {
+    final q = Offline.ops.where((o) => o.kind.startsWith('f_') && o.state == 'pending').toList();
+    if (q.isEmpty) return d;
+    final out = Map<String, dynamic>.from(d);
+    var reqs = _list(d['requests']);
+    final ops = _list(d['ops']);
+    final holders = _list(d['holders']);
+    num n(Object? v) => v is num ? v : (num.tryParse('$v') ?? 0);
+    for (final o in q) {
+      final b = o.body;
+      switch (o.kind) {
+        case 'f_decline':
+        case 'f_cancel':
+          reqs = reqs.where((r) => '${r['id']}' != o.aptId).toList();
+        case 'f_issue':
+          reqs = reqs.where((r) => !('${r['user_id']}' == '${b['user_id']}' && r['status'] == 'new')).toList();
+          for (final h in holders) {
+            if ('${h['user_id']}' != '${b['user_id']}') continue;
+            final k = '${b['kind']}' == 'card' ? 'card' : 'cash';
+            h[k] = n(h[k]) + n(b['amount']);
+            h['total'] = n(h['total']) + n(b['amount']);
+            h['pending'] = true;
+          }
+          out['total'] = n(d['total']) + n(b['amount']);
+        case 'f_check':
+          for (final x in ops) {
+            if ('${x['id']}' == o.aptId && x['status'] != 'rejected') {
+              x['status'] = b['checked'] == true ? 'checked' : 'pending';
+              x['pending'] = true;
+            }
+          }
+        case 'f_reject':
+          for (final x in ops) {
+            if ('${x['id']}' == o.aptId) {
+              x['status'] = 'rejected';
+              x['reject_reason'] = b['reason'];
+              x['pending'] = true;
+            }
+          }
+      }
+    }
+    out['requests'] = reqs;
+    out['ops'] = ops;
+    out['holders'] = holders;
+    return out;
   }
 
   /// Xarid hisoboti (chek surati bilan). [lines] — omborga kiradigan materiallar: {name, qty, unit, price}
@@ -617,11 +668,23 @@ class ApiClient {
   }
 
   /// Valyutalar: barcha valyuta, kurs, qaysilari yoqilgan; can_manage — faqat rahbar
-  Future<Map<String, dynamic>> currencies() async => Map<String, dynamic>.from(((await _getMap('/currencies'))['data'] as Map?) ?? const {});
+  Future<Map<String, dynamic>> currencies() async {
+    final d = Map<String, dynamic>.from(((await _getMap('/currencies'))['data'] as Map?) ?? const {});
+    final q = Offline.ops.where((o) => o.kind == 'f_cur' && o.state == 'pending').toList();
+    if (q.isEmpty) return d;
+    final codes = ((q.last.body['codes'] as List?) ?? const []).map((e) => '$e').toSet();
+    final items = _list(d['items']);
+    for (final i in items) {
+      if (i['base'] != true && i['code'] != 'USD') i['enabled'] = codes.contains('${i['code']}');
+    }
+    d['items'] = items;
+    return d;
+  }
 
   /// Rahbar qo'shimcha valyutalarni yoqadi (USD va kompaniya valyutasi doim mavjud)
-  Future<void> currenciesSave(List<String> codes) async {
-    await _send(() => _http.post(_uri('/currencies'), headers: _headers, body: jsonEncode({'codes': codes})));
+  Future<bool> currenciesSave(List<String> codes) async {
+    final r = await _queueGeneric(kind: 'f_cur', method: 'POST', path: '/currencies', body: {'codes': codes}, label: 'Valyutalar — ${codes.isEmpty ? 'qo\'shimcha yo\'q' : codes.join(', ')}');
+    return r.queued;
   }
 
   /// Keyinroq chek qo'shish

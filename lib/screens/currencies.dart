@@ -28,7 +28,8 @@ class _CurrenciesScreenState extends State<CurrenciesScreen> {
     ];
     setState(() => _busy = true);
     try {
-      await widget.session.api!.currenciesSave(extras);
+      final queued = await widget.session.api!.currenciesSave(extras);
+      if (queued && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Offline saqlandi — internet paydo bo'lganda yuboriladi")));
       if (mounted) setState(() => _key = UniqueKey());
     } catch (e) {
       await widget.session.handleError(e);
