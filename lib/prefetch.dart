@@ -100,3 +100,35 @@ Future<void> prefetchAll(Session s) async {
   Offline.progress.value = null;
   if (!network) await Offline.markPrefetched();
 }
+
+/// Oxirgi sotilgan kvartiralar shartnomalarini telefonga yuklaydi (offline'da ochish uchun). Eng ko'pi bilan [limit] ta.
+Future<int> prefetchContracts(Session s, {int limit = 20}) async {
+  final api = s.api;
+  if (api == null || !Offline.enabled || Offline.progress.value != null) return 0;
+  final rows = <({String obj, String apt, String sale})>[];
+  try {
+    for (final o in await api.objects()) {
+      final id = '${o['id']}';
+      for (final a in (await Offline.loadApartments(id)) ?? const <Map<String, dynamic>>[]) {
+        if (a['status'] == 'sold' && a['pending'] != true) rows.add((obj: id, apt: '${a['id']}', sale: '${a['sale_date'] ?? ''}'));
+      }
+    }
+  } catch (_) {}
+  rows.sort((a, b) => b.sale.compareTo(a.sale));
+  var done = 0;
+  for (final r in rows.take(limit)) {
+    Offline.progress.value = 'Shartnomalar (${done + 1}/${rows.take(limit).length})';
+    try {
+      if (await api.documentCached(r.obj, r.apt, 'contract')) {
+        done++;
+        continue;
+      }
+      await api.downloadDocument(r.obj, r.apt, 'contract');
+      done++;
+    } on ApiException catch (e) {
+      if (e.isNetwork || e.unauthorized) break;
+    } catch (_) {}
+  }
+  Offline.progress.value = null;
+  return done;
+}

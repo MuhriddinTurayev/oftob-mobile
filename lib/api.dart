@@ -124,6 +124,32 @@ class ApiClient {
     throw ApiException(msg, status: r.statusCode, code: code);
   }
 
+  String _cacheKey(String path, [Map<String, dynamic>? q]) {
+    final uri = _uri(path, q);
+    final qs = (uri.queryParameters.entries.toList()..sort((a, b) => a.key.compareTo(b.key))).map((e) => '${e.key}=${e.value}').join('&');
+    return '${uri.path.replaceFirst('/api/v1', '')}?$qs';
+  }
+
+  /// Filtrsiz saqlangan sahifalarni (1, 2, 3 …) birlashtiradi — offline'da filtr/qidiruvni telefonning o'zida bajarish uchun. Hech bir sahifa yo'q bo'lsa — null.
+  Future<List<Map<String, dynamic>>?> _cachedAll(String path, Map<String, dynamic> baseQ) async {
+    final all = <Map<String, dynamic>>[];
+    var any = false;
+    for (var p = 1; p <= 60; p++) {
+      final m = await Offline.get(_cacheKey(path, {...baseQ, 'page': p}));
+      if (m == null) break;
+      any = true;
+      all.addAll(_list(m['data']));
+      if (!PageMeta.from(m['meta']).hasMore) break;
+    }
+    return any ? all : null;
+  }
+
+  Paged _localPaged(List<Map<String, dynamic>> rows, int page, int per) {
+    final last = rows.isEmpty ? 1 : (rows.length / per).ceil();
+    final p = page.clamp(1, last);
+    return Paged(rows.skip((p - 1) * per).take(per).toList(), PageMeta(page: p, lastPage: last, total: rows.length));
+  }
+
   /// GET: javob lokal nusxaga yoziladi; internet bo'lmasa — oxirgi saqlangan nusxa qaytariladi (offline rejim).
   Future<Map<String, dynamic>> _getMap(String path, [Map<String, dynamic>? q]) async {
     final uri = _uri(path, q);
@@ -397,22 +423,50 @@ class ApiClient {
     );
   }
 
-  /// Shartnoma (kind='contract') yoki to'lov cheki (kind='receipt', id=to'lov raqami) PDF baytlari
+  /// Shartnoma (kind='contract') yoki to'lov cheki (kind='receipt', id=to'lov raqami) PDF baytlari.
+  /// Bir marta ochilgan hujjat telefonda saqlanadi: internet bo'lmasa saqlangan nusxa ochiladi.
   Future<List<int>> downloadDocument(String objectId, String apartmentId, String kind, {String? id}) async {
     final path = '/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}/documents/$kind${id != null ? '/${Uri.encodeComponent(id)}' : ''}';
+    final ckey = 'doc:$path';
     final http.Response r;
     try {
-      r = await _http.get(_uri(path), headers: {'Authorization': 'Bearer $apiKey', 'Accept': 'application/pdf, application/json', 'Accept-Language': ApiClient.lang}).timeout(const Duration(seconds: 90));
-    } on TimeoutException {
-      throw ApiException('Server javob bermadi. Internetni tekshiring.');
+      r = await _http.get(_uri(path), headers: {'Authorization': 'Bearer $apiKey', 'Accept': 'application/pdf, application/json', 'Accept-Language': ApiClient.lang}).timeout(Offline.online.value ? const Duration(seconds: 90) : const Duration(seconds: 8));
     } catch (_) {
-      throw ApiException("Serverga ulanib bo'lmadi. Internetni tekshiring.");
+      Offline.markOnline(false);
+      final c = await Offline.getBytes(ckey);
+      if (c != null) return c;
+      throw ApiException("Internet yo'q va bu hujjat telefonda saqlanmagan. Avval internet bilan oching yoki \"Sinxronlash\" ekranidan yuklab qo'ying.", code: 'network');
     }
-    if (r.statusCode == 200 && r.bodyBytes.length > 4 && String.fromCharCodes(r.bodyBytes.take(4)) == '%PDF') return r.bodyBytes;
+    Offline.markOnline(true);
+    if (r.statusCode == 200 && r.bodyBytes.length > 4 && String.fromCharCodes(r.bodyBytes.take(4)) == '%PDF') {
+      unawaited(Offline.putBytes(ckey, r.bodyBytes));
+      return r.bodyBytes;
+    }
     if (r.statusCode == 401) throw ApiException('Kirish muddati tugagan.', status: 401);
     if (r.statusCode == 403) throw ApiException("Bu hujjatni ochishga ruxsat yo'q.");
     if (r.statusCode == 404) throw ApiException('Hujjat topilmadi.');
     throw ApiException("Hujjatni olib bo'lmadi (${r.statusCode}).");
+  }
+
+  /// Hujjat telefonda bormi (offline ochish mumkinmi)
+  Future<bool> documentCached(String objectId, String apartmentId, String kind, {String? id}) =>
+      Offline.hasBytes('doc:/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}/documents/$kind${id != null ? '/${Uri.encodeComponent(id)}' : ''}');
+
+  /// Xarid chekining surati (bayt): bir marta ko'rilgani telefonda saqlanadi
+  Future<List<int>?> receiptBytes(int op) async {
+    final key = 'rc:$op';
+    try {
+      final r = await _http.get(_uri('/funds/receipt/$op'), headers: {'Authorization': 'Bearer $apiKey', 'Accept': 'image/*'}).timeout(Offline.online.value ? const Duration(seconds: 60) : const Duration(seconds: 8));
+      Offline.markOnline(true);
+      if (r.statusCode == 200 && r.bodyBytes.isNotEmpty) {
+        unawaited(Offline.putBytes(key, r.bodyBytes));
+        return r.bodyBytes;
+      }
+      return null;
+    } catch (_) {
+      Offline.markOnline(false);
+      return Offline.getBytes(key);
+    }
   }
 
   /// To'lov usullari (kompaniya sozlamasi): value — serverga yuboriladi, label — ko'rsatiladi
@@ -537,8 +591,24 @@ class ApiClient {
   String receiptUrl(int op) => _uri('/funds/receipt/$op').toString();
 
   /// Prorab: o'z balansi, so'rovlari, xarajatlari. Rahbar/buxgalter: barcha prorablar. [status]: pending | norc
-  Future<Map<String, dynamic>> funds({int? user, String? status}) async =>
-      _fundsWithQueue(Map<String, dynamic>.from(((await _getMap('/funds', {'user': user, 'status': status}))['data'] as Map?) ?? const {}));
+  Future<Map<String, dynamic>> funds({int? user, String? status}) async {
+    Map<String, dynamic> m;
+    try {
+      m = await _getMap('/funds', {'user': user, 'status': status});
+    } on ApiException catch (e) {
+      // internet yo'q va bu filtr saqlanmagan: filtrsiz nusxadan telefonda filtrlaymiz
+      final b = e.isNetwork && Offline.enabled && (user != null || status != null) ? await Offline.get(_cacheKey('/funds')) : null;
+      if (b == null) rethrow;
+      final data = Map<String, dynamic>.from((b['data'] as Map?) ?? const {});
+      var ops = _list(data['ops']);
+      if (user != null) ops = ops.where((o) => '${(o['holder'] as Map?)?['id']}' == '$user').toList();
+      if (status == 'pending') ops = ops.where((o) => o['fund'] == 'spend' && o['status'] == 'pending').toList();
+      if (status == 'norc') ops = ops.where((o) => o['fund'] == 'spend' && o['has_receipt'] != true && o['status'] != 'rejected').toList();
+      data['ops'] = ops;
+      m = {'data': data};
+    }
+    return _fundsWithQueue(Map<String, dynamic>.from((m['data'] as Map?) ?? const {}));
+  }
 
   /// Pul so'rash; internet yo'q bo'lsa navbatga tushadi. `true` — navbatga qo'yildi.
   Future<bool> fundsRequest({required num amount, required String kind, String? object, String? note}) async {
@@ -713,14 +783,31 @@ class ApiClient {
   /* ---------------- ombor ---------------- */
 
   Future<Paged> stockItems({int page = 1, String? q, bool low = false}) async {
-    final m = await _getMap('/stock/items', {'page': page, 'per_page': 40, 'q': q, 'low': low ? 1 : null});
-    return Paged(_list(m['data']), PageMeta.from(m['meta']));
+    try {
+      final m = await _getMap('/stock/items', {'page': page, 'per_page': 40, 'q': q, 'low': low ? 1 : null});
+      return Paged(_list(m['data']), PageMeta.from(m['meta']));
+    } on ApiException catch (e) {
+      final all = e.isNetwork && Offline.enabled ? await _cachedAll('/stock/items', {'per_page': 40}) : null;
+      if (all == null) rethrow;
+      final t = (q ?? '').trim().toLowerCase();
+      final rows = all.where((i) => (!low || i['low'] == true) && (t.isEmpty || '${i['name']} ${i['sku'] ?? ''} ${i['group'] ?? ''}'.toLowerCase().contains(t))).toList();
+      return _localPaged(rows, page, 40);
+    }
   }
 
   /* ---------------- vazifalar ---------------- */
 
   Future<Paged> tasks({int page = 1, String? status, int? assignee}) async {
-    final m = await _getMap('/tasks', {'page': page, 'per_page': 40, 'status': status, 'assignee': assignee});
+    Map<String, dynamic> m;
+    try {
+      m = await _getMap('/tasks', {'page': page, 'per_page': 40, 'status': status, 'assignee': assignee});
+    } on ApiException catch (e) {
+      final all = e.isNetwork && Offline.enabled && (status != null || assignee != null) ? await _cachedAll('/tasks', {'per_page': 40}) : null;
+      if (all == null) rethrow;
+      final rows = all.where((t) => (status == null || '${t['status']}' == status) && (assignee == null || '${(t['assignee'] as Map?)?['id']}' == '$assignee')).toList();
+      final pg = _localPaged(rows, page, 40);
+      m = {'data': pg.items, 'meta': {'page': pg.meta.page, 'last_page': pg.meta.lastPage, 'total': pg.meta.total, 'per_page': 40}};
+    }
     final items = _list(m['data']);
     // yuborilmagan holat/progress o'zgarishlari ro'yxatda darhol ko'rinadi
     for (final o in Offline.ops.where((o) => o.kind == 'task' && o.state == 'pending')) {
@@ -768,8 +855,14 @@ class ApiClient {
 
   /// Ombor harakatlari: type = in | out | transfer | adjust.
   Future<Paged> stockMoves({int page = 1, String? type}) async {
-    final m = await _getMap('/stock/moves', {'page': page, 'per_page': 40, 'type': type});
-    return Paged(_list(m['data']), PageMeta.from(m['meta']));
+    try {
+      final m = await _getMap('/stock/moves', {'page': page, 'per_page': 40, 'type': type});
+      return Paged(_list(m['data']), PageMeta.from(m['meta']));
+    } on ApiException catch (e) {
+      final all = e.isNetwork && Offline.enabled && type != null ? await _cachedAll('/stock/moves', {'per_page': 40}) : null;
+      if (all == null) rethrow;
+      return _localPaged(all.where((x) => '${x['type']}' == type).toList(), page, 40);
+    }
   }
 
   void close() => _http.close();

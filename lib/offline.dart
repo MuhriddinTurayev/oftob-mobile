@@ -137,6 +137,35 @@ class Offline {
     return null;
   }
 
+  /// Hujjat / chek surati kabi fayllar (PDF, rasm): diskka yoziladi, "Chiqish"da o'chadi
+  static Future<void> putBytes(String key, List<int> bytes) async {
+    final d = _dir;
+    if (!enabled || d == null) return;
+    try {
+      final f = File('${d.path}/b_${_fname(key)}');
+      final tmp = File('${f.path}.tmp');
+      await tmp.writeAsBytes(bytes, flush: true);
+      await tmp.rename(f.path);
+    } catch (_) {}
+  }
+
+  static Future<List<int>?> getBytes(String key) async {
+    final d = _dir;
+    if (!enabled || d == null) return null;
+    try {
+      final f = File('${d.path}/b_${_fname(key)}');
+      return await f.exists() ? await f.readAsBytes() : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<bool> hasBytes(String key) async {
+    final d = _dir;
+    if (!enabled || d == null) return false;
+    return File('${d.path}/b_${_fname(key)}').exists();
+  }
+
   /* ---------------- kvartiralar (to'liq nusxa) ---------------- */
 
   static Future<void> saveApartments(String objectId, List<Map<String, dynamic>> items) async {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../api.dart';
 import '../format.dart';
 import '../offline.dart';
 import '../session.dart';
@@ -607,10 +608,10 @@ class _OpSheetState extends State<_OpSheet> {
             const SizedBox(height: 14),
             if (o['has_receipt'] == true)
               GestureDetector(
-                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => _ReceiptView(url: api.receiptUrl(o['id'] as int), headers: api.authHeaders))),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => _ReceiptView(api: api, id: o['id'] as int))),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
-                  child: Image.network(api.receiptUrl(o['id'] as int), headers: api.authHeaders, height: 220, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Padding(padding: EdgeInsets.all(20), child: Text('Chek suratini yuklab bo\'lmadi'))),
+                  child: _ReceiptPic(api: api, id: o['id'] as int, height: 220, fit: BoxFit.cover),
                 ),
               )
             else
@@ -653,17 +654,40 @@ class _OpSheetState extends State<_OpSheet> {
 }
 
 class _ReceiptView extends StatelessWidget {
-  const _ReceiptView({required this.url, required this.headers});
+  const _ReceiptView({required this.api, required this.id});
 
-  final String url;
-  final Map<String, String> headers;
+  final ApiClient api;
+  final int id;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, title: const Text('Chek')),
-      body: InteractiveViewer(maxScale: 6, child: Center(child: Image.network(url, headers: headers))),
+      body: InteractiveViewer(maxScale: 6, child: Center(child: _ReceiptPic(api: api, id: id))),
+    );
+  }
+}
+
+/// Chek surati: serverdan (shaxsiy kalit bilan) yoki telefondagi saqlangan nusxadan
+class _ReceiptPic extends StatelessWidget {
+  const _ReceiptPic({required this.api, required this.id, this.height, this.fit});
+
+  final ApiClient api;
+  final int id;
+  final double? height;
+  final BoxFit? fit;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<int>?>(
+      future: api.receiptBytes(id),
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) return SizedBox(height: height ?? 160, child: const Center(child: CircularProgressIndicator()));
+        final b = snap.data;
+        if (b == null) return const Padding(padding: EdgeInsets.all(20), child: Text("Chek suratini yuklab bo'lmadi (offline'da faqat oldin ko'rilganlari bor)", style: TextStyle(color: Colors.grey)));
+        return Image.memory(Uint8List.fromList(b), height: height, width: double.infinity, fit: fit ?? BoxFit.contain);
+      },
     );
   }
 }

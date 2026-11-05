@@ -37,6 +37,16 @@ class _SyncScreenState extends State<SyncScreen> {
     }
   }
 
+  Future<void> _contracts() async {
+    setState(() => _busy = true);
+    try {
+      final n = await prefetchContracts(widget.session);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(n > 0 ? '$n ta shartnoma telefonga saqlandi' : "Yuklab bo'lmadi — internetni tekshiring")));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _refresh() async {
     setState(() => _busy = true);
     try {
@@ -79,6 +89,14 @@ class _SyncScreenState extends State<SyncScreen> {
                 const SizedBox(width: 10),
                 Expanded(child: OutlinedButton.icon(onPressed: _busy || Offline.progress.value != null ? null : _refresh, icon: const Icon(Icons.cloud_download_outlined), label: const Text("Ma'lumotni yangilash"), style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)))),
               ]),
+              const SizedBox(height: 10),
+              if (widget.session.me!.can('sales:read'))
+                OutlinedButton.icon(
+                  onPressed: _busy || Offline.progress.value != null ? null : _contracts,
+                  icon: const Icon(Icons.description_outlined),
+                  label: const Text("Shartnomalarni offline uchun saqlash (oxirgi 20 ta)"),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                ),
               const SizedBox(height: 18),
               Text('Yuborilmagan amallar', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),

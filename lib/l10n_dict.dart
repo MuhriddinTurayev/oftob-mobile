@@ -555,4 +555,10 @@ const Map<String, List<String>> kDict = {
   "Valyutalar —": ["Валюты —", "Асъорҳо —"],
   "qo'shimcha yo'q": ["дополнительных нет", "иловагӣ нест"],
   "Offline saqlandi — internet paydo bo'lganda beriladi (kassa qoldig'i o'sha payt tekshiriladi)": ["Сохранено offline — деньги будут выданы, когда появится интернет (остаток кассы проверят в этот момент)", "Offline нигоҳ дошта шуд — ҳангоми пайдо шудани интернет дода мешавад (бақияи хазина дар ҳамон вақт санҷида мешавад)"],
+  "Shartnomalarni offline uchun saqlash (oxirgi 20 ta)": ["Сохранить договоры для offline (последние 20)", "Нигоҳ доштани шартномаҳо барои offline (20-тои охирин)"],
+  "ta shartnoma telefonga saqlandi": ["договоров сохранено на телефоне", "шартнома дар телефон нигоҳ дошта шуд"],
+  "Yuklab bo'lmadi — internetni tekshiring": ["Не удалось загрузить — проверьте интернет", "Боргирӣ нашуд — интернетро санҷед"],
+  "Chek suratini yuklab bo'lmadi (offline'da faqat oldin ko'rilganlari bor)": ["Не удалось загрузить фото чека (offline доступны только ранее просмотренные)", "Акси чек боргирӣ нашуд (дар offline танҳо акси пештар дидашуда ҳаст)"],
+  "Internet yo'q va bu hujjat telefonda saqlanmagan. Avval internet bilan oching yoki \"Sinxronlash\" ekranidan yuklab qo'ying.": ["Нет интернета, а этот документ не сохранён на телефоне. Сначала откройте его с интернетом или загрузите на экране «Синхронизация».", "Интернет нест ва ин ҳуҷҷат дар телефон нигоҳ дошта нашудааст. Аввал бо интернет кушоед ё аз саҳифаи «Ҳамоҳангсозӣ» боргирӣ кунед."],
+  "Shartnomalar (": ["Договоры (", "Шартномаҳо ("],
 };
