@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../api.dart';
 import '../format.dart';
 import '../session.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import '../l10n.dart';
 
@@ -141,11 +142,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 final progress = ((t['progress'] as num?) ?? 0).toInt();
                 final late = _overdue(t);
                 final st = '${t['status']}';
-                return InkWell(
-                  onTap: () => _open(t, canWrite),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                return GlassRow(onTap: () => _open(t, canWrite), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Container(width: 4, height: 54, margin: const EdgeInsets.only(right: 12, top: 2), decoration: BoxDecoration(color: _prioColor('${t['priority']}'), borderRadius: BorderRadius.circular(2))),
                       Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -165,9 +162,7 @@ class _TasksScreenState extends State<TasksScreen> {
                         StatusChip(taskStatus(st), _taskColor(st)),
                         if (t['pending'] == true) const Padding(padding: EdgeInsets.only(top: 4), child: StatusChip('Yuborilmagan', Colors.orange)),
                       ]),
-                    ]),
-                  ),
-                );
+                    ]));
               },
             ),
           ),

@@ -314,7 +314,7 @@ class AppTheme {
         iconTheme: IconThemeData(color: text),
         systemOverlayStyle: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       ),
-      cardTheme: CardThemeData(color: card, elevation: 0, margin: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: border))),
+      cardTheme: CardThemeData(color: card, elevation: 0, margin: const EdgeInsets.only(bottom: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: border))),
       chipTheme: ChipThemeData(
         backgroundColor: card,
         selectedColor: primary,
@@ -336,10 +336,46 @@ class AppTheme {
         labelStyle: TextStyle(color: scheme.outline),
         hintStyle: TextStyle(color: scheme.outline),
       ),
-      filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(minimumSize: const Size(56, 46), padding: const EdgeInsets.symmetric(horizontal: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800))),
-      outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(minimumSize: const Size(56, 44), side: BorderSide(color: dark ? border : const Color(0x33123524), width: 1.2), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700))),
+      filledButtonTheme: FilledButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(56, 50)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 18)),
+          elevation: const WidgetStatePropertyAll(0),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+          textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          backgroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.disabled) ? primary.withValues(alpha: 0.06) : primary.withValues(alpha: st.contains(WidgetState.pressed) ? 0.28 : 0.17)),
+          foregroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.disabled) ? scheme.outline : (dark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E))),
+          iconColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.disabled) ? scheme.outline : (dark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E))),
+          side: WidgetStateProperty.resolveWith((st) => BorderSide(color: primary.withValues(alpha: st.contains(WidgetState.disabled) ? 0.1 : 0.34), width: 1.1)),
+          overlayColor: WidgetStatePropertyAll(primary.withValues(alpha: 0.08)),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(56, 50)),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 18)),
+          elevation: const WidgetStatePropertyAll(0),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+          textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          backgroundColor: WidgetStateProperty.resolveWith((st) => (dark ? Colors.white : Colors.white).withValues(alpha: dark ? 0.06 : (st.contains(WidgetState.pressed) ? 0.8 : 0.5))),
+          foregroundColor: WidgetStatePropertyAll(dark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E)),
+          iconColor: WidgetStatePropertyAll(dark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E)),
+          side: WidgetStatePropertyAll(BorderSide(color: dark ? border : Colors.white.withValues(alpha: 0.95), width: 1.4)),
+          overlayColor: WidgetStatePropertyAll(primary.withValues(alpha: 0.08)),
+        ),
+      ),
       textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700))),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(backgroundColor: primary, foregroundColor: scheme.onPrimary, elevation: 3, extendedTextStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800)),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: dark ? const Color(0x33FFFFFF) : const Color(0xCCFFFFFF),
+        foregroundColor: dark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E),
+        elevation: 0,
+        focusElevation: 0,
+        hoverElevation: 0,
+        highlightElevation: 0,
+        extendedPadding: const EdgeInsets.symmetric(horizontal: 22),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: primary.withValues(alpha: 0.35), width: 1.2)),
+        extendedTextStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
+      ),
       listTileTheme: const ListTileThemeData(contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 2)),
       dividerTheme: DividerThemeData(color: border, space: 1),
       progressIndicatorTheme: ProgressIndicatorThemeData(color: primary, linearTrackColor: primary.withValues(alpha: 0.14), circularTrackColor: Colors.transparent),
@@ -360,6 +396,52 @@ class AppTheme {
         TargetPlatform.android: GlassTransitions(),
         TargetPlatform.iOS: GlassTransitions(),
       }),
+    );
+  }
+}
+
+
+/// Ro'yxat qatori: alohida shisha karta, orasida masofa (hamma ro'yxatlarda bir xil).
+class GlassRow extends StatelessWidget {
+  const GlassRow({super.key, required this.child, this.onTap, this.onLongPress, this.padding, this.tint, this.margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 5)});
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final EdgeInsetsGeometry? padding;
+  final Color? tint;
+  final EdgeInsetsGeometry margin;
+
+  @override
+  Widget build(BuildContext context) {
+    return Glass(blur: false, radius: 20, shadow: false, margin: margin, tint: tint, onTap: onTap, onLongPress: onLongPress, padding: padding ?? const EdgeInsets.symmetric(horizontal: 14, vertical: 12), child: child);
+  }
+}
+
+/// Katta ma'lumot kartasi (kassa, pul, ish vaqti): yarim shaffof rangli shisha, ustida yumshoq yorug' doiralar.
+/// Matn qora-yashil (ochiq fonda yaxshi o'qiladi), yashil to'ldirilgan blok emas.
+class HeroGlass extends StatelessWidget {
+  const HeroGlass({super.key, required this.child, this.tint = Brand.green, this.padding = const EdgeInsets.all(18), this.radius = 26, this.onTap});
+
+  final Widget child;
+  final Color tint;
+  final EdgeInsetsGeometry padding;
+  final double radius;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Glass(
+      radius: radius,
+      blur: true,
+      onTap: onTap,
+      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [tint.withValues(alpha: dark ? 0.28 : 0.17), tint.withValues(alpha: dark ? 0.08 : 0.05), Colors.white.withValues(alpha: dark ? 0.04 : 0.46)]),
+      child: Stack(children: [
+        Positioned(right: -34, top: -46, child: IgnorePointer(child: Container(width: 150, height: 150, decoration: BoxDecoration(shape: BoxShape.circle, color: tint.withValues(alpha: 0.07))))),
+        Positioned(left: -40, bottom: -64, child: IgnorePointer(child: Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, color: Brand.amber.withValues(alpha: 0.07))))),
+        Padding(padding: padding, child: child),
+      ]),
     );
   }
 }

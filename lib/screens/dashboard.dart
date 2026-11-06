@@ -241,16 +241,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 14),
           if (!searching) ...[
             if (me.can('objects:read') && _objs.isNotEmpty) ...[
-              SizedBox(
-                height: 98,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  clipBehavior: Clip.none,
-                  itemCount: _objs.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 14),
-                  itemBuilder: (context, i) => _ObjectRing(_objs[i], onTap: () => widget.onOpen?.call('Obyektlar')),
-                ),
-              ),
+              _ObjectCards(_objs, onTap: () => widget.onOpen?.call('Obyektlar')),
               const SizedBox(height: 14),
             ],
             if (me.can('shift:write')) ...[ShiftCard(session: s), const SizedBox(height: 14)],
@@ -319,9 +310,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-/// Obyekt: sotilgan ulushi aylana ko'rsatkichda (HEMIS «story» doiralari kabi)
-class _ObjectRing extends StatelessWidget {
-  const _ObjectRing(this.o, {this.onTap});
+/// Obyektlar: bitta bo'lsa — butun qator, ikkita bo'lsa — yarim-yarim, ko'p bo'lsa — yonga surib ko'riladi
+class _ObjectCards extends StatelessWidget {
+  const _ObjectCards(this.objs, {this.onTap});
+
+  final List<Map<String, dynamic>> objs;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, bc) {
+      final n = objs.length;
+      final w0 = bc.maxWidth;
+      final cw = n == 1 ? w0 : (n == 2 ? (w0 - 10) / 2 : w0 * 0.74);
+      final card = [for (final o in objs) SizedBox(width: cw, child: _ObjectCard(o, onTap: onTap))];
+      if (n <= 2) return Row(children: [for (var i = 0; i < card.length; i++) ...[if (i > 0) const SizedBox(width: 10), card[i]]]);
+      return SizedBox(height: 108, child: ListView.separated(scrollDirection: Axis.horizontal, clipBehavior: Clip.none, itemCount: n, separatorBuilder: (_, _) => const SizedBox(width: 10), itemBuilder: (_, i) => card[i]));
+    });
+  }
+}
+
+class _ObjectCard extends StatelessWidget {
+  const _ObjectCard(this.o, {this.onTap});
 
   final Map<String, dynamic> o;
   final VoidCallback? onTap;
@@ -331,34 +341,32 @@ class _ObjectRing extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final a = (o['apartments'] as Map?) ?? const {};
     final total = (a['total'] as num?)?.toDouble() ?? 0;
-    final sold = (a['sold'] as num?)?.toDouble() ?? 0;
+    final sold = (a['sold'] as num?)?.toInt() ?? 0;
+    final free = (a['free'] as num?)?.toInt() ?? 0;
+    final booked = (a['booked'] as num?)?.toInt() ?? 0;
     final frac = total == 0 ? 0.0 : sold / total;
-    final name = '${o['name'] ?? ''}';
-    return GestureDetector(
+    return Glass(
+      radius: 22,
       onTap: onTap,
-      child: SizedBox(
-        width: 74,
-        child: Column(children: [
-          SizedBox(
-            width: 66,
-            height: 66,
-            child: CustomPaint(
-              painter: _RingPainter(frac, cs.primary, cs.primary.withValues(alpha: 0.14)),
-              child: Padding(
-                padding: const EdgeInsets.all(7),
-                child: Glass(
-                  radius: 30,
-                  blur: false,
-                  shadow: false,
-                  child: Center(child: w.Text('${(frac * 100).round()}%', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: cs.primary))),
-                ),
-              ),
-            ),
+      padding: const EdgeInsets.all(12),
+      child: Row(children: [
+        SizedBox(
+          width: 60,
+          height: 60,
+          child: CustomPaint(
+            painter: _RingPainter(frac, cs.primary, cs.primary.withValues(alpha: 0.14)),
+            child: Center(child: w.Text('${(frac * 100).round()}%', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: cs.primary))),
           ),
-          const SizedBox(height: 6),
-          w.Text(name, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: cs.onSurface, height: 1.15)),
-        ]),
-      ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            w.Text('${o['name'] ?? ''}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, height: 1.15)),
+            const SizedBox(height: 5),
+            Text('${tr('Sotilgan')} $sold · ${tr("Bo'sh")} $free · ${tr('Bron')} $booked', maxLines: 2, style: TextStyle(color: cs.outline, fontSize: 11.5, height: 1.25)),
+          ]),
+        ),
+      ]),
     );
   }
 }
@@ -448,56 +456,39 @@ class _CashCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final cs = Theme.of(context).colorScheme;
+    const ink = Color(0xFF0A4D2A);
+    return HeroGlass(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(26),
-          gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF0B7A3B), Color(0xFF0E9A55), Color(0xFF0F8F8A)]),
-          boxShadow: [BoxShadow(color: Brand.green.withValues(alpha: 0.32), blurRadius: 26, offset: const Offset(0, 12))],
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const IconTile(icon: Icons.account_balance_wallet_rounded, color: Brand.green, size: 38),
+          const SizedBox(width: 10),
+          Text('Kassalarda jami', style: TextStyle(color: cs.outline, fontWeight: FontWeight.w700, fontSize: 13.5)),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: 0.9))),
+            child: Text('$desks ta kassa', style: const TextStyle(color: ink, fontSize: 11.5, fontWeight: FontWeight.w800)),
+          ),
+        ]),
+        const SizedBox(height: 14),
+        CountUp(
+          value: total ?? 0,
+          builder: (context, v) => FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: w.Text.rich(TextSpan(children: [
+              TextSpan(text: money(v), style: const TextStyle(color: ink, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.8)),
+              TextSpan(text: tr("  ${currency == 'UZS' ? "so'm" : currency}"), style: TextStyle(color: ink.withValues(alpha: 0.7), fontSize: 15, fontWeight: FontWeight.w700)),
+            ])),
+          ),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(26),
-          child: Stack(children: [
-            // shisha yaltiroqligi
-            Positioned(right: -40, top: -50, child: Container(width: 180, height: 180, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.10)))),
-            Positioned(right: 30, bottom: -70, child: Container(width: 150, height: 150, decoration: BoxDecoration(shape: BoxShape.circle, color: Brand.amber.withValues(alpha: 0.16)))),
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(11)),
-                    child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 18),
-                  ),
-                  const SizedBox(width: 10),
-                  Text('Kassalarda jami', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w700, fontSize: 13.5)),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(20)),
-                    child: Text('$desks ta kassa', style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w700)),
-                  ),
-                ]),
-                const SizedBox(height: 14),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: w.Text.rich(TextSpan(children: [
-                    TextSpan(text: money(total ?? 0), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.8)),
-                    TextSpan(text: tr("  ${currency == 'UZS' ? "so'm" : currency}"), style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 15, fontWeight: FontWeight.w700)),
-                  ])),
-                ),
-                if (others.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(others.entries.map((e) => '${money(e.value)} ${e.key}').join('  ·  '), style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12.5)),
-                ],
-              ]),
-            ),
-          ]),
-        ),
-      ),
+        if (others.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(others.entries.map((e) => '${money(e.value)} ${e.key}').join('  ·  '), style: TextStyle(color: cs.outline, fontSize: 12.5)),
+        ],
+      ]),
     );
   }
 }

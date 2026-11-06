@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../documents.dart';
 import '../format.dart';
 import '../session.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import 'deal.dart';
 import 'tour.dart';
@@ -185,11 +186,7 @@ class _ApartmentsScreenState extends State<ApartmentsScreen> {
                 final st = '${a['status']}';
                 final price = (a['price'] as num?) ?? 0;
                 final paid = (a['paid'] as num?) ?? 0;
-                return InkWell(
-                  onTap: () => showApartmentSheet(context, widget.session, _objectId, '${widget.object['name']}', a, onChanged: _reload),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-                    child: Row(children: [
+                return GlassRow(onTap: () => showApartmentSheet(context, widget.session, _objectId, '${widget.object['name']}', a, onChanged: _reload), child: Row(children: [
                       Container(
                         width: 46,
                         height: 46,
@@ -214,9 +211,7 @@ class _ApartmentsScreenState extends State<ApartmentsScreen> {
                         const SizedBox(height: 2),
                         StatusChip(aptStatus(st), statusColor(st)),
                       ]),
-                    ]),
-                  ),
-                );
+                    ]));
               },
             ),
           ),

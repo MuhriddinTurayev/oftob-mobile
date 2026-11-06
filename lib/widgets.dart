@@ -6,6 +6,7 @@ import 'offline.dart';
 import 'session.dart';
 import 'l10n.dart';
 import 'theme.dart';
+import 'motion.dart';
 
 /// Sahifalab yuklanadigan ro'yxat: tortib yangilash, pastga tushganda yana yuklash, xatoda "Qayta urinish".
 class PagedList extends StatefulWidget {
@@ -116,7 +117,7 @@ class PagedListState extends State<PagedList> {
           if (i >= _items.length) {
             return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()));
           }
-          return widget.itemBuilder(context, _items[i]);
+          return Reveal(index: i.clamp(0, 9), child: widget.itemBuilder(context, _items[i]));
         },
       ),
     );

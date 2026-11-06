@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../format.dart';
 import '../session.dart';
+import '../theme.dart';
+import '../motion.dart';
 import '../widgets.dart';
 import '../l10n.dart';
 
@@ -159,7 +161,7 @@ class _CrewScreenState extends State<CrewScreen> {
         ]),
       ));
       for (final w in workers) {
-        tiles.add(_WorkerRow(w: w, money: _money, cur: _cur, onTap: () => _open(w, '${o['name']}')));
+        tiles.add(Reveal(index: (tiles.length ~/ 2).clamp(0, 9), child: _WorkerRow(w: w, money: _money, cur: _cur, onTap: () => _open(w, '${o['name']}'))));
       }
     }
     return RefreshIndicator(
@@ -171,10 +173,10 @@ class _CrewScreenState extends State<CrewScreen> {
           if (_money)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: cs.primaryContainer.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(18)),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              child: HeroGlass(
+              padding: const EdgeInsets.all(16),
+              radius: 22,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Oy bo\'yicha hisob · ${sum['workers'] ?? 0} xodim', style: TextStyle(color: cs.onPrimaryContainer.withValues(alpha: 0.75), fontWeight: FontWeight.w600, fontSize: 13)),
                   const SizedBox(height: 8),
                   Row(children: [
@@ -273,11 +275,7 @@ class _WorkerRow extends StatelessWidget {
       if (money && rate != null && rate > 0) '${_fmtMoney(rate)} / ${pay['unit'] ?? ''}',
     ].join(' · ');
     final due = month['due'] as num?;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        child: Row(children: [
+    return GlassRow(onTap: onTap, child: Row(children: [
           CircleAvatar(radius: 20, backgroundColor: cs.primaryContainer, foregroundColor: cs.onPrimaryContainer, child: Text(name.isEmpty ? '?' : name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w800))),
           const SizedBox(width: 12),
           Expanded(
@@ -293,9 +291,7 @@ class _WorkerRow extends StatelessWidget {
             ]),
           const SizedBox(width: 2),
           Icon(Icons.chevron_right, color: cs.outline, size: 20),
-        ]),
-      ),
-    );
+        ]));
   }
 }
 

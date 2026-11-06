@@ -10,6 +10,8 @@ import '../format.dart';
 import '../offline.dart';
 import '../session.dart';
 import '../widgets.dart';
+import '../theme.dart';
+import '../motion.dart';
 import '../l10n.dart';
 
 num _n(Object? v) => v is num ? v : (num.tryParse('$v') ?? 0);
@@ -109,18 +111,17 @@ class _FundsScreenState extends State<FundsScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
       children: [
-        Container(
+        HeroGlass(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: cs.primary, borderRadius: BorderRadius.circular(22)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Mening pullarim', style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.85), fontSize: 14)),
+            Text('Mening pullarim', style: TextStyle(color: cs.outline, fontSize: 14, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            Text('${money(_n(me['total']))} $cur', style: TextStyle(color: cs.onPrimary, fontSize: 32, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
-            Wrap(spacing: 16, runSpacing: 4, children: [
-              Text('Naqd: ${money(_n(me['cash']))}', style: TextStyle(color: cs.onPrimary, fontWeight: FontWeight.w600)),
-              Text('Karta: ${money(_n(me['card']))}', style: TextStyle(color: cs.onPrimary, fontWeight: FontWeight.w600)),
-              Text('Shu oy sarfladim: ${money(_n(me['month']))}', style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.9))),
+            CountUp(value: _n(me['total']), builder: (_, v) => Text('${money(v)} $cur', style: const TextStyle(color: Color(0xFF0A4D2A), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.8))),
+            const SizedBox(height: 12),
+            Wrap(spacing: 10, runSpacing: 8, children: [
+              _chipStat('Naqd', money(_n(me['cash']))),
+              _chipStat('Karta', money(_n(me['card']))),
+              _chipStat('Shu oy sarfladim', money(_n(me['month']))),
             ]),
           ]),
         ),
@@ -147,7 +148,6 @@ class _FundsScreenState extends State<FundsScreen> {
               onPressed: () => _requestSheet(context, d),
               icon: const Icon(Icons.request_quote_outlined),
               label: const Text('Pul so\'rash'),
-              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
             ),
           ),
         ]),
@@ -167,15 +167,24 @@ class _FundsScreenState extends State<FundsScreen> {
         if (reqs.isNotEmpty) ...[
           const SizedBox(height: 22),
           const _Title('So\'rovlarim'),
-          for (final r in reqs) _requestTile(context, r, cur, mine: true),
+          for (var i = 0; i < reqs.length; i++) Reveal(index: i.clamp(0, 9), child: _requestTile(context, reqs[i], cur, mine: true)),
         ],
         const SizedBox(height: 22),
         const _Title('Berilgan va sarflangan pul'),
         if (ops.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('Hali operatsiya yo\'q'))),
-        for (final o in ops) _opTile(context, o, cur, boss: false),
+        for (var i = 0; i < ops.length; i++) Reveal(index: i.clamp(0, 9), child: _opTile(context, ops[i], cur, boss: false)),
       ],
     );
   }
+
+  Widget _chipStat(String label, String value) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white.withValues(alpha: 0.9))),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text('$label: ', style: const TextStyle(color: Color(0xFF3F5A4B), fontSize: 12.5, fontWeight: FontWeight.w600)),
+          Text(value, style: const TextStyle(color: Color(0xFF0A4D2A), fontSize: 13.5, fontWeight: FontWeight.w900)),
+        ]),
+      );
 
   Widget _requestTile(BuildContext context, Map<String, dynamic> r, String cur, {required bool mine, bool manage = false}) {
     final st = '${r['status']}';
@@ -385,24 +394,23 @@ class _FundsScreenState extends State<FundsScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
       children: [
-        Container(
+        HeroGlass(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: cs.primary, borderRadius: BorderRadius.circular(22)),
           child: Row(children: [
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Prorablar qo\'lidagi pul', style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.85), fontSize: 14)),
+                Text('Prorablar qo\'lidagi pul', style: TextStyle(color: cs.outline, fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                Text('${money(_n(d['total']))} $cur', style: TextStyle(color: cs.onPrimary, fontSize: 28, fontWeight: FontWeight.w800)),
+                CountUp(value: _n(d['total']), builder: (_, v) => Text('${money(v)} $cur', style: const TextStyle(color: Color(0xFF0A4D2A), fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.6))),
               ]),
             ),
-            if (manage) FilledButton.tonal(onPressed: () => _issueSheet(context, d), child: const Text('Pul berish')),
+            if (manage) FilledButton(onPressed: () => _issueSheet(context, d), child: const Text('Pul berish')),
           ]),
         ),
         if (reqs.isNotEmpty) ...[
           const SizedBox(height: 20),
           _Title('Pul so\'rovlari (${reqs.length})'),
-          for (final r in reqs) _requestTile(context, r, cur, mine: false, manage: manage),
+          for (var i = 0; i < reqs.length; i++) Reveal(index: i.clamp(0, 9), child: _requestTile(context, reqs[i], cur, mine: false, manage: manage)),
         ],
         const SizedBox(height: 20),
         const _Title('Prorablar'),
@@ -435,7 +443,7 @@ class _FundsScreenState extends State<FundsScreen> {
         ]),
         const SizedBox(height: 8),
         if (ops.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('Operatsiya topilmadi'))),
-        for (final o in ops) _opTile(context, o, cur, boss: true),
+        for (var i = 0; i < ops.length; i++) Reveal(index: i.clamp(0, 9), child: _opTile(context, ops[i], cur, boss: true)),
       ],
     );
   }

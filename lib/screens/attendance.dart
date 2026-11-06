@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../format.dart';
 import '../session.dart';
+import '../motion.dart';
 import '../widgets.dart';
 import '../theme.dart';
 import '../l10n.dart';
@@ -293,7 +294,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           live: _isToday,
         ));
       }
-      rows.add(Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Glass(padding: const EdgeInsets.symmetric(vertical: 4), child: Column(children: tiles))));
+      for (var k = 0; k < tiles.length; k++) {
+        rows.add(Reveal(index: k.clamp(0, 9), child: tiles[k]));
+      }
     }
     return RefreshIndicator(
       onRefresh: () => _load(quiet: true),
@@ -459,13 +462,12 @@ class _WorkerTile extends StatelessWidget {
       if (times.isNotEmpty) times,
       if (wk.isNotEmpty) wk,
     ].join(' · ');
-    return InkWell(
+    return GlassRow(
       onTap: selecting ? onToggle : null,
       onLongPress: onLong,
-      child: Container(
-        color: selected ? cs.primaryContainer.withValues(alpha: 0.5) : null,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(children: [
+      tint: selected ? cs.primaryContainer.withValues(alpha: 0.75) : null,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      child: Row(children: [
           selected
               ? CircleAvatar(radius: 20, backgroundColor: cs.primary, child: Icon(Icons.check, color: cs.onPrimary))
               : CircleAvatar(radius: 20, backgroundColor: color.withValues(alpha: 0.14), foregroundColor: color, child: Text(name.isEmpty ? '?' : name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w800))),
@@ -493,7 +495,6 @@ class _WorkerTile extends StatelessWidget {
               child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
             ),
         ]),
-      ),
     );
   }
 }

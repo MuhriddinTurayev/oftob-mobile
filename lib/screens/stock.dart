@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../format.dart';
 import '../session.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import '../l10n.dart';
 
@@ -135,11 +136,7 @@ class _StockScreenState extends State<StockScreen> {
                 itemBuilder: (context, i) {
                   final low = i['low'] == true;
                   final whs = ((i['warehouses'] as List?) ?? const []).whereType<Map>().toList();
-                  return InkWell(
-                    onTap: () => _itemSheet(i),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      child: Row(children: [
+                  return GlassRow(onTap: () => _itemSheet(i), child: Row(children: [
                         CircleAvatar(backgroundColor: (low ? Colors.red : cs.primary).withValues(alpha: 0.12), foregroundColor: low ? Colors.red : cs.primary, child: Icon(low ? Icons.warning_amber_rounded : Icons.inventory_2_outlined, size: 22)),
                         const SizedBox(width: 12),
                         Expanded(
@@ -153,9 +150,7 @@ class _StockScreenState extends State<StockScreen> {
                           Text('${area(i['balance'] as num?)} ${i['unit'] ?? ''}', style: TextStyle(fontWeight: FontWeight.w800, color: low ? Colors.red : null)),
                           if (low) const StatusChip('Kam', Colors.red),
                         ]),
-                      ]),
-                    ),
-                  );
+                      ]));
                 },
               )
             : PagedList(
@@ -168,7 +163,10 @@ class _StockScreenState extends State<StockScreen> {
                   final inc = qty >= 0;
                   final item = Map<String, dynamic>.from((m['item'] as Map?) ?? const {});
                   final wh = Map<String, dynamic>.from((m['warehouse'] as Map?) ?? const {});
-                  return ListTile(
+                  return GlassRow(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                     leading: CircleAvatar(
                       backgroundColor: (inc ? Colors.green : cs.error).withValues(alpha: 0.12),
                       foregroundColor: inc ? Colors.green.shade700 : cs.error,
@@ -178,7 +176,7 @@ class _StockScreenState extends State<StockScreen> {
                     subtitle: Text('${_moveName('${m['type']}')} · ${formatDate('${m['date']}')} · ${wh['name'] ?? ''}${'${m['note'] ?? ''}'.isEmpty ? '' : '\n${m['note']}'}', maxLines: 3, overflow: TextOverflow.ellipsis),
                     isThreeLine: '${m['note'] ?? ''}'.isNotEmpty,
                     trailing: Text('${inc ? '+' : ''}${area(qty)} ${item['unit'] ?? ''}', style: TextStyle(fontWeight: FontWeight.w800, color: inc ? Colors.green.shade700 : cs.error)),
-                  );
+                  ));
                 },
               ),
       ),

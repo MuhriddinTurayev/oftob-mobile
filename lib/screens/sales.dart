@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../format.dart';
 import '../session.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import 'objects.dart';
 import '../l10n.dart';
@@ -147,13 +148,16 @@ class _SalesScreenState extends State<SalesScreen> {
         rows.add(Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 4), child: Text(formatDate(date), style: TextStyle(color: cs.outline, fontWeight: FontWeight.w700, fontSize: 13))));
       }
       final buyer = Map<String, dynamic>.from((p['buyer'] as Map?) ?? const {});
-      rows.add(ListTile(
+      rows.add(GlassRow(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        child: ListTile(
         dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
         leading: CircleAvatar(backgroundColor: Colors.green.withValues(alpha: 0.12), foregroundColor: Colors.green.shade700, child: const Icon(Icons.south_west, size: 18)),
         title: Text('${buyer['name'] ?? ''}'.isEmpty ? 'Xaridor' : '${buyer['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text('kv. ${p['apartment_number']} · ${_objectNames['${p['object_id']}'] ?? ''}${p['method'] != null && '${p['method']}'.isNotEmpty ? ' · ${p['method']}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: Text('+${money(p['amount'] as num?)}', style: TextStyle(fontWeight: FontWeight.w800, color: Colors.green.shade700)),
-      ));
+      )));
     }
     return RefreshIndicator(
       onRefresh: _load,
@@ -163,9 +167,9 @@ class _SalesScreenState extends State<SalesScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-            child: Container(
+            child: HeroGlass(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: cs.primaryContainer.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(18)),
+              radius: 22,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Oy davomida tushgan · ${_pays.length} ta to\'lov', style: TextStyle(color: cs.onPrimaryContainer.withValues(alpha: 0.75), fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 6),
@@ -202,11 +206,7 @@ class _SalesScreenState extends State<SalesScreen> {
           ),
           if (_debtors.isEmpty) const Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Qarzdor yo\'q'))),
           for (final a in _debtors)
-            InkWell(
-              onTap: () => showApartmentSheet(context, s, '${a['object_id']}', '${a['_object']}', a, onChanged: _load),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-                child: Row(children: [
+            GlassRow(onTap: () => showApartmentSheet(context, s, '${a['object_id']}', '${a['_object']}', a, onChanged: _load), child: Row(children: [
                   Container(
                     width: 46,
                     height: 46,
@@ -228,9 +228,7 @@ class _SalesScreenState extends State<SalesScreen> {
                     Text(money(a['debt'] as num?), style: TextStyle(fontWeight: FontWeight.w800, color: cs.error)),
                     Text('qarz', style: TextStyle(color: cs.outline, fontSize: 11.5)),
                   ]),
-                ]),
-              ),
-            ),
+                ])),
         ],
       ),
     );

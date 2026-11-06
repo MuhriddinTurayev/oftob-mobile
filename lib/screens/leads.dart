@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../format.dart';
 import '../session.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import '../l10n.dart';
 
@@ -240,11 +241,7 @@ class _LeadRow extends StatelessWidget {
       if (l['rooms'] != null) '${l['rooms']} xona',
       if (l['budget'] != null) 'byudjet ${money(l['budget'] as num?)}',
     ].join(' · ');
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return GlassRow(onTap: onTap, child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           CircleAvatar(radius: 22, backgroundColor: ch.color.withValues(alpha: 0.14), foregroundColor: ch.color, child: Icon(ch.icon, size: 22)),
           const SizedBox(width: 12),
           Expanded(
@@ -258,9 +255,7 @@ class _LeadRow extends StatelessWidget {
               if (msg.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 2), child: Text(msg, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5))),
             ]),
           ),
-        ]),
-      ),
-    );
+        ]));
   }
 }
 
