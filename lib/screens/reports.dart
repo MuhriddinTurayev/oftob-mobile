@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../format.dart';
 import '../session.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import '../l10n.dart';
 
@@ -217,7 +218,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 40 + NavInset.of(context)),
         children: _kind == _Kind.foreman ? _foremanView(d, cs) : _salesView(d, cs),
       ),
     );

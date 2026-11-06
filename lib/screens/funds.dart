@@ -109,7 +109,7 @@ class _FundsScreenState extends State<FundsScreen> {
     final pend = Offline.ops.where((o) => o.kind == 'spend' || o.kind == 'request').toList();
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
+      padding: EdgeInsets.fromLTRB(16, 8, 16, 40 + NavInset.of(context)),
       children: [
         HeroGlass(
           padding: const EdgeInsets.all(20),
@@ -402,7 +402,7 @@ class _FundsScreenState extends State<FundsScreen> {
     final manage = d['can_manage'] == true;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
+      padding: EdgeInsets.fromLTRB(16, 8, 16, 40 + NavInset.of(context)),
       children: [
         HeroGlass(
           padding: const EdgeInsets.all(20),

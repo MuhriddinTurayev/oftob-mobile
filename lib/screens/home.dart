@@ -397,7 +397,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: Column(children: [
           _header(i, moreIndex, tabs),
           OfflineBar(onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s)))),
-          Expanded(child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()])),
+          Expanded(child: NavInset(inset: NavInset.bar, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()]))),
         ]),
       ),
       bottomNavigationBar: GlassNavBar(

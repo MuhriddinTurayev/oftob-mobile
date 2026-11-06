@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' hide Text;
 import '../format.dart';
 import '../l10n.dart';
 import '../session.dart';
+import '../theme.dart';
 import '../widgets.dart';
 
 /// Valyutalar: prorab xaridni shu valyutalarda kiritadi (summa kurs bo'yicha kompaniya valyutasiga o'tadi).
@@ -53,7 +54,7 @@ class _CurrenciesScreenState extends State<CurrenciesScreen> {
         final baseCode = '${base['code']}';
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 40 + NavInset.of(context)),
           children: [
             Container(
               padding: const EdgeInsets.all(14),

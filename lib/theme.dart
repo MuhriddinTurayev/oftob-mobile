@@ -523,6 +523,22 @@ class HeroGlass extends StatelessWidget {
 }
 
 
+/// Pastki suzuvchi panel egallagan joy: bosh sahifaning tablarida bor (panel ostida kontent o'tadi), «Yana»dan ochilgan to'liq sahifalarda yo'q.
+/// Suzuvchi tugmalar va ro'yxatlarning pastki bo'sh joyi shunga qarab moslashadi.
+class NavInset extends InheritedWidget {
+  const NavInset({super.key, required this.inset, required super.child});
+
+  final double inset;
+
+  static const double bar = 92;
+
+  /// Panel bor joyda [bar], yo'q joyda 0
+  static double of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<NavInset>()?.inset ?? 0;
+
+  @override
+  bool updateShouldNotify(NavInset old) => old.inset != inset;
+}
+
 /// Shaffof shisha suzuvchi tugma (orqasidagi ro'yxat xira ko'rinadi).
 class GlassFab extends StatelessWidget {
   const GlassFab({super.key, required this.onPressed, required this.icon, required this.label});
@@ -536,7 +552,7 @@ class GlassFab extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final fg = context.isDark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 92),
+      padding: EdgeInsets.only(bottom: NavInset.of(context) + 6),
       child: Tappable(
         onTap: onPressed,
         child: ClipRRect(

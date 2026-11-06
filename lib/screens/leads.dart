@@ -162,7 +162,7 @@ class _LeadsScreenState extends State<LeadsScreen> {
         onRefresh: () => _load(quiet: true),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 132),
+          padding: EdgeInsets.only(bottom: 40 + NavInset.of(context)),
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
