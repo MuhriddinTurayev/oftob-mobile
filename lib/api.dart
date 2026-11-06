@@ -884,6 +884,31 @@ class ApiClient {
     return Paged(_list(m['data']), PageMeta.from(m['meta']));
   }
 
+  /* ---------------- AI yordamchi ---------------- */
+
+  Future<Map<String, dynamic>> aiState() async => Map<String, dynamic>.from(((await _getMap('/ai/chat'))['data'] as Map?) ?? const {});
+
+  /// Savolga javob (server tugatguncha kutadi: odatda 3–20 soniya)
+  Future<String> aiSend(String text) async {
+    final b = await _send(() => _http.post(_uri('/ai/chat'), headers: _headers, body: jsonEncode({'text': text})), timeout: const Duration(seconds: 150));
+    return '${((b as Map)['data'] as Map)['text']}';
+  }
+
+  Future<void> aiClear() async {
+    await _send(() => _http.delete(_uri('/ai/chat'), headers: _headers));
+  }
+
+  /// Ovoz yozuvi (wav) → matn
+  Future<String> aiListen(String path) async {
+    final b = await _send(() async {
+      final req = http.MultipartRequest('POST', _uri('/ai/listen'))
+        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang});
+      req.files.add(await http.MultipartFile.fromPath('audio', path));
+      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
+    }, timeout: const Duration(seconds: 100));
+    return '${((b as Map)['data'] as Map)['text']}';
+  }
+
   void close() => _http.close();
 }
 

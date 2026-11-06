@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' as w show Text;
 
 import '../api.dart';
+import '../assistant.dart';
 import '../format.dart';
 import '../location.dart';
 import '../session.dart';
@@ -35,6 +36,7 @@ class _ShiftCardState extends State<ShiftCard> {
   void initState() {
     super.initState();
     _load();
+    AppNav.shift.addListener(_onVoice);
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && '${_st?['status']}' == 'working') setState(() {});
     });
@@ -42,8 +44,19 @@ class _ShiftCardState extends State<ShiftCard> {
 
   @override
   void dispose() {
+    AppNav.shift.removeListener(_onVoice);
     _tick?.cancel();
     super.dispose();
+  }
+
+  /// Ovozli buyruq («Ishga keldim» / «Ketdim») — tasdiqlangandan keyin shu yerda bajariladi
+  void _onVoice() {
+    final v = AppNav.shift.value;
+    if (v == null) return;
+    AppNav.shift.value = null;
+    final st = '${_st?['status'] ?? 'none'}';
+    if (v == 'start' && (st == 'none' || st == '')) _act('start');
+    if (v == 'end' && st == 'working') _act('end');
   }
 
   Future<void> _load() async {

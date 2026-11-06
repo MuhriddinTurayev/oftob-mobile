@@ -133,7 +133,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       'left' => ('Ketdi', Colors.blueGrey),
       _ => ('Kelmadi', cs.error),
     };
-    final times = st == 'none' ? '' : '${o['in'] ?? ''}${o['out'] != null ? ' – ${o['out']}' : ''}';
+    final since = shiftMoment(o, 'in');
+    final until = st == 'working' ? DateTime.now() : shiftMoment(o, 'out');
+    final worked = (st == 'none' || since == null || until == null) ? '' : durationText(until.difference(since));
+    final times = st == 'none' ? '' : '${o['in'] ?? ''}${o['out'] != null ? ' – ${o['out']}' : ''}${st == 'working' ? ' · ${tr('dan beri')}' : ''}${worked.isEmpty ? '' : ' · $worked'}';
     final where = st == 'none' ? '' : (lat == null ? 'joylashuvsiz' : (dist == null ? 'joylashuv bor' : (dist <= 300 ? 'obyektda' : 'obyektdan ${distLabel(dist)}')));
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),

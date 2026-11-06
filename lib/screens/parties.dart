@@ -209,6 +209,7 @@ class _PartiesScreenState extends State<PartiesScreen> {
               return Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                 child: Glass(
+                  blur: false,
                   onTap: () => _sheet(c),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: Row(children: [
@@ -293,6 +294,7 @@ class _PaymentRequestsScreenState extends State<PaymentRequestsScreen> {
             return Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
               child: Glass(
+                blur: false,
                 padding: const EdgeInsets.all(14),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [

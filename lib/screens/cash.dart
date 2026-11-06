@@ -99,6 +99,7 @@ class _CashScreenState extends State<CashScreen> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Glass(
             radius: 18,
+            blur: false,
             shadow: false,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(children: [

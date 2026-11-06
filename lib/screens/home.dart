@@ -25,6 +25,7 @@ import 'tasks.dart';
 import '../l10n.dart';
 import '../widgets.dart';
 import '../theme.dart';
+import '../assistant.dart';
 
 class _Tab {
   const _Tab(this.label, this.icon, this.activeIcon, this.builder);
@@ -47,6 +48,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _index = 0;
+  final _dashRefresh = ValueNotifier<int>(0);
   late final NotificationCenter _nc = NotificationCenter(widget.session, onFresh: _fresh);
 
   Session get s => widget.session;
@@ -56,6 +58,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _nc.start();
+    AppNav.open = _open;
+    AppNav.sections = [..._primary.map((e) => e.label), ..._more.map((e) => e.label)];
     _syncTimer = Timer.periodic(const Duration(seconds: 30), (_) => _tickSync());
     WidgetsBinding.instance.addPostFrameCallback((_) => _tickSync(first: true));
   }
@@ -82,6 +86,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    if (AppNav.open == _open) AppNav.open = null;
     WidgetsBinding.instance.removeObserver(this);
     _syncTimer?.cancel();
     _nc.dispose();
@@ -91,6 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _dashRefresh.value++;
       _nc.refresh();
       _tickSync();
     }
@@ -123,6 +129,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       'tasks' => 'Vazifalar',
       'leads' => 'Lidlar',
       'funds' => me.role == 'foreman' ? 'Pul' : 'Prorab puli',
+      'attendance' => 'Davomat',
       _ => '',
     });
   }
@@ -131,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<_Tab> get _primary {
     final me = s.me!;
     return [
-      _Tab('Bosh', Icons.home_outlined, Icons.home, (x) => DashboardScreen(session: x, onOpen: _open, sections: _sections, onProfile: () => setState(() => _index = _primary.length))),
+      _Tab('Bosh', Icons.home_outlined, Icons.home, (x) => DashboardScreen(session: x, onOpen: _open, sections: _sections, refresh: _dashRefresh, onProfile: () => setState(() => _index = _primary.length))),
       // prorab uchun davomat — eng asosiy ish; boshqa rollarda «Yana» ichida (Bosh ekrandagi karta orqali ham ochiladi)
       if (me.can('attendance:read') && me.role == 'foreman') _Tab('Davomat', Icons.how_to_reg_outlined, Icons.how_to_reg, (x) => AttendanceScreen(session: x)),
       if (me.can('funds:read') && me.role == 'foreman') _Tab('Pul', Icons.payments_outlined, Icons.payments, (x) => FundsScreen(session: x)),
@@ -186,16 +193,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ];
 
   /// Bosh ekrandan bo'limga o'tish: asosiy tab bo'lsa — tab almashadi, bo'lmasa — to'liq ekran sifatida ochiladi
-  void _open(String label) {
+  bool _open(String label) {
     final p = _primary;
+    if (label == 'Yana') {
+      setState(() => _index = p.length);
+      return true;
+    }
     final i = p.indexWhere((e) => e.label == label);
     if (i >= 0) {
       HapticFeedback.selectionClick();
+      // ochiq sahifalar (masalan, «Kassa» to'liq ekrani) yopilib, tab ko'rsatiladi
+      Navigator.of(context).popUntil((r) => r.isFirst);
       setState(() => _index = i);
-      return;
+      if (i == 0) _dashRefresh.value++;
+      return true;
     }
     final m = _more.where((e) => e.label == label);
-    if (m.isNotEmpty) _push(m.first);
+    if (m.isNotEmpty) {
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      _push(m.first);
+      return true;
+    }
+    return false;
   }
 
   void _push(_Tab t) {
@@ -367,7 +386,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       bottomNavigationBar: GlassNavBar(
         index: i,
-        onTap: (v) => setState(() => _index = v),
+        onTap: (v) {
+          setState(() => _index = v);
+          if (v == 0) _dashRefresh.value++;
+        },
         items: [
           for (final t in tabs) NavItem(t.label, t.icon, t.activeIcon),
           const NavItem('Yana', Icons.grid_view_outlined, Icons.grid_view_rounded),

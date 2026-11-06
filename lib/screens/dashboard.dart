@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Text;
@@ -22,11 +23,14 @@ class DashSection {
 }
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key, required this.session, this.onOpen, this.sections = const [], this.onProfile});
+  const DashboardScreen({super.key, required this.session, this.onOpen, this.sections = const [], this.onProfile, this.refresh});
 
   final Session session;
   final List<DashSection> sections;
   final VoidCallback? onProfile;
+
+  /// Qiymati o'zgarsa — ma'lumot jim yangilanadi (tabga qaytganda, ilova ochilganda)
+  final ValueNotifier<int>? refresh;
 
   /// Bo'limga o'tish (pastki tab nomi bilan)
   final void Function(String tab)? onOpen;
@@ -48,6 +52,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Map<String, dynamic>> _leads = const [];
   List<Map<String, dynamic>> _ops = const [];
   List<Map<String, dynamic>> _objs = const [];
+  List<Map<String, dynamic>> _now = const []; // hozir ishda: prorablar/ofis va ishchilar
+  Timer? _clock;
   String _q = '';
 
   Session get s => widget.session;
@@ -56,6 +62,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _load();
+    widget.refresh?.addListener(_load);
+    _clock = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && _now.isNotEmpty) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    widget.refresh?.removeListener(_load);
+    _clock?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -114,6 +131,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _attWorking = (sum['working'] as num?)?.toInt() ?? 0;
         _attCame = (sum['came'] as num?)?.toInt() ?? 0;
         _attAbsent = (sum['absent'] as num?)?.toInt() ?? math.max(0, _attStaff - _attCame);
+        final now = <Map<String, dynamic>>[];
+        for (final o in ((a['office'] as List?) ?? const []).whereType<Map>()) {
+          if (o['status'] == 'working') now.add({...Map<String, dynamic>.from(o), 'office': true});
+        }
+        for (final site in ((a['sites'] as List?) ?? const []).whereType<Map>()) {
+          for (final w in ((site['workers'] as List?) ?? const []).whereType<Map>()) {
+            if (w['status'] == 'working') now.add({...Map<String, dynamic>.from(w), 'site': '${site['name']}'});
+          }
+        }
+        _now = now;
       }),
       part(me.can('tasks:read'), () async {
         final p = await api.tasks();
@@ -225,6 +252,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 6),
             ],
           ],
+          if (!searching && me.can('attendance:read') && _now.isNotEmpty) ...[
+            _Section(title: 'Hozir ishda', trailing: '${_now.length} kishi', onTap: () => widget.onOpen?.call('Davomat')),
+            Glass(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(children: [for (final x in _now.take(8)) _WorkingRow(x)]),
+            ),
+            if (_now.length > 8) Padding(padding: const EdgeInsets.only(top: 6, left: 6), child: Text('+${_now.length - 8} ${tr('kishi yana')}', style: TextStyle(color: cs.outline, fontSize: 12.5))),
+            const SizedBox(height: 18),
+          ],
           if (services.isNotEmpty) ...[
             _Section(title: 'Xizmatlar'),
             LayoutBuilder(
@@ -286,6 +322,7 @@ class _ObjectRing extends StatelessWidget {
                 padding: const EdgeInsets.all(7),
                 child: Glass(
                   radius: 30,
+                  blur: false,
                   shadow: false,
                   child: Center(child: w.Text('${(frac * 100).round()}%', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: cs.primary))),
                 ),
@@ -325,6 +362,32 @@ class _RingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _RingPainter old) => old.frac != frac || old.color != color;
+}
+
+/// Hozir ishda: kim, qachondan beri, necha soat (prorab/ofis «Ishga keldim» bosganlar ham shu yerda)
+class _WorkingRow extends StatelessWidget {
+  const _WorkingRow(this.x);
+
+  final Map<String, dynamic> x;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final since = shiftMoment(x, 'in');
+    final dur = since == null ? null : DateTime.now().difference(since);
+    final office = x['office'] == true;
+    final name = '${x['name']}';
+    return ListTile(
+      dense: true,
+      leading: Stack(clipBehavior: Clip.none, children: [
+        IconTile(icon: office ? Icons.engineering_rounded : Icons.construction_rounded, color: office ? Brand.blue : Brand.teal, size: 38),
+        Positioned(right: -2, bottom: -2, child: Container(width: 12, height: 12, decoration: BoxDecoration(color: Colors.green.shade500, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
+      ]),
+      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
+      subtitle: Text([if ('${x['role'] ?? ''}'.isNotEmpty) '${x['role']}', if (x['site'] != null) '${x['site']}', if (x['in'] != null) '${x['in']} ${tr('dan beri')}'].join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12)),
+      trailing: dur == null ? null : Text(durationText(dur), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: cs.primary)),
+    );
+  }
 }
 
 class _ServiceTile extends StatelessWidget {

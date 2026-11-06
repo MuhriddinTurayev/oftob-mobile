@@ -38,9 +38,11 @@ class GlassBackdrop extends StatelessWidget {
           ),
         ),
       ),
-      _Glow(alignment: const Alignment(1.1, -0.95), color: dark ? const Color(0xFF244E86) : const Color(0xFFB9D3FF), radius: 0.85, alpha: dark ? 0.45 : 0.55),
-      _Glow(alignment: const Alignment(-1.2, -0.1), color: dark ? const Color(0xFF176B43) : const Color(0xFF9FE3BD), radius: 0.8, alpha: dark ? 0.5 : 0.5),
-      _Glow(alignment: const Alignment(1.0, 1.0), color: dark ? const Color(0xFF7A5A12) : const Color(0xFFFFE6A0), radius: 0.85, alpha: dark ? 0.3 : 0.55),
+      _Glow(alignment: const Alignment(1.15, -0.95), color: dark ? const Color(0xFF2B5CA8) : const Color(0xFF86B3FF), radius: 0.8, alpha: dark ? 0.5 : 0.7),
+      _Glow(alignment: const Alignment(-1.25, -0.25), color: dark ? const Color(0xFF1B7A4D) : const Color(0xFF6FD6A0), radius: 0.75, alpha: dark ? 0.55 : 0.65),
+      _Glow(alignment: const Alignment(1.05, 0.55), color: dark ? const Color(0xFF6B4FB5) : const Color(0xFFC3B2FF), radius: 0.6, alpha: dark ? 0.35 : 0.55),
+      _Glow(alignment: const Alignment(-0.9, 1.1), color: dark ? const Color(0xFF8A6512) : const Color(0xFFFFD36B), radius: 0.75, alpha: dark ? 0.35 : 0.65),
+      _Glow(alignment: const Alignment(0.2, -0.3), color: dark ? const Color(0xFF1E4D6B) : const Color(0xFFBFEBFF), radius: 0.5, alpha: dark ? 0.25 : 0.5),
       child,
     ]);
   }
@@ -85,7 +87,7 @@ class Glass extends StatelessWidget {
     this.radius = 22,
     this.padding,
     this.margin,
-    this.blur = false,
+    this.blur = true,
     this.onTap,
     this.onLongPress,
     this.tint,
@@ -108,13 +110,14 @@ class Glass extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final br = BorderRadius.circular(radius);
-    final fill = tint ?? (dark ? Colors.white.withValues(alpha: 0.07) : Colors.white.withValues(alpha: blur ? 0.62 : 0.66));
+    final fill = tint;
+    final fillGradient = gradient ?? (tint != null ? null : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? [Colors.white.withValues(alpha: 0.13), Colors.white.withValues(alpha: 0.04)] : [Colors.white.withValues(alpha: 0.58), Colors.white.withValues(alpha: 0.26)]));
     Widget body = DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: br,
-        color: gradient == null ? fill : null,
-        gradient: gradient,
-        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.85), width: 1),
+        color: fillGradient == null ? fill : null,
+        gradient: fillGradient,
+        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.16) : Colors.white.withValues(alpha: 0.9), width: 1.1),
       ),
       child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
     );
@@ -125,7 +128,7 @@ class Glass extends StatelessWidget {
       ]);
     }
     if (blur) {
-      body = BackdropFilter(filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22), child: body);
+      body = BackdropFilter(filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26), child: body);
     }
     body = ClipRRect(borderRadius: br, child: body);
     return Container(
@@ -260,7 +263,7 @@ class AppTheme {
   static ThemeData build(Brightness b) {
     final dark = b == Brightness.dark;
     final text = dark ? const Color(0xFFEAF2ED) : const Color(0xFF10201A);
-    final card = dark ? const Color(0x14FFFFFF) : const Color(0xA8FFFFFF); // yarim shaffof («shisha»)
+    final card = dark ? const Color(0x14FFFFFF) : const Color(0x99FFFFFF); // yarim shaffof («shisha»)
     final solid = dark ? const Color(0xFF16221C) : const Color(0xFFF7FAF8); // dialog, varaq, menyu — shaffof emas
     final border = dark ? const Color(0x1FFFFFFF) : const Color(0x14123524);
     final primary = dark ? const Color(0xFF4CC38A) : Brand.green;

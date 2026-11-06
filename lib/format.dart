@@ -1,3 +1,4 @@
+import 'l10n.dart';
 /// Raqamlarni `10 000 000` ko'rinishida yozadi (veb-dasturdagidek).
 String money(num? v) {
   if (v == null) return '—';
@@ -59,4 +60,25 @@ String timeAgo(String? iso) {
   final y = DateTime.now().subtract(const Duration(days: 1));
   if (t.year == y.year && t.month == y.month && t.day == y.day) return 'Kecha ${two(t.hour)}:${two(t.minute)}';
   return '${two(t.day)}.${two(t.month)} ${two(t.hour)}:${two(t.minute)}';
+}
+
+/// «8 soat 12 daq» / «35 daq»
+String durationText(Duration d) {
+  if (d.isNegative) d = Duration.zero;
+  final h = d.inHours, m = d.inMinutes % 60;
+  return h > 0 ? '$h ${tr('soat')} $m ${tr('daq')}' : '$m ${tr('daq')}';
+}
+
+/// Kelgan vaqt: serverning aniq vaqti (`<key>_ts`, UTC), bo'lmasa «HH:MM» bugungi sana bilan
+DateTime? shiftMoment(Map m, String key) {
+  final ts = DateTime.tryParse('${m['${key}_ts'] ?? ''}');
+  if (ts != null) return ts.toLocal();
+  final hm = '${m[key] ?? ''}'.split(':');
+  if (hm.length < 2) return null;
+  final h = int.tryParse(hm[0]), mi = int.tryParse(hm[1]);
+  if (h == null || mi == null) return null;
+  final n = DateTime.now();
+  var d = DateTime(n.year, n.month, n.day, h, mi);
+  if (d.isAfter(n.add(const Duration(minutes: 2)))) d = d.subtract(const Duration(days: 1));
+  return d;
 }
