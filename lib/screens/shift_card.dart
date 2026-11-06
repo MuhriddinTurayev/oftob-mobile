@@ -29,6 +29,7 @@ class _ShiftCardState extends State<ShiftCard> {
   bool _busy = false;
   String? _error;
   Timer? _tick;
+  final ValueNotifier<int> _sec = ValueNotifier(0);
 
   Session get s => widget.session;
 
@@ -38,7 +39,7 @@ class _ShiftCardState extends State<ShiftCard> {
     _load();
     AppNav.shift.addListener(_onVoice);
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && '${_st?['status']}' == 'working') setState(() {});
+      if (mounted && '${_st?['status']}' == 'working') _sec.value++; // faqat taymer yozuvi qayta chiziladi, butun karta emas
     });
   }
 
@@ -46,6 +47,7 @@ class _ShiftCardState extends State<ShiftCard> {
   void dispose() {
     AppNav.shift.removeListener(_onVoice);
     _tick?.cancel();
+    _sec.dispose();
     super.dispose();
   }
 
@@ -198,7 +200,6 @@ class _ShiftCardState extends State<ShiftCard> {
     };
     final ink = context.isDark ? Color.lerp(tint, Colors.white, 0.72)! : Color.lerp(tint, Colors.black, 0.5)!;
     final d = _worked;
-    final clock = d == null ? '' : '${_two(d.inHours)}:${_two(d.inMinutes % 60)}:${_two(d.inSeconds % 60)}';
     final cs = Theme.of(context).colorScheme;
     return HeroGlass(
       tint: tint,
@@ -226,7 +227,7 @@ class _ShiftCardState extends State<ShiftCard> {
                     Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12.5)),
                   ]),
                 ),
-                if (st == 'working' && d != null) w.Text(clock, style: TextStyle(color: ink, fontSize: 23, fontWeight: FontWeight.w900, letterSpacing: 0.5, fontFeatures: const [FontFeature.tabularFigures()])),
+                if (st == 'working' && d != null) ValueListenableBuilder<int>(valueListenable: _sec, builder: (_, _, _) { final dd = _worked ?? Duration.zero; return w.Text('${_two(dd.inHours)}:${_two(dd.inMinutes % 60)}:${_two(dd.inSeconds % 60)}', style: TextStyle(color: ink, fontSize: 23, fontWeight: FontWeight.w900, letterSpacing: 0.5, fontFeatures: const [FontFeature.tabularFigures()])); }),
                 if (st == 'left' && d != null) Text(_human(d), style: TextStyle(color: ink, fontSize: 18, fontWeight: FontWeight.w900)),
                 if (_st?['pending'] == true) Padding(padding: const EdgeInsets.only(left: 8), child: Icon(Icons.cloud_upload_outlined, color: ink, size: 20)),
               ]),

@@ -89,6 +89,7 @@ Future<void> prefetchAll(Session s) async {
     Offline.progress.value = '${e.key} (${++i}/${steps.length})';
     try {
       await e.value();
+      await Future.delayed(const Duration(milliseconds: 400)); // ketma-ket og'ir ishlar orasida nafas: ilova qotmasin
     } on ApiException catch (ex) {
       if (ex.isNetwork) {
         network = true;

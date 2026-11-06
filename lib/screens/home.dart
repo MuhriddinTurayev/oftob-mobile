@@ -64,7 +64,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     AppNav.open = _open;
     AppNav.sections = [..._primary.map((e) => e.label), ..._more.map((e) => e.label)];
     _syncTimer = Timer.periodic(const Duration(seconds: 30), (_) => _tickSync());
-    WidgetsBinding.instance.addPostFrameCallback((_) => _tickSync(first: true));
+    // ochilgandan keyin 25 soniya o'tgach (ekran birinchi bo'lib silliq ochilsin)
+    Future.delayed(const Duration(seconds: 25), () {
+      if (mounted) _tickSync(first: true);
+    });
   }
 
   Timer? _syncTimer;
@@ -79,7 +82,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (n > 0 && mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$n ta offline amal serverga yuborildi')));
       }
       final last = DateTime.tryParse(Offline.lastPrefetch.value ?? '');
-      if (first || last == null || DateTime.now().difference(last) > const Duration(hours: 6)) {
+      // katta ma'lumotni faqat birinchi marta yoki 6 soatdan keyin yuklaymiz (har ochilganda emas: telefon qizimasin)
+      if (last == null || DateTime.now().difference(last) > const Duration(hours: 6)) {
         if (Offline.progress.value == null && Offline.online.value) unawaited(prefetchAll(s));
       } else if (!Offline.online.value) {
         await api.me(); // internet qaytganini bilish uchun yengil so'rov

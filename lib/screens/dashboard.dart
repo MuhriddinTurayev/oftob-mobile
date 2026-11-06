@@ -70,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _clock = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!mounted) return;
       if (_now.isNotEmpty) setState(() {});
-      if (++_tick % 2 == 0) _load(); // har minutda ma'lumot jimgina yangilanadi
+      if (++_tick % 6 == 0) _load(); // har 3 daqiqada ma'lumot jimgina yangilanadi
     });
   }
 
