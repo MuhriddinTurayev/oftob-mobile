@@ -413,7 +413,7 @@ class _LeadFormState extends State<_LeadForm> {
           Row(children: [
             Expanded(child: TextField(controller: _rooms, keyboardType: TextInputType.number, decoration: dec('Xona'))),
             const SizedBox(width: 12),
-            Expanded(flex: 2, child: TextField(controller: _budget, keyboardType: TextInputType.number, decoration: dec('Byudjet'))),
+            Expanded(flex: 2, child: TextField(controller: _budget, keyboardType: TextInputType.number, inputFormatters: const [ThousandsFormatter()], decoration: dec('Byudjet'))),
           ]),
           const SizedBox(height: 12),
           TextField(controller: _message, minLines: 2, maxLines: 4, textCapitalization: TextCapitalization.sentences, decoration: dec('Izoh')),

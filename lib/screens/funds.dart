@@ -194,19 +194,26 @@ class _FundsScreenState extends State<FundsScreen> {
       _ => ('Rad etildi', Colors.red.shade700),
     };
     final obj = '${r['object'] ?? ''}';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: Text(mine ? '${money(_n(r['amount']))} $cur · ${_kind(r['kind'])}' : '${r['name']} — ${money(_n(r['amount']))} $cur', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
-            StatusChip(label, color),
-          ]),
-          if (!mine) Text(_kind(r['kind']), style: TextStyle(color: Theme.of(context).colorScheme.outline)),
-          if (obj.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text(obj)),
-          if ('${r['note'] ?? ''}'.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text('${r['note']}')),
-          if ('${r['reply'] ?? ''}'.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text('Javob: ${r['reply']}', style: TextStyle(color: Colors.red.shade700))),
-          Padding(padding: const EdgeInsets.only(top: 4), child: Text(formatDate('${r['created_at']}'), style: TextStyle(color: Theme.of(context).colorScheme.outline, fontSize: 12))),
+    final cs = Theme.of(context).colorScheme;
+    // har bir qator o'z balandligini saqlaydi: kartalar bir xil o'lchamda bo'ladi (matn yo'q bo'lsa ham bo'sh joy qoladi)
+    Widget line(String t, {TextStyle? style}) => SizedBox(height: 19, child: Align(alignment: Alignment.centerLeft, child: Text(t, maxLines: 1, overflow: TextOverflow.ellipsis, style: style)));
+    final note = '${r['note'] ?? ''}';
+    final reply = '${r['reply'] ?? ''}';
+    return GlassRow(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(
+            height: 30,
+            child: Row(children: [
+              Expanded(child: Text(mine ? '${money(_n(r['amount']))} $cur · ${_kind(r['kind'])}' : '${r['name']} — ${money(_n(r['amount']))} $cur', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+              StatusChip(label, color),
+            ]),
+          ),
+          line(mine ? obj : '${_kind(r['kind'])}${obj.isEmpty ? '' : ' · $obj'}'),
+          line(note),
+          line(reply.isEmpty ? '' : 'Javob: $reply', style: TextStyle(color: Colors.red.shade700)),
+          line(formatDate('${r['created_at']}'), style: TextStyle(color: cs.outline, fontSize: 12)),
           if (mine && st == 'new')
             Align(
               alignment: Alignment.centerRight,
@@ -229,8 +236,7 @@ class _FundsScreenState extends State<FundsScreen> {
               const SizedBox(width: 10),
               Expanded(child: FilledButton(onPressed: () => _issueSheet(context, _lastData!, holder: r['user_id'] as int?, amount: _n(r['amount']), kind: '${r['kind']}'), child: const Text('Pul berish'))),
             ]),
-        ]),
-      ),
+      ]),
     );
   }
 
@@ -342,7 +348,7 @@ class _FundsScreenState extends State<FundsScreen> {
               const SizedBox(height: 4),
               const Text('So\'rov buxgalter va rahbarga Telegram orqali ham boradi.'),
               const SizedBox(height: 14),
-              TextField(controller: amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Summa'))),
+              TextField(controller: amount, keyboardType: TextInputType.number, inputFormatters: const [ThousandsFormatter()], decoration: InputDecoration(labelText: tr('Summa'))),
               const SizedBox(height: 12),
               SegmentedButton<String>(
                 segments: const [ButtonSegment(value: 'cash', label: Text('Naqd')), ButtonSegment(value: 'card', label: Text('Kartaga'))],
@@ -455,7 +461,7 @@ class _FundsScreenState extends State<FundsScreen> {
   Future<void> _issueSheet(BuildContext context, Map<String, dynamic> d, {int? holder, num? amount, String? kind}) async {
     final holders = _list(d['holders']);
     final sources = _list(d['sources']);
-    final amountC = TextEditingController(text: amount != null ? '${amount.round()}' : '');
+    final amountC = TextEditingController(text: amount != null ? fmtInput(amount) : '');
     final noteC = TextEditingController();
     int? who = holder ?? (holders.length == 1 ? holders.first['user_id'] as int : null);
     var k = kind ?? 'cash';
@@ -486,7 +492,7 @@ class _FundsScreenState extends State<FundsScreen> {
                 onChanged: (v) => set(() => from = v),
               ),
               const SizedBox(height: 12),
-              TextField(controller: amountC, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Summa'))),
+              TextField(controller: amountC, keyboardType: TextInputType.number, inputFormatters: const [ThousandsFormatter()], decoration: InputDecoration(labelText: tr('Summa'))),
               const SizedBox(height: 12),
               SegmentedButton<String>(
                 segments: const [ButtonSegment(value: 'cash', label: Text('Naqd')), ButtonSegment(value: 'card', label: Text('Kartaga'))],
@@ -917,7 +923,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           ],
           const SizedBox(height: 14),
           if (_lines.isEmpty || _linesTotal <= 0)
-            TextField(controller: _amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Jami summa ($cur)')), onChanged: (_) => setState(() {}))
+            TextField(controller: _amount, keyboardType: TextInputType.number, inputFormatters: const [ThousandsFormatter()], decoration: InputDecoration(labelText: tr('Jami summa ($cur)')), onChanged: (_) => setState(() {}))
           else
             Container(
               padding: const EdgeInsets.all(14),
@@ -979,10 +985,13 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                   ]),
                 ),
               ),
-            FilledButton(
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
             onPressed: _busy ? null : _submit,
             child: _busy ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)) : const Text('Rahbar va buxgalterga yuborish'),
           ),
+            ),
           ]),
         ),
       ),
@@ -1014,7 +1023,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            Expanded(child: TextField(controller: l.price, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Narxi (1 birlik)')), onChanged: (_) => setState(() {}))),
+            Expanded(child: TextField(controller: l.price, keyboardType: TextInputType.number, inputFormatters: const [ThousandsFormatter()], decoration: InputDecoration(labelText: tr('Narxi (1 birlik)')), onChanged: (_) => setState(() {}))),
           ]),
         ]),
       ),

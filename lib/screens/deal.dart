@@ -38,7 +38,7 @@ class _DealScreenState extends State<DealScreen> {
   late final _name = TextEditingController(text: '${(widget.apt['buyer'] as Map?)?['name'] ?? ''}');
   late final _phone = TextEditingController(text: '${(widget.apt['buyer'] as Map?)?['phone'] ?? ''}');
   final _passport = TextEditingController();
-  late final _price = TextEditingController(text: '${_n(widget.apt['price']).round()}');
+  late final _price = TextEditingController(text: fmtInput(_n(widget.apt['price'])));
   final _down = TextEditingController();
   final _rate = TextEditingController();
   final _note = TextEditingController();
@@ -193,7 +193,7 @@ class _DealScreenState extends State<DealScreen> {
             ),
           const SizedBox(height: 14),
           if (_canPrice)
-            TextField(controller: _price, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Narx (so\'m)')), onChanged: (_) => setState(() {}))
+            TextField(controller: _price, keyboardType: TextInputType.number, inputFormatters: const [ThousandsFormatter()], decoration: InputDecoration(labelText: tr('Narx (so\'m)')), onChanged: (_) => setState(() {}))
           else
             Container(
               padding: const EdgeInsets.all(14),
@@ -218,6 +218,7 @@ class _DealScreenState extends State<DealScreen> {
             TextField(
               controller: _down,
               keyboardType: TextInputType.number,
+              inputFormatters: const [ThousandsFormatter()],
               decoration: InputDecoration(labelText: tr('Boshlang\'ich to\'lov (so\'m)'), helperText: _wasBooked && _paidBefore > 0 ? 'Bron zadatogi ${money(_paidBefore)} so\'m allaqachon kiritilgan — u hisobga olinadi' : null),
               onChanged: (_) => setState(() {}),
             ),

@@ -510,7 +510,7 @@ class _HireSheetState extends State<_HireSheet> {
             onChanged: (v) => setState(() => _pay = v ?? _pay),
           ),
           const SizedBox(height: 12),
-          TextField(controller: _rate, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: dec('Stavka')),
+          TextField(controller: _rate, keyboardType: const TextInputType.numberWithOptions(decimal: true), inputFormatters: const [ThousandsFormatter(decimal: true)], decoration: dec('Stavka')),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 12),
@@ -547,7 +547,7 @@ class _PaySheet extends StatefulWidget {
 }
 
 class _PaySheetState extends State<_PaySheet> {
-  late final _amount = TextEditingController(text: widget.due > 0 ? widget.due.round().toString() : '');
+  late final _amount = TextEditingController(text: fmtInput(widget.due));
   final _note = TextEditingController();
   final String _idem = 'pay-${DateTime.now().microsecondsSinceEpoch}';
   bool get _foreman => widget.session.me!.role == 'foreman';
@@ -636,6 +636,7 @@ class _PaySheetState extends State<_PaySheet> {
           TextField(
             controller: _amount,
             keyboardType: TextInputType.number,
+            inputFormatters: const [ThousandsFormatter()],
             decoration: InputDecoration(labelText: '${tr('Summa')} (${widget.cur})', helperText: widget.due > 0 ? '${tr('Qoldi')}: ${money(widget.due)}' : null),
           ),
           const SizedBox(height: 12),

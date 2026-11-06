@@ -1,3 +1,5 @@
+import 'package:flutter/services.dart';
+
 import 'l10n.dart';
 /// Raqamlarni `10 000 000` ko'rinishida yozadi (veb-dasturdagidek).
 String money(num? v) {
@@ -81,4 +83,63 @@ DateTime? shiftMoment(Map m, String key) {
   var d = DateTime(n.year, n.month, n.day, h, mi);
   if (d.isAfter(n.add(const Duration(minutes: 2)))) d = d.subtract(const Duration(days: 1));
   return d;
+}
+
+
+/// "32010" → "32 010" (matn maydonlarini oldindan to'ldirish uchun)
+String groupDigits(String digits) {
+  final b = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) b.write(' ');
+    b.write(digits[i]);
+  }
+  return b.toString();
+}
+
+String fmtInput(num? v) => (v == null || v <= 0) ? '' : groupDigits(v.round().toString());
+
+/// Summa kiritilayotganda raqamlar avtomatik minglik bo'shliq bilan ajratiladi: 1 000, 25 000 000.
+/// [decimal] — kasr qismi ham mumkin (nuqta bilan). Tahlil kodlari bo'shliqni tashlab yuboradi.
+class ThousandsFormatter extends TextInputFormatter {
+  const ThousandsFormatter({this.decimal = false});
+
+  final bool decimal;
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final raw = newValue.text;
+    var caret = newValue.selection.end;
+    if (caret < 0 || caret > raw.length) caret = raw.length;
+    bool isDigit(int c) => c >= 48 && c <= 57;
+    // kursordan oldin nechta raqam bor
+    var before = 0;
+    for (var i = 0; i < caret; i++) {
+      if (isDigit(raw.codeUnitAt(i))) before++;
+    }
+    var intPart = StringBuffer();
+    var frac = StringBuffer();
+    var hasDot = false;
+    for (final c in raw.codeUnits) {
+      if (isDigit(c)) {
+        (hasDot ? frac : intPart).writeCharCode(c);
+      } else if (decimal && !hasDot && (c == 46 || c == 44)) {
+        hasDot = true;
+      }
+    }
+    var ip = intPart.toString().replaceFirst(RegExp(r'^0+(?=\d)'), '');
+    final out = StringBuffer(groupDigits(ip));
+    if (hasDot) out.write('.${frac.toString()}');
+    final text = out.toString();
+    // kursorni shu raqamdan keyingi joyga qo'yamiz
+    var pos = 0, seen = 0;
+    if (before > 0) {
+      for (var i = 0; i < text.length; i++) {
+        if (isDigit(text.codeUnitAt(i))) seen++;
+        pos = i + 1;
+        if (seen >= before) break;
+      }
+    }
+    if (before == 0 && hasDot) pos = 0;
+    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: pos.clamp(0, text.length)));
+  }
 }

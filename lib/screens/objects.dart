@@ -249,7 +249,7 @@ class ApartmentSheet extends StatefulWidget {
 class _ApartmentSheetState extends State<ApartmentSheet> {
   late final _name = TextEditingController(text: '${(widget.apt['buyer'] as Map?)?['name'] ?? ''}');
   late final _phone = TextEditingController(text: '${(widget.apt['buyer'] as Map?)?['phone'] ?? ''}');
-  late final _price = TextEditingController(text: money(widget.apt['price'] as num?).replaceAll(' ', ''));
+  late final _price = TextEditingController(text: fmtInput(widget.apt['price'] as num?));
   bool _busy = false;
 
   bool get _canWrite => widget.session.me!.can('sales:write');
@@ -352,7 +352,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
     final next = a['next'] as Map?;
     final debt = (a['debt'] as num?) ?? 0;
     final suggest = next != null ? math.min(debt, (next['amount'] as num)) : debt;
-    final amount = TextEditingController(text: suggest > 0 ? '${suggest.round()}' : '');
+    final amount = TextEditingController(text: fmtInput(suggest));
     var date = DateTime.now();
     String method = '';
     List<Map<String, dynamic>> methods = const [];
@@ -375,7 +375,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
               const SizedBox(height: 4),
               Text('Qarz: ${money(debt)} so\'m', style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 14),
-              TextField(controller: amount, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Summa (so\'m)'))),
+              TextField(controller: amount, keyboardType: TextInputType.number, inputFormatters: const [ThousandsFormatter()], decoration: InputDecoration(labelText: tr('Summa (so\'m)'))),
               const SizedBox(height: 12),
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -572,7 +572,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
               FilledButton.icon(onPressed: _busy ? null : _openDeal, icon: const Icon(Icons.key), label: const Text('Sotish / bron qilish')),
               const SizedBox(height: 20),
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(child: TextField(controller: _price, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Narx (so\'m)'), border: OutlineInputBorder()))),
+                Expanded(child: TextField(controller: _price, keyboardType: TextInputType.number, inputFormatters: const [ThousandsFormatter()], decoration: InputDecoration(labelText: tr('Narx (so\'m)'), border: OutlineInputBorder()))),
                 const SizedBox(width: 12),
                 SizedBox(height: 56, child: FilledButton.tonal(onPressed: _busy ? null : _savePrice, child: const Text('Saqlash'))),
               ]),
