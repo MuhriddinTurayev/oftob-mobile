@@ -18,16 +18,19 @@ Future<void> main() async {
 }
 
 class OftobApp extends StatefulWidget {
-  const OftobApp({super.key, required this.session});
+  const OftobApp({super.key, required this.session, this.skipSplash = false});
 
   final Session session;
+
+  /// Sinovlarda ochilish animatsiyasini o'tkazib yuboradi
+  final bool skipSplash;
 
   @override
   State<OftobApp> createState() => _OftobAppState();
 }
 
 class _OftobAppState extends State<OftobApp> {
-  bool _splashDone = false;
+  late bool _splashDone = widget.skipSplash;
   final _navKey = GlobalKey<NavigatorState>();
   AssistantController? _ai;
 

@@ -79,7 +79,7 @@ void main() {
   testWidgets('kirish oynasi: korxona tanlash bor, server manzili ko\'rinmaydi', (tester) async {
     final session = Session();
     session.loading = false;
-    await tester.pumpWidget(OftobApp(session: session));
+    await tester.pumpWidget(OftobApp(session: session, skipSplash: true));
     expect(find.text('Oftob Building'), findsOneWidget);
     expect(find.text('Korxonani tanlang'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget); // faqat korxona kodi
