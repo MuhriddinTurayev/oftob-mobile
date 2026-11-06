@@ -109,6 +109,7 @@ class AssistantController extends ChangeNotifier {
   bool busy = false;
   bool voiceReady = true;
   bool aiReady = true;
+  String? limitLine; // «Osta 978 / 1000 so'rov · 01.12 da yangilanadi»
   bool recording = false;
   bool transcribing = false;
   bool speak = false;
@@ -132,6 +133,8 @@ class AssistantController extends ChangeNotifier {
         ..addAll(((d['messages'] as List?) ?? const []).whereType<Map>().where((m) => '${m['content']}'.trim().isNotEmpty).map((m) => AiMsg('${m['role']}', '${m['content']}', error: m['status'] == 'error')));
       chips = ((d['chips'] as List?) ?? const []).map((e) => '$e').toList();
       voiceReady = d['voice'] != false;
+      final lim = d['limit'];
+      if (lim is Map && lim['line'] != null) limitLine = '${lim['line']}';
       aiReady = d['ai'] != false;
       loaded = true;
     } catch (e) {
@@ -250,8 +253,9 @@ class AssistantController extends ChangeNotifier {
       final a = await _api!.aiSend(q, conv);
       pending
         ..pending = false
-        ..text = a;
-      if (speak) unawaited(_say(a));
+        ..text = a.text;
+      if (a.line != null) limitLine = a.line;
+      if (speak) unawaited(_say(a.text));
     } on ApiException catch (e) {
       pending
         ..pending = false
@@ -600,6 +604,8 @@ class _AssistantSheetState extends State<AssistantSheet> {
             ),
             if (!_history && _note != null) Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 6), child: Text(_note!, style: TextStyle(color: cs.error, fontSize: 12.5))),
             if (!_history && (c.recording || c.transcribing)) _listening(cs),
+            if (!_history && c.limitLine != null)
+              Padding(padding: const EdgeInsets.fromLTRB(18, 0, 18, 2), child: Align(alignment: Alignment.centerLeft, child: w.Text(c.limitLine!, style: TextStyle(color: cs.outline, fontSize: 11.5)))),
             if (!_history)
             Padding(
               padding: EdgeInsets.fromLTRB(12, 4, 12, 12 + (mq.viewInsets.bottom > 0 ? 0 : mq.padding.bottom)),

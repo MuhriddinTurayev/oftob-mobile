@@ -893,9 +893,10 @@ class ApiClient {
   Future<List<Map<String, dynamic>>> aiChats() async => _list((await _getMap('/ai/chats'))['data']);
 
   /// Savolga javob (server tugatguncha kutadi: odatda 3–20 soniya)
-  Future<String> aiSend(String text, String conv) async {
+  Future<({String text, String? line})> aiSend(String text, String conv) async {
     final b = await _send(() => _http.post(_uri('/ai/chat'), headers: _headers, body: jsonEncode({'text': text, 'conv': conv})), timeout: const Duration(seconds: 150));
-    return '${((b as Map)['data'] as Map)['text']}';
+    final d = (b as Map)['data'] as Map;
+    return (text: '${d['text']}', line: d['limit_line'] == null ? null : '${d['limit_line']}');
   }
 
   Future<void> aiClear(String conv) async {
