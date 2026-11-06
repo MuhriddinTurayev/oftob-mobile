@@ -383,7 +383,7 @@ class _WorkerSheet extends StatelessWidget {
                     }
                   },
                   icon: const Icon(Icons.payments_rounded, size: 20),
-                  label: const Text('Maosh to'lash'),
+                  label: const Text("Maosh to'lash"),
                 ),
               ),
             ],
@@ -609,7 +609,7 @@ class _PaySheetState extends State<_PaySheet> {
       HapticFeedback.mediumImpact();
       if (mounted) {
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('Maosh to'landi')}: ${money(amount)} ${widget.cur}')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr("Maosh to'landi")}: ${money(amount)} ${widget.cur}')));
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -629,7 +629,7 @@ class _PaySheetState extends State<_PaySheet> {
       padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + bottom),
       child: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Maosh to'lovi', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+          Text("Maosh to'lovi", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
           const SizedBox(height: 2),
           Text('${widget.w['name']} · ${widget.monthKey}', style: TextStyle(color: cs.outline)),
           const SizedBox(height: 16),
@@ -671,7 +671,7 @@ class _PaySheetState extends State<_PaySheet> {
           TextField(controller: _note, decoration: InputDecoration(labelText: tr('Izoh (ixtiyoriy)'))),
           if (_err != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_err!, style: TextStyle(color: cs.error, fontWeight: FontWeight.w700, fontSize: 13))),
           const SizedBox(height: 16),
-          SizedBox(width: double.infinity, child: FilledButton(onPressed: (_busy || _loading) ? null : _pay, child: Text(_busy ? 'Yuborilmoqda…' : 'To'lash'))),
+          SizedBox(width: double.infinity, child: FilledButton(onPressed: (_busy || _loading) ? null : _pay, child: Text(_busy ? 'Yuborilmoqda…' : "To'lash"))),
         ]),
       ),
     );
