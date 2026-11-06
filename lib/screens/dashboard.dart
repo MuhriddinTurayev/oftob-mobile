@@ -271,10 +271,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
           if (!searching && me.can('attendance:read') && _now.isNotEmpty) ...[
             _Section(title: 'Hozir ishda', trailing: '${_now.length} kishi', onTap: () => widget.onOpen?.call('Davomat')),
-            Glass(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(children: [for (final x in _now.take(8)) _WorkingRow(x)]),
-            ),
+            for (var i = 0; i < _now.take(8).length; i++)
+              Reveal(index: i, child: GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11), child: _WorkingRow(_now[i]))),
             if (_now.length > 8) Padding(padding: const EdgeInsets.only(top: 6, left: 6), child: Text('+${_now.length - 8} ${tr('kishi yana')}', style: TextStyle(color: cs.outline, fontSize: 12.5))),
             const SizedBox(height: 18),
           ],
@@ -296,13 +294,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 22),
             _Section(title: 'Yangi lidlar', trailing: '$_leadsTotal ta', onTap: () => widget.onOpen?.call('Lidlar')),
             if (_leads.isEmpty) const _Empty("Hozircha lid yo'q"),
-            if (_leads.isNotEmpty) Glass(padding: const EdgeInsets.symmetric(vertical: 4), child: Column(children: [for (final l in _leads) _LeadRow(l)])),
+            for (var i = 0; i < _leads.length; i++) Reveal(index: i, child: GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), child: _LeadRow(_leads[i]))),
           ],
           if (!searching && me.can('cash:read')) ...[
             const SizedBox(height: 22),
             _Section(title: 'Oxirgi operatsiyalar', onTap: () => widget.onOpen?.call('Kassa')),
             if (_ops.isEmpty) const _Empty("Operatsiya yo'q"),
-            if (_ops.isNotEmpty) Glass(padding: const EdgeInsets.symmetric(vertical: 4), child: Column(children: [for (final o in _ops) _OpRow(o)])),
+            for (var i = 0; i < _ops.length; i++) Reveal(index: i, child: GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), child: _OpRow(_ops[i]))),
           ],
         ]),
       ),
@@ -410,17 +408,28 @@ class _WorkingRow extends StatelessWidget {
     final since = shiftMoment(x, 'in');
     final dur = since == null ? null : DateTime.now().difference(since);
     final office = x['office'] == true;
-    final name = '${x['name']}';
-    return ListTile(
-      dense: true,
-      leading: Stack(clipBehavior: Clip.none, children: [
-        IconTile(icon: office ? Icons.engineering_rounded : Icons.construction_rounded, color: office ? Brand.blue : Brand.teal, size: 38),
-        Positioned(right: -2, bottom: -2, child: Container(width: 12, height: 12, decoration: BoxDecoration(color: Colors.green.shade500, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
+    final place = [if ('${x['role'] ?? ''}'.isNotEmpty) '${x['role']}', if (x['site'] != null) '${x['site']}'].join(' · ');
+    return Row(children: [
+      Stack(clipBehavior: Clip.none, children: [
+        IconTile(icon: office ? Icons.engineering_rounded : Icons.construction_rounded, color: office ? Brand.blue : Brand.teal, size: 42),
+        Positioned(right: -2, bottom: -2, child: Container(width: 13, height: 13, decoration: BoxDecoration(color: Colors.green.shade500, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
       ]),
-      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
-      subtitle: Text([if ('${x['role'] ?? ''}'.isNotEmpty) '${x['role']}', if (x['site'] != null) '${x['site']}', if (x['in'] != null) '${x['in']} ${tr('dan beri')}'].join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12)),
-      trailing: dur == null ? null : Text(durationText(dur), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: cs.primary)),
-    );
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('${x['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
+          if (place.isNotEmpty) Text(place, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12)),
+          if (x['in'] != null) Text('${x['in']} ${tr('dan beri')}', style: TextStyle(color: cs.outline, fontSize: 12)),
+        ]),
+      ),
+      const SizedBox(width: 8),
+      if (dur != null)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+          child: Text(durationText(dur), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5, color: cs.primary)),
+        ),
+    ]);
   }
 }
 
@@ -576,6 +585,7 @@ class _LeadRow extends StatelessWidget {
     final name = '${l['name'] ?? l['phone'] ?? 'Lid'}';
     return ListTile(
       dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 6),
       leading: IconTile(icon: Icons.person_rounded, color: Brand.pink, size: 38),
       title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
       subtitle: Text('${l['source'] ?? ''}${l['rooms'] != null ? ' · ${l['rooms']} xona' : ''} · ${formatDate('${l['created_at'] ?? ''}')}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
@@ -595,6 +605,7 @@ class _OpRow extends StatelessWidget {
     final c = inc ? Colors.green.shade700 : cs.error;
     return ListTile(
       dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 6),
       leading: IconTile(icon: inc ? Icons.south_west_rounded : Icons.north_east_rounded, color: c, size: 38),
       title: Text('${o['category'] ?? (inc ? 'Kirim' : 'Chiqim')}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
       subtitle: Text('${formatDate('${o['date'] ?? ''}')}${(o['note'] ?? '').toString().isEmpty ? '' : ' · ${o['note']}'}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
