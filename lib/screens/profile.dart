@@ -365,6 +365,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           _sec(
             4,
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _title('Ko\'rinish'),
+              Glass(
+                radius: 24,
+                padding: const EdgeInsets.all(16),
+                child: ValueListenableBuilder<ThemeMode>(
+                  valueListenable: ThemeController.mode,
+                  builder: (context, tm, _) => Row(children: [
+                    const IconTile(icon: Icons.dark_mode_outlined, color: Brand.purple, size: 42),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SegmentedButton<ThemeMode>(
+                        showSelectedIcon: false,
+                        segments: const [
+                          ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_rounded, size: 18), label: Text('Avto')),
+                          ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_rounded, size: 18), label: Text('Kun')),
+                          ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_rounded, size: 18), label: Text('Tun')),
+                        ],
+                        selected: {tm},
+                        onSelectionChanged: (v) {
+                          HapticFeedback.selectionClick();
+                          ThemeController.set(v.first);
+                        },
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            ]),
+          ),
+          _sec(
+            5,
             GlassRow(
               margin: EdgeInsets.zero,
               tint: Colors.red.withValues(alpha: 0.08),
@@ -388,7 +420,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _contact(IconData icon, String t) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white.withValues(alpha: 0.9))),
+        decoration: BoxDecoration(color: context.pill, borderRadius: BorderRadius.circular(14), border: Border.all(color: context.pillBorder)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 15, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 7), Text(t, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13))]),
       );
 }

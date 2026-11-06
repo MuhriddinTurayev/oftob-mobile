@@ -155,7 +155,7 @@ class _PartiesScreenState extends State<PartiesScreen> {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: _canWrite ? Padding(padding: const EdgeInsets.only(bottom: 90), child: FloatingActionButton.extended(onPressed: _add, icon: const Icon(Icons.add), label: const Text("Qo'shish"))) : null,
+      floatingActionButton: _canWrite ? GlassFab(onPressed: _add, icon: Icons.add, label: "Qo'shish") : null,
       body: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),

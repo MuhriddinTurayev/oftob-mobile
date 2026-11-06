@@ -466,7 +466,7 @@ class _CashCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    const ink = Color(0xFF0A4D2A);
+    final ink = context.ink;
     return HeroGlass(
       onTap: onTap,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -477,8 +477,8 @@ class _CashCard extends StatelessWidget {
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: 0.9))),
-            child: Text('$desks ta kassa', style: const TextStyle(color: ink, fontSize: 11.5, fontWeight: FontWeight.w800)),
+            decoration: BoxDecoration(color: context.pill, borderRadius: BorderRadius.circular(20), border: Border.all(color: context.pillBorder)),
+            child: Text('$desks ta kassa', style: TextStyle(color: ink, fontSize: 11.5, fontWeight: FontWeight.w800)),
           ),
         ]),
         const SizedBox(height: 14),
@@ -488,7 +488,7 @@ class _CashCard extends StatelessWidget {
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: w.Text.rich(TextSpan(children: [
-              TextSpan(text: money(v), style: const TextStyle(color: ink, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.8)),
+              TextSpan(text: money(v), style: TextStyle(color: ink, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.8)),
               TextSpan(text: tr("  ${currency == 'UZS' ? "so'm" : currency}"), style: TextStyle(color: ink.withValues(alpha: 0.7), fontSize: 15, fontWeight: FontWeight.w700)),
             ])),
           ),

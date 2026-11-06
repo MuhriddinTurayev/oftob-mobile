@@ -115,7 +115,7 @@ class _CrewScreenState extends State<CrewScreen> {
     final canEdit = _data?['can_edit'] == true;
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: canEdit ? Padding(padding: const EdgeInsets.only(bottom: 92), child: FloatingActionButton.extended(onPressed: _hire, icon: const Icon(Icons.person_add_alt_1), label: const Text('Xodim qo\'shish'))) : null,
+      floatingActionButton: canEdit ? GlassFab(onPressed: _hire, icon: Icons.person_add_alt_1, label: 'Xodim qo\'shish') : null,
       body: Column(children: [
         _monthBar(cs),
         Expanded(child: _body(cs)),

@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/scheduler.dart' show Ticker, TickerProvider, TickerCallback;
@@ -20,6 +22,41 @@ class Brand {
   static const pink = Color(0xFFE0457B);
   static const teal = Color(0xFF14A39A);
   static const orange = Color(0xFFF27A1A);
+}
+
+/// Mavzu ranglari: yorug' va qorong'i rejimda o'qiladigan «siyoh» va shaffof belgi (pill) ranglari.
+extension GlassColors on BuildContext {
+  bool get isDark => Theme.of(this).brightness == Brightness.dark;
+
+  /// Shisha kartadagi asosiy yirik matn rangi (yorug'da — to'q yashil, qorong'ida — och mint)
+  Color get ink => isDark ? const Color(0xFFC6F3DA) : const Color(0xFF0A4D2A);
+
+  /// Ikkinchi darajali matn (yorliqlar)
+  Color get inkSoft => isDark ? const Color(0xFF9DBBAA) : const Color(0xFF3F5A4B);
+
+  /// Karta ichidagi kichik belgi (chip) foni va chegarasi
+  Color get pill => isDark ? Colors.white.withValues(alpha: 0.09) : Colors.white.withValues(alpha: 0.6);
+  Color get pillBorder => isDark ? Colors.white.withValues(alpha: 0.14) : Colors.white.withValues(alpha: 0.9);
+}
+
+/// Mavzu rejimi: Avto (telefon sozlamasi) / Kunduzgi / Tungi. Tanlov qurilmada saqlanadi.
+class ThemeController {
+  static final ValueNotifier<ThemeMode> mode = ValueNotifier(ThemeMode.system);
+  static const _store = FlutterSecureStorage();
+
+  static Future<void> load() async {
+    try {
+      final v = await _store.read(key: 'theme_mode');
+      mode.value = switch (v) { 'light' => ThemeMode.light, 'dark' => ThemeMode.dark, _ => ThemeMode.system };
+    } catch (_) {}
+  }
+
+  static Future<void> set(ThemeMode m) async {
+    mode.value = m;
+    try {
+      await _store.write(key: 'theme_mode', value: m == ThemeMode.light ? 'light' : (m == ThemeMode.dark ? 'dark' : 'system'));
+    } catch (_) {}
+  }
 }
 
 /// Hamma sahifalar uchun umumiy «soat»: fon sharlari bir xil fazada sekin suzadi (sahifa almashganda ham sakramaydi).
@@ -77,11 +114,14 @@ class GlassBackdrop extends StatelessWidget {
       ]);
     }
 
-    return Stack(fit: StackFit.expand, children: [
-      base,
-      if (still) orbs(0) else ValueListenableBuilder<double>(valueListenable: BackdropClock.t, builder: (_, t, _) => orbs(t)),
-      child,
-    ]);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(statusBarColor: Colors.transparent, systemNavigationBarColor: Colors.transparent, systemNavigationBarDividerColor: Colors.transparent),
+      child: Stack(fit: StackFit.expand, children: [
+        base,
+        if (still) orbs(0) else ValueListenableBuilder<double>(valueListenable: BackdropClock.t, builder: (_, t, _) => orbs(t)),
+        child,
+      ]),
+    );
   }
 }
 
@@ -353,21 +393,21 @@ class AppTheme {
       cardTheme: CardThemeData(color: card, elevation: 0, margin: const EdgeInsets.only(bottom: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: border))),
       chipTheme: ChipThemeData(
         backgroundColor: card,
-        selectedColor: primary,
+        selectedColor: primary.withValues(alpha: dark ? 0.32 : 0.20),
         side: BorderSide(color: border),
         shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         labelStyle: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: text),
-        secondaryLabelStyle: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: scheme.onPrimary),
-        checkmarkColor: scheme.onPrimary,
+        secondaryLabelStyle: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: dark ? const Color(0xFFC6F3DA) : const Color(0xFF075F2E)),
+        checkmarkColor: dark ? const Color(0xFFC6F3DA) : const Color(0xFF075F2E),
         iconTheme: IconThemeData(color: text, size: 18),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: dark ? const Color(0x14FFFFFF) : const Color(0xB3FFFFFF),
+        fillColor: dark ? const Color(0x12FFFFFF) : const Color(0x66FFFFFF),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: ob(border, 1),
-        enabledBorder: ob(dark ? border : const Color(0x26123524), 1),
+        enabledBorder: ob(dark ? const Color(0x24FFFFFF) : const Color(0xF2FFFFFF), 1.2),
         focusedBorder: ob(primary, 1.6),
         labelStyle: TextStyle(color: scheme.outline),
         hintStyle: TextStyle(color: scheme.outline),
@@ -419,9 +459,9 @@ class AppTheme {
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
           minimumSize: const WidgetStatePropertyAll(Size(0, 42)),
-          backgroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? primary : card),
-          foregroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? scheme.onPrimary : text),
-          side: WidgetStatePropertyAll(BorderSide(color: border)),
+          backgroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? primary.withValues(alpha: dark ? 0.32 : 0.20) : (dark ? const Color(0x0FFFFFFF) : const Color(0x66FFFFFF))),
+          foregroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? (dark ? const Color(0xFFC6F3DA) : const Color(0xFF075F2E)) : text),
+          side: WidgetStateProperty.resolveWith((st) => BorderSide(color: st.contains(WidgetState.selected) ? primary.withValues(alpha: 0.5) : (dark ? border : const Color(0xCCFFFFFF)))),
           textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
         ),
       ),
@@ -478,6 +518,48 @@ class HeroGlass extends StatelessWidget {
         Positioned(left: -40, bottom: -64, child: IgnorePointer(child: Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, color: Brand.amber.withValues(alpha: 0.07))))),
         Padding(padding: padding, child: child),
       ]),
+    );
+  }
+}
+
+
+/// Shaffof shisha suzuvchi tugma (orqasidagi ro'yxat xira ko'rinadi).
+class GlassFab extends StatelessWidget {
+  const GlassFab({super.key, required this.onPressed, required this.icon, required this.label});
+
+  final VoidCallback onPressed;
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final fg = context.isDark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 92),
+      child: Tappable(
+        onTap: onPressed,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              height: 54,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                gradient: LinearGradient(colors: [cs.primary.withValues(alpha: context.isDark ? 0.30 : 0.20), Colors.white.withValues(alpha: context.isDark ? 0.06 : 0.36)]),
+                border: Border.all(color: cs.primary.withValues(alpha: 0.4), width: 1.1),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(icon, color: fg, size: 22),
+                const SizedBox(width: 9),
+                Text(tr(label), style: TextStyle(color: fg, fontSize: 14.5, fontWeight: FontWeight.w800, decoration: TextDecoration.none)),
+              ]),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

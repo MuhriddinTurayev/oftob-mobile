@@ -157,7 +157,7 @@ class _LeadsScreenState extends State<LeadsScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: canWrite ? Padding(padding: const EdgeInsets.only(bottom: 92), child: FloatingActionButton.extended(onPressed: _add, icon: const Icon(Icons.add), label: const Text('Ariza'))) : null,
+      floatingActionButton: canWrite ? GlassFab(onPressed: _add, icon: Icons.add, label: 'Ariza') : null,
       body: RefreshIndicator(
         onRefresh: () => _load(quiet: true),
         child: ListView(

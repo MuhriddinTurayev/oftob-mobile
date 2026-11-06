@@ -52,7 +52,7 @@ class _OftobSplashState extends State<OftobSplash> with TickerProviderStateMixin
   double _seg(double a, double b, [Curve curve = Curves.easeOutCubic]) => curve.transform(((_c.value - a) / (b - a)).clamp(0.0, 1.0));
 
   static const _word = 'OFTOB';
-  static const _ink = Color(0xFF0B4D2A);
+  Color get _ink => Theme.of(context).brightness == Brightness.dark ? const Color(0xFFC6F3DA) : const Color(0xFF0B4D2A);
 
   @override
   Widget build(BuildContext context) {
@@ -172,7 +172,7 @@ class _OftobSplashState extends State<OftobSplash> with TickerProviderStateMixin
         offset: Offset(0, (1 - t) * 26),
         child: Text(
           _word[i],
-          style: const TextStyle(fontSize: 46, fontWeight: FontWeight.w900, color: _ink, letterSpacing: 3, height: 1.05, decoration: TextDecoration.none),
+          style: TextStyle(fontSize: 46, fontWeight: FontWeight.w900, color: _ink, letterSpacing: 3, height: 1.05, decoration: TextDecoration.none),
         ),
       ),
     );

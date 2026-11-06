@@ -166,7 +166,7 @@ class _ShiftCardState extends State<ShiftCard> {
   Widget _pill(String label, String value, Color ink) => Expanded(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white.withValues(alpha: 0.9))),
+          decoration: BoxDecoration(color: context.pill, borderRadius: BorderRadius.circular(14), border: Border.all(color: context.pillBorder)),
           child: Row(children: [
             Text(label, style: TextStyle(color: ink.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w700)),
             const Spacer(),
@@ -196,7 +196,7 @@ class _ShiftCardState extends State<ShiftCard> {
       'left' => ('Ish kuni tugadi', 'Bugungi ish vaqti', 'Qaytdim', 'reopen', Brand.blue),
       _ => ('Ishga keldingizmi?', 'Tugmani bosing — joylashuvingiz belgilanadi', 'Ishga keldim', 'start', Brand.green),
     };
-    final ink = Color.lerp(tint, Colors.black, 0.5)!;
+    final ink = context.isDark ? Color.lerp(tint, Colors.white, 0.72)! : Color.lerp(tint, Colors.black, 0.5)!;
     final d = _worked;
     final clock = d == null ? '' : '${_two(d.inHours)}:${_two(d.inMinutes % 60)}:${_two(d.inSeconds % 60)}';
     final cs = Theme.of(context).colorScheme;

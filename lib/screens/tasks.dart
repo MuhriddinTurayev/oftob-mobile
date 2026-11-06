@@ -88,7 +88,7 @@ class _TasksScreenState extends State<TasksScreen> {
     final canWrite = s.me!.can('tasks:write');
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: canWrite ? Padding(padding: const EdgeInsets.only(bottom: 92), child: FloatingActionButton.extended(onPressed: _create, icon: const Icon(Icons.add_task), label: const Text('Yangi vazifa'))) : null,
+      floatingActionButton: canWrite ? GlassFab(onPressed: _create, icon: Icons.add_task, label: 'Yangi vazifa') : null,
       body: Column(
         children: [
           SizedBox(

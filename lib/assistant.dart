@@ -845,8 +845,8 @@ class _AssistantSheetState extends State<AssistantSheet> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.only(topLeft: const Radius.circular(20), topRight: const Radius.circular(20), bottomLeft: Radius.circular(me ? 20 : 5), bottomRight: Radius.circular(me ? 5 : 20)),
           gradient: me ? const LinearGradient(colors: [Brand.green, Color(0xFF0F9460)]) : null,
-          color: me ? null : Colors.white.withValues(alpha: 0.7),
-          border: me ? null : Border.all(color: Colors.white.withValues(alpha: 0.9)),
+          color: me ? null : context.pill.withValues(alpha: context.isDark ? 0.12 : 0.72),
+          border: me ? null : Border.all(color: context.pillBorder),
         ),
         child: child,
       ),

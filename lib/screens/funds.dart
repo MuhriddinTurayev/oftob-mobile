@@ -116,7 +116,7 @@ class _FundsScreenState extends State<FundsScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Mening pullarim', style: TextStyle(color: cs.outline, fontSize: 14, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            CountUp(value: _n(me['total']), builder: (_, v) => Text('${money(v)} $cur', style: const TextStyle(color: Color(0xFF0A4D2A), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.8))),
+            CountUp(value: _n(me['total']), builder: (_, v) => Text('${money(v)} $cur', style: TextStyle(color: context.ink, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.8))),
             const SizedBox(height: 12),
             Wrap(spacing: 10, runSpacing: 8, children: [
               _chipStat('Naqd', money(_n(me['cash']))),
@@ -179,10 +179,10 @@ class _FundsScreenState extends State<FundsScreen> {
 
   Widget _chipStat(String label, String value) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white.withValues(alpha: 0.9))),
+        decoration: BoxDecoration(color: context.pill, borderRadius: BorderRadius.circular(14), border: Border.all(color: context.pillBorder)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text('$label: ', style: const TextStyle(color: Color(0xFF3F5A4B), fontSize: 12.5, fontWeight: FontWeight.w600)),
-          Text(value, style: const TextStyle(color: Color(0xFF0A4D2A), fontSize: 13.5, fontWeight: FontWeight.w900)),
+          Text('$label: ', style: TextStyle(color: context.inkSoft, fontSize: 12.5, fontWeight: FontWeight.w600)),
+          Text(value, style: TextStyle(color: context.ink, fontSize: 13.5, fontWeight: FontWeight.w900)),
         ]),
       );
 
@@ -401,7 +401,7 @@ class _FundsScreenState extends State<FundsScreen> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Prorablar qo\'lidagi pul', style: TextStyle(color: cs.outline, fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                CountUp(value: _n(d['total']), builder: (_, v) => Text('${money(v)} $cur', style: const TextStyle(color: Color(0xFF0A4D2A), fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.6))),
+                CountUp(value: _n(d['total']), builder: (_, v) => Text('${money(v)} $cur', style: TextStyle(color: context.ink, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.6))),
               ]),
             ),
             if (manage) FilledButton(onPressed: () => _issueSheet(context, d), child: const Text('Pul berish')),

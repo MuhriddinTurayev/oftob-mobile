@@ -13,6 +13,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await L.load(); // saqlangan (yoki telefon) tili birinchi kadrdan to'g'ri bo'lsin
   BackdropClock.start();
+  await ThemeController.load();
   final session = Session()..restore();
   L.notifier.addListener(session.refreshMe); // til o'zgarsa — rol nomi kabi server matnlari yangi tilda olinadi
   runApp(OftobApp(session: session));
@@ -51,13 +52,18 @@ class _OftobAppState extends State<OftobApp> {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<String>(
       valueListenable: L.notifier,
-      builder: (context, lang, _) => MaterialApp(
+      builder: (context, lang, _) => ValueListenableBuilder<ThemeMode>(
+        valueListenable: ThemeController.mode,
+        builder: (context, tm, _) => MaterialApp(
         title: 'Oftob Building',
         navigatorKey: _navKey,
         navigatorObservers: [ModalWatcher()],
         debugShowCheckedModeBanner: false,
         theme: AppTheme.build(Brightness.light),
         darkTheme: AppTheme.build(Brightness.dark),
+        themeMode: tm,
+        themeAnimationDuration: const Duration(milliseconds: 450),
+        themeAnimationCurve: Curves.easeOutCubic,
         locale: materialLocale(lang, (l) => GlobalMaterialLocalizations.delegate.isSupported(l)),
         supportedLocales: const [Locale('uz'), Locale('ru'), Locale('tg')],
         localizationsDelegates: const [GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
@@ -89,6 +95,7 @@ class _OftobAppState extends State<OftobApp> {
                   ),
                 ),
         ),
+      ),
       ),
     );
   }
