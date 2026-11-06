@@ -352,6 +352,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             );
           },
         ),
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: GlassIconButton(
+            tooltip: tr('Kun / Tun'),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              ThemeController.set(context.isDark ? ThemeMode.light : ThemeMode.dark);
+            },
+            icon: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 350),
+              transitionBuilder: (c, a) => RotationTransition(turns: Tween(begin: 0.75, end: 1.0).animate(a), child: FadeTransition(opacity: a, child: ScaleTransition(scale: a, child: c))),
+              child: Icon(context.isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded, key: ValueKey(context.isDark), size: 22, color: context.isDark ? const Color(0xFFFFD36B) : const Color(0xFF5B4BC7)),
+            ),
+          ),
+        ),
         ListenableBuilder(
           listenable: _nc,
           builder: (context, _) => GlassIconButton(
