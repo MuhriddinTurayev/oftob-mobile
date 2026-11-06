@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' as w show Text;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -389,7 +390,30 @@ class AssistantController extends ChangeNotifier {
   }
 }
 
-/// Chap tomonda kichkina suzuvchi AI tugmasi: bosilsa chat ochiladi, uzoq bosilsa — darhol tinglaydi.
+/// Ochiq oyna (varaq, dialog) bor-yo'qligini kuzatadi: oyna ochiqligida suzuvchi AI tugmasi yashirinadi.
+class ModalWatcher extends NavigatorObserver {
+  static final ValueNotifier<int> open = ValueNotifier(0);
+
+  void _bump(int d) => WidgetsBinding.instance.addPostFrameCallback((_) => open.value = (open.value + d).clamp(0, 99));
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is PopupRoute) _bump(1);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is PopupRoute) _bump(-1);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is PopupRoute) _bump(-1);
+  }
+}
+
+/// Suzuvchi AI tugmasi: barmoq bilan istalgan joyga olib o'tiladi (chetga yopishadi, joyi eslab qolinadi);
+/// bosilsa chat ochiladi, uzoq bosilsa — darhol tinglaydi.
 class AiBubble extends StatefulWidget {
   const AiBubble({super.key, required this.controller, required this.navigatorKey});
 
@@ -401,9 +425,30 @@ class AiBubble extends StatefulWidget {
 }
 
 class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin {
+  static const _size = 58.0;
+  static const _store = FlutterSecureStorage();
   late final AnimationController _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))..repeat();
-  bool _open = false;
-  double _up = 0; // tugmani yuqoriga/pastga surish
+  Offset? _pos; // yuqori-chap burchak (mantiqiy piksel)
+  Offset _frac = const Offset(0, -1); // saqlangan joy: x: 0 chap / 1 o'ng; y: ekran balandligiga ulushi (-1 — standart: navigatsiya ustida)
+  bool _dragging = false;
+  bool _opening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPos();
+  }
+
+  Future<void> _loadPos() async {
+    try {
+      final v = await _store.read(key: 'ai_bubble');
+      if (v != null) {
+        final p = v.split(',');
+        final x = double.tryParse(p[0]), y = double.tryParse(p[1]);
+        if (x != null && y != null && mounted) setState(() => _frac = Offset(x, y));
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -411,10 +456,19 @@ class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin
     super.dispose();
   }
 
+  Offset _clamp(Offset o, Size size, EdgeInsets pad) => Offset(o.dx.clamp(4.0, size.width - _size - 4), o.dy.clamp(pad.top + 4, size.height - pad.bottom - _size - 4));
+
+  Offset _resolve(Size size, EdgeInsets pad) {
+    if (_pos != null) return _clamp(_pos!, size, pad);
+    final x = _frac.dx >= 0.5 ? size.width - _size - 4 : 4.0;
+    final y = _frac.dy < 0 ? size.height - pad.bottom - 190 : _frac.dy * size.height;
+    return _clamp(Offset(x, y), size, pad);
+  }
+
   Future<void> _show({bool listen = false}) async {
     final ctx = widget.navigatorKey.currentContext;
-    if (ctx == null || _open) return;
-    setState(() => _open = true);
+    if (ctx == null || _opening) return;
+    _opening = true;
     HapticFeedback.selectionClick();
     final c = widget.controller;
     unawaited(c.load());
@@ -425,50 +479,82 @@ class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin
       barrierColor: Colors.black.withValues(alpha: 0.25),
       builder: (_) => AssistantSheet(controller: c, autoListen: listen),
     );
-    if (mounted) setState(() => _open = false);
+    _opening = false;
+  }
+
+  void _dragEnd(Size size, EdgeInsets pad) {
+    final cur = _resolve(size, pad);
+    final snapRight = cur.dx + _size / 2 > size.width / 2;
+    final end = _clamp(Offset(snapRight ? size.width - _size - 4 : 4, cur.dy), size, pad);
+    setState(() {
+      _dragging = false;
+      _pos = end;
+      _frac = Offset(snapRight ? 1 : 0, end.dy / size.height);
+    });
+    HapticFeedback.lightImpact();
+    _store.write(key: 'ai_bubble', value: '${_frac.dx},${_frac.dy}').catchError((_) {});
   }
 
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
-    if (_open || mq.viewInsets.bottom > 0) return const SizedBox.shrink();
+    final size = mq.size;
     final cs = Theme.of(context).colorScheme;
-    return Positioned(
-      left: 12,
-      bottom: mq.padding.bottom + 104 + _up,
-      child: GestureDetector(
-        onVerticalDragUpdate: (d) => setState(() => _up = (_up - d.delta.dy).clamp(-60.0, 420.0)),
-        onTap: _show,
-        onLongPress: () => _show(listen: true),
-        child: AnimatedBuilder(
-          animation: _pulse,
-          builder: (context, _) {
-            final t = _pulse.value;
-            return SizedBox(
-              width: 58,
-              height: 58,
-              child: Stack(alignment: Alignment.center, children: [
-                Container(
-                  width: 46 + 12 * t,
-                  height: 46 + 12 * t,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: cs.primary.withValues(alpha: 0.18 * (1 - t))),
-                ),
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Brand.green, Brand.teal]),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.85), width: 1.6),
-                    boxShadow: [BoxShadow(color: Brand.green.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
-                  ),
-                  child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 22),
-                ),
-              ]),
-            );
-          },
-        ),
-      ),
+    return ValueListenableBuilder<int>(
+      valueListenable: ModalWatcher.open,
+      builder: (context, modals, _) {
+        if (modals > 0 || mq.viewInsets.bottom > 0) return const SizedBox.shrink();
+        final o = _resolve(size, mq.padding);
+        return AnimatedPositioned(
+          duration: _dragging ? Duration.zero : const Duration(milliseconds: 320),
+          curve: Curves.easeOutBack,
+          left: o.dx,
+          top: o.dy,
+          child: GestureDetector(
+            onTap: _show,
+            onLongPress: () => _show(listen: true),
+            onPanStart: (_) {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _dragging = true;
+                _pos = o;
+              });
+            },
+            onPanUpdate: (d) => setState(() => _pos = _clamp((_pos ?? o) + d.delta, size, mq.padding)),
+            onPanEnd: (_) => _dragEnd(size, mq.padding),
+            onPanCancel: () => _dragEnd(size, mq.padding),
+            child: AnimatedScale(
+              scale: _dragging ? 1.14 : 1,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              child: AnimatedBuilder(
+                animation: _pulse,
+                builder: (context, _) {
+                  final t = _pulse.value;
+                  return SizedBox(
+                    width: _size,
+                    height: _size,
+                    child: Stack(alignment: Alignment.center, children: [
+                      Container(width: 46 + 12 * t, height: 46 + 12 * t, decoration: BoxDecoration(shape: BoxShape.circle, color: cs.primary.withValues(alpha: 0.18 * (1 - t)))),
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Brand.green, Brand.teal]),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.85), width: 1.6),
+                          boxShadow: [BoxShadow(color: Brand.green.withValues(alpha: _dragging ? 0.5 : 0.35), blurRadius: _dragging ? 24 : 16, offset: const Offset(0, 6))],
+                        ),
+                        child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 22),
+                      ),
+                    ]),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

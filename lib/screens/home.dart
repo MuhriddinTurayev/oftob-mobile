@@ -26,6 +26,9 @@ import '../l10n.dart';
 import '../widgets.dart';
 import '../theme.dart';
 import '../assistant.dart';
+import '../avatar.dart';
+import '../motion.dart';
+import 'profile.dart';
 
 class _Tab {
   const _Tab(this.label, this.icon, this.activeIcon, this.builder);
@@ -219,9 +222,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _push(_Tab t) {
     HapticFeedback.selectionClick();
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => Scaffold(appBar: AppBar(title: Text(t.label)), body: t.builder(s)),
-    ));
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(
+          builder: (_) => Scaffold(appBar: AppBar(title: Text(t.label)), body: t.builder(s)),
+        ))
+        .then((_) => _dashRefresh.value++);
+  }
+
+  void _openProfile() {
+    HapticFeedback.selectionClick();
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ProfileScreen(session: s, onLogout: _logout)));
   }
 
   Future<void> _logout() async {
@@ -266,17 +276,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       children: [
         Glass(
           radius: 26,
+          onTap: _openProfile,
           padding: const EdgeInsets.all(16),
           child: Row(children: [
-            _Avatar(name, size: 54),
+            ListenableBuilder(listenable: s, builder: (_, _) => UserAvatar(session: s, name: name, size: 54)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 2),
                 Text('${me.company} · ${me.roleName}${me.readOnly ? " · faqat ko'rish" : ''}', style: TextStyle(color: cs.outline, fontSize: 13)),
+                const SizedBox(height: 4),
+                Text('Profil, rasm, parol, seanslar', style: TextStyle(color: cs.primary, fontSize: 12, fontWeight: FontWeight.w700)),
               ]),
             ),
+            Icon(Icons.chevron_right, color: cs.outline),
           ]),
         ),
         const SizedBox(height: 16),
@@ -311,12 +325,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  static String _initials(String name) {
-    final p = name.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
-    if (p.isEmpty) return '?';
-    return (p.first[0] + (p.length > 1 ? p[1][0] : '')).toUpperCase();
-  }
-
   String get _greeting {
     final h = DateTime.now().hour;
     return h < 11 ? 'Xayrli tong' : (h < 18 ? 'Xayrli kun' : 'Xayrli kech');
@@ -331,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Row(children: [
         if (i == 0) ...[
-          GestureDetector(onTap: () => setState(() => _index = moreIndex), child: _Avatar(name, size: 46)),
+          GestureDetector(onTap: _openProfile, child: ListenableBuilder(listenable: s, builder: (_, _) => UserAvatar(session: s, name: name, size: 46))),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -381,7 +389,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: Column(children: [
           _header(i, moreIndex, tabs),
           OfflineBar(onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s)))),
-          Expanded(child: IndexedStack(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()])),
+          Expanded(child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()])),
         ]),
       ),
       bottomNavigationBar: GlassNavBar(
@@ -395,30 +403,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const NavItem('Yana', Icons.grid_view_outlined, Icons.grid_view_rounded),
         ],
       ),
-    );
-  }
-}
-
-/// Ism bosh harflari bilan gradient doira
-class _Avatar extends StatelessWidget {
-  const _Avatar(this.name, {this.size = 46});
-
-  final String name;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Brand.green, Color(0xFF16A05A)]),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 2),
-        boxShadow: [BoxShadow(color: Brand.green.withValues(alpha: 0.28), blurRadius: 14, offset: const Offset(0, 5))],
-      ),
-      child: Text(_HomeScreenState._initials(name), style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: size * 0.36)),
     );
   }
 }

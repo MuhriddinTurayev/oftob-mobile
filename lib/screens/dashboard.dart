@@ -9,6 +9,7 @@ import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
 import '../theme.dart';
+import '../motion.dart';
 import 'shift_card.dart';
 import '../l10n.dart';
 
@@ -64,7 +65,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _load();
     widget.refresh?.addListener(_load);
     _clock = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted && _now.isNotEmpty) setState(() {});
+      if (!mounted) return;
+      if (_now.isNotEmpty) setState(() {});
+      if (++_tick % 2 == 0) _load(); // har minutda ma'lumot jimgina yangilanadi
     });
   }
 
@@ -74,6 +77,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _clock?.cancel();
     super.dispose();
   }
+
+  /// Bo'limlar ketma-ket yumshoq paydo bo'ladi
+  List<Widget> _reveal(List<Widget> l) => [for (var i = 0; i < l.length; i++) Reveal(index: i, child: l[i])];
+
+  int _tick = 0;
 
   Future<void> _load() async {
     final me = s.me!;
@@ -172,7 +180,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final me = s.me!;
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
+        physics: const NeverScrollableScrollPhysics(),
+        children: const [
+          Skeleton(height: 54, radius: 18),
+          SizedBox(height: 16),
+          Skeleton(height: 190, radius: 26),
+          SizedBox(height: 14),
+          Row(children: [Expanded(child: Skeleton(height: 150)), SizedBox(width: 10), Expanded(child: Skeleton(height: 150))]),
+          SizedBox(height: 10),
+          Skeleton(height: 120),
+          SizedBox(height: 22),
+          Skeleton(height: 24, width: 140, radius: 8),
+          SizedBox(height: 12),
+          Row(children: [Expanded(child: Skeleton(height: 100, radius: 20)), SizedBox(width: 10), Expanded(child: Skeleton(height: 100, radius: 20)), SizedBox(width: 10), Expanded(child: Skeleton(height: 100, radius: 20)), SizedBox(width: 10), Expanded(child: Skeleton(height: 100, radius: 20))]),
+        ],
+      );
+    }
     if (_error != null && _cash.isEmpty && _apts == 0 && _open == 0 && _leads.isEmpty) return ErrorView(message: _error!, onRetry: _load);
 
     final cur = _cash.keys.isEmpty ? '' : (_cash.containsKey('UZS') ? 'UZS' : _cash.keys.first);
@@ -196,7 +222,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
         physics: const AlwaysScrollableScrollPhysics(),
-        children: [
+        children: _reveal([
           // qidiruv: xizmatlar ro'yxatini filtrlaydi
           Glass(
             radius: 18,
@@ -287,7 +313,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             if (_ops.isEmpty) const _Empty("Operatsiya yo'q"),
             if (_ops.isNotEmpty) Glass(padding: const EdgeInsets.symmetric(vertical: 4), child: Column(children: [for (final o in _ops) _OpRow(o)])),
           ],
-        ],
+        ]),
       ),
     );
   }
@@ -502,7 +528,9 @@ class _Stat extends StatelessWidget {
           Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontWeight: FontWeight.w700, fontSize: 12.5))),
         ]),
         const SizedBox(height: 8),
-        Text(big, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.8, color: warn ? cs.error : cs.onSurface, height: 1)),
+        (int.tryParse(big) != null)
+            ? CountUp(value: int.parse(big), builder: (_, v) => Text('$v', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.8, color: warn ? cs.error : cs.onSurface, height: 1)))
+            : Text(big, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.8, color: warn ? cs.error : cs.onSurface, height: 1)),
         if (progress != null) ...[
           const SizedBox(height: 8),
           ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: progress, minHeight: 5, color: color, backgroundColor: color.withValues(alpha: 0.14))),

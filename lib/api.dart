@@ -884,6 +884,39 @@ class ApiClient {
     return Paged(_list(m['data']), PageMeta.from(m['meta']));
   }
 
+  /* ---------------- profil: rasm, parol, faol seanslar ---------------- */
+
+  Future<Map<String, dynamic>> profile() async => Map<String, dynamic>.from(((await _getMap('/profile'))['data'] as Map?) ?? const {});
+
+  /// Rasm yuklash (galereya/kamera); qaytadi: yangi rasm manzili
+  Future<String?> profilePhotoUpload(String path) async {
+    final b = await _send(() async {
+      final req = http.MultipartRequest('POST', _uri('/profile/photo'))..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang});
+      req.files.add(await http.MultipartFile.fromPath('avatar', path));
+      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
+    }, timeout: const Duration(seconds: 100));
+    return ((b as Map)['data'] as Map)['photo_url'] as String?;
+  }
+
+  Future<void> profilePhotoDelete() async {
+    await _send(() => _http.delete(_uri('/profile/photo'), headers: _headers));
+  }
+
+  Future<void> profilePassword(String current, String password, String confirm) async {
+    await _send(() => _http.post(_uri('/profile/password'), headers: _headers, body: jsonEncode({'current': current, 'password': password, 'password_confirmation': confirm})));
+  }
+
+  Future<List<Map<String, dynamic>>> profileSessions() async => _list((await _getMap('/profile/sessions'))['data']);
+
+  Future<void> profileSessionRevoke(String id) async {
+    await _send(() => _http.delete(_uri('/profile/sessions/$id'), headers: _headers));
+  }
+
+  Future<int> profileRevokeOthers() async {
+    final b = await _send(() => _http.post(_uri('/profile/sessions/revoke-others'), headers: _headers, body: '{}'));
+    return (((b as Map)['data'] as Map)['revoked'] as num?)?.toInt() ?? 0;
+  }
+
   /* ---------------- AI yordamchi ---------------- */
 
   /// [conv] — suhbat identifikatori; bo'sh bo'lsa yangi (bo'sh) suhbat va tayyor savollar qaytadi

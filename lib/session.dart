@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -36,6 +37,7 @@ class Session extends ChangeNotifier {
   Me? me;
   String userName = ''; // kirgan xodim ismi (xodim kirishi bilan)
   int userId = 0; // kirgan xodim id ("mening vazifalarim" filtri uchun)
+  String? photoUrl; // profil rasmi (token bilan olinadi); yo'q bo'lsa — bosh harflar
 
   bool get signedIn => api != null && me != null;
 
@@ -110,6 +112,7 @@ class Session extends ChangeNotifier {
     api = client;
     me = m;
     serverUrl = client.base;
+    unawaited(loadProfile());
     if (persist) {
       await _storage.write(key: 'mode', value: 'api');
       await _storage.write(key: 'server', value: client.base);
@@ -131,10 +134,29 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Profil rasmini (va ismini) jimgina yangilaydi
+  Future<void> loadProfile() async {
+    final a = api;
+    if (a == null) return;
+    try {
+      final d = await a.profile();
+      photoUrl = d['photo_url'] as String?;
+      final n = '${d['name'] ?? ''}';
+      if (n.isNotEmpty && n != userName) userName = n;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  void setPhoto(String? url) {
+    photoUrl = url;
+    notifyListeners();
+  }
+
   Future<void> signOut() async {
     final a = api;
     api = null;
     me = null;
+    photoUrl = null;
     userName = '';
     userId = 0;
     await _storage.delete(key: 'key');

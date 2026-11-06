@@ -53,6 +53,7 @@ class _OftobAppState extends State<OftobApp> {
       builder: (context, lang, _) => MaterialApp(
         title: 'Oftob Building',
         navigatorKey: _navKey,
+        navigatorObservers: [ModalWatcher()],
         debugShowCheckedModeBanner: false,
         theme: AppTheme.build(Brightness.light),
         darkTheme: AppTheme.build(Brightness.dark),

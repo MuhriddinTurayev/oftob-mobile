@@ -5,6 +5,7 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
 import 'l10n.dart';
+import 'motion.dart';
 
 /// Brend ranglari (logotip: to'q yashil + sariq) va «shisha» (glass) uslubi:
 /// yumshoq gradient fon, yarim shaffof oq kartalar, suzuvchi pastki panel.
@@ -75,7 +76,11 @@ class GlassTransitions extends PageTransitionsBuilder {
 
   @override
   Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
-    return const CupertinoPageTransitionsBuilder().buildTransitions<T>(route, context, animation, secondaryAnimation, GlassBackdrop(child: child));
+    final page = GlassBackdrop(child: child);
+    if (Theme.of(context).platform == TargetPlatform.iOS) {
+      return const CupertinoPageTransitionsBuilder().buildTransitions<T>(route, context, animation, secondaryAnimation, page);
+    }
+    return const FadeForwardsPageTransitionsBuilder().buildTransitions<T>(route, context, animation, secondaryAnimation, page);
   }
 }
 
@@ -121,21 +126,19 @@ class Glass extends StatelessWidget {
       ),
       child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
     );
-    if (onTap != null || onLongPress != null) {
-      body = Stack(fit: StackFit.passthrough, children: [
-        body,
-        Positioned.fill(child: Material(type: MaterialType.transparency, child: InkWell(borderRadius: br, onTap: onTap, onLongPress: onLongPress))),
-      ]);
-    }
     if (blur) {
       body = BackdropFilter(filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26), child: body);
     }
     body = ClipRRect(borderRadius: br, child: body);
-    return Container(
+    Widget out = Container(
       margin: margin,
       decoration: shadow ? BoxDecoration(borderRadius: br, boxShadow: [BoxShadow(color: (dark ? Colors.black : const Color(0xFF1B4332)).withValues(alpha: dark ? 0.35 : 0.10), blurRadius: 22, offset: const Offset(0, 8))]) : null,
       child: body,
     );
+    if (onTap != null || onLongPress != null) {
+      out = Semantics(container: true, button: true, onTap: onTap, child: Tappable(onTap: onTap, onLongPress: onLongPress, child: out));
+    }
+    return out;
   }
 }
 
@@ -194,41 +197,46 @@ class GlassNavBar extends StatelessWidget {
             radius: 33,
             blur: true,
             padding: const EdgeInsets.all(6),
-            child: Row(children: [
-              for (var i = 0; i < items.length; i++)
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      onTap(i);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 260),
-                      curve: Curves.easeOutCubic,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(27),
-                        color: i == index ? cs.primary.withValues(alpha: 0.14) : Colors.transparent,
-                      ),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        AnimatedScale(
-                          scale: i == index ? 1.08 : 1,
-                          duration: const Duration(milliseconds: 260),
-                          curve: Curves.easeOutBack,
-                          child: Icon(i == index ? items[i].activeIcon : items[i].icon, size: 24, color: i == index ? cs.primary : cs.outline),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          tr(items[i].label),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 11, fontWeight: i == index ? FontWeight.w800 : FontWeight.w600, color: i == index ? cs.primary : cs.outline),
-                        ),
-                      ]),
-                    ),
+            child: LayoutBuilder(
+              builder: (context, bc) {
+                final w = bc.maxWidth / items.length;
+                return Stack(children: [
+                  // tanlangan bo'lim ostidagi «tabletka» — bo'limlar orasida sirpanib yuradi
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 380),
+                    curve: Curves.easeOutBack,
+                    left: w * index,
+                    top: 0,
+                    bottom: 0,
+                    width: w,
+                    child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(27), color: cs.primary.withValues(alpha: 0.15))),
                   ),
-                ),
-            ]),
+                  Row(children: [
+                    for (var i = 0; i < items.length; i++)
+                      Expanded(
+                        child: Tappable(
+                          scale: 0.9,
+                          onTap: () => onTap(i),
+                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            AnimatedScale(
+                              scale: i == index ? 1.12 : 1,
+                              duration: const Duration(milliseconds: 320),
+                              curve: Curves.easeOutBack,
+                              child: Icon(i == index ? items[i].activeIcon : items[i].icon, size: 24, color: i == index ? cs.primary : cs.outline),
+                            ),
+                            const SizedBox(height: 2),
+                            AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 250),
+                              style: TextStyle(fontSize: 11, fontWeight: i == index ? FontWeight.w800 : FontWeight.w600, color: i == index ? cs.primary : cs.outline),
+                              child: Text(tr(items[i].label), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ),
+                          ]),
+                        ),
+                      ),
+                  ]),
+                ]);
+              },
+            ),
           ),
         ),
       ),
