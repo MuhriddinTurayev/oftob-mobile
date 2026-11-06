@@ -6,6 +6,7 @@ import '../api.dart';
 import '../avatar.dart';
 import '../format.dart';
 import '../l10n.dart';
+import '../motion.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -216,6 +217,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
 
+  Widget _title(String t, {Widget? trailing}) => Padding(
+        padding: const EdgeInsets.fromLTRB(6, 2, 4, 10),
+        child: Row(children: [Expanded(child: Text(t, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, letterSpacing: -0.2))), if (trailing != null) trailing]),
+      );
+
+  /// Bo'lim: ketma-ket yumshoq paydo bo'ladi va keyingisidan masofa bilan ajraladi
+  Widget _sec(int i, Widget w) => Reveal(index: i, child: Padding(padding: const EdgeInsets.only(bottom: 20), child: w));
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -224,133 +233,162 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Profil')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 48),
         children: [
-          Glass(
-            radius: 28,
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-            child: Column(children: [
-              GestureDetector(
-                onTap: _uploading ? null : _photoMenu,
-                child: Stack(clipBehavior: Clip.none, children: [
-                  ListenableBuilder(listenable: s, builder: (_, _) => UserAvatar(session: s, name: name, size: 104)),
-                  if (_uploading) const Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(shape: BoxShape.circle, color: Color(0x66000000)), child: Center(child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white))))),
-                  Positioned(
-                    right: -2,
-                    bottom: -2,
-                    child: Container(width: 36, height: 36, decoration: BoxDecoration(shape: BoxShape.circle, color: cs.primary, border: Border.all(color: Colors.white, width: 3)), child: const Icon(Icons.photo_camera_rounded, size: 17, color: Colors.white)),
+          _sec(
+            0,
+            Glass(
+              radius: 30,
+              blur: true,
+              padding: const EdgeInsets.fromLTRB(20, 26, 20, 22),
+              child: Column(children: [
+                Tappable(
+                  onTap: _uploading ? null : _photoMenu,
+                  scale: 0.94,
+                  child: Stack(clipBehavior: Clip.none, children: [
+                    ListenableBuilder(listenable: s, builder: (_, _) => UserAvatar(session: s, name: name, size: 108)),
+                    if (_uploading) const Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(shape: BoxShape.circle, color: Color(0x66000000)), child: Center(child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white))))),
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Container(width: 38, height: 38, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [Brand.green, Brand.teal]), border: Border.all(color: Colors.white, width: 3)), child: const Icon(Icons.photo_camera_rounded, size: 18, color: Colors.white)),
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: 16),
+                Text(name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.4)),
+                const SizedBox(height: 4),
+                Text('${me.roleName} · ${me.company}', textAlign: TextAlign.center, style: TextStyle(color: cs.outline, fontSize: 13.5)),
+                if ('${_p['phone'] ?? ''}'.isNotEmpty || ('${_p['email'] ?? ''}'.isNotEmpty && !'${_p['email']}'.endsWith('.local'))) ...[
+                  const SizedBox(height: 14),
+                  Wrap(spacing: 10, runSpacing: 8, alignment: WrapAlignment.center, children: [
+                    if ('${_p['phone'] ?? ''}'.isNotEmpty) _contact(Icons.phone_rounded, '${_p['phone']}'),
+                    if ('${_p['email'] ?? ''}'.isNotEmpty && !'${_p['email']}'.endsWith('.local')) _contact(Icons.mail_rounded, '${_p['email']}'),
+                  ]),
+                ],
+              ]),
+            ),
+          ),
+          _sec(
+            1,
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _title('Xavfsizlik'),
+              Glass(
+                radius: 24,
+                padding: const EdgeInsets.all(16),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Tappable(
+                    scale: 0.98,
+                    onTap: () => setState(() => _pwOpen = !_pwOpen),
+                    child: Row(children: [
+                      const IconTile(icon: Icons.lock_outline_rounded, color: Brand.purple, size: 42),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Text('Parolni almashtirish', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5))),
+                      AnimatedRotation(turns: _pwOpen ? 0.5 : 0, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic, child: Icon(Icons.expand_more_rounded, color: cs.outline)),
+                    ]),
+                  ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 340),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: !_pwOpen
+                        ? const SizedBox(width: double.infinity)
+                        : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            _field(_cur, 'Joriy parol'),
+                            _field(_new, 'Yangi parol (kamida 8 belgi, harf va raqam)'),
+                            _field(_rep, 'Yangi parolni takrorlang'),
+                            if (_pwErr != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_pwErr!, style: TextStyle(color: cs.error, fontSize: 13))),
+                            const SizedBox(height: 14),
+                            SizedBox(width: double.infinity, child: FilledButton(onPressed: _pwBusy ? null : _savePassword, child: Text(_pwBusy ? 'Saqlanmoqda…' : 'Parolni saqlash'))),
+                            const SizedBox(height: 6),
+                            Text('Parol almashtirilgach, boshqa qurilmalar qayta kirishi kerak.', style: TextStyle(color: cs.outline, fontSize: 12)),
+                          ]),
                   ),
                 ]),
               ),
-              const SizedBox(height: 14),
-              Text(name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: -0.3)),
-              const SizedBox(height: 2),
-              Text('${me.roleName} · ${me.company}', textAlign: TextAlign.center, style: TextStyle(color: cs.outline, fontSize: 13.5)),
-              if ('${_p['phone'] ?? ''}'.isNotEmpty || '${_p['email'] ?? ''}'.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                if ('${_p['phone'] ?? ''}'.isNotEmpty) Text('${_p['phone']}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                if ('${_p['email'] ?? ''}'.isNotEmpty && !'${_p['email']}'.endsWith('.local')) Text('${_p['email']}', style: TextStyle(color: cs.outline, fontSize: 13)),
-              ],
             ]),
           ),
-          const SizedBox(height: 14),
-          Glass(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => setState(() => _pwOpen = !_pwOpen),
-                child: Row(children: [
-                  const IconTile(icon: Icons.lock_outline_rounded, color: Brand.purple, size: 40),
-                  const SizedBox(width: 12),
-                  const Expanded(child: Text('Parolni almashtirish', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5))),
-                  AnimatedRotation(turns: _pwOpen ? 0.5 : 0, duration: const Duration(milliseconds: 250), child: Icon(Icons.expand_more_rounded, color: cs.outline)),
-                ]),
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: !_pwOpen
-                    ? const SizedBox(width: double.infinity)
-                    : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        _field(_cur, 'Joriy parol'),
-                        _field(_new, 'Yangi parol (kamida 8 belgi, harf va raqam)'),
-                        _field(_rep, 'Yangi parolni takrorlang'),
-                        if (_pwErr != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_pwErr!, style: TextStyle(color: cs.error, fontSize: 13))),
-                        const SizedBox(height: 14),
-                        SizedBox(width: double.infinity, child: FilledButton(onPressed: _pwBusy ? null : _savePassword, child: Text(_pwBusy ? 'Saqlanmoqda…' : 'Parolni saqlash'))),
-                        const SizedBox(height: 4),
-                        Text('Parol almashtirilgach, boshqa qurilmalar qayta kirishi kerak.', style: TextStyle(color: cs.outline, fontSize: 12)),
-                      ]),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 14),
-          Glass(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                const IconTile(icon: Icons.devices_rounded, color: Brand.blue, size: 40),
-                const SizedBox(width: 12),
-                const Expanded(child: Text('Faol seanslar', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5))),
-                IconButton(onPressed: () {
-                  setState(() => _sessionsLoading = true);
-                  _loadSessions();
-                }, icon: Icon(Icons.refresh_rounded, color: cs.outline)),
-              ]),
-              const SizedBox(height: 4),
+          _sec(
+            2,
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _title('Faol seanslar', trailing: IconButton(visualDensity: VisualDensity.compact, onPressed: () {
+                setState(() => _sessionsLoading = true);
+                _loadSessions();
+              }, icon: Icon(Icons.refresh_rounded, color: cs.outline))),
               if (_sessionsLoading && _sessions.isEmpty)
                 const Padding(padding: EdgeInsets.all(18), child: Center(child: CircularProgressIndicator()))
               else
-                for (final x in _sessions)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(children: [
-                      Icon(x['kind'] == 'web' ? Icons.language_rounded : Icons.smartphone_rounded, color: x['current'] == true ? cs.primary : cs.outline),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            Flexible(child: Text('${x['title']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
-                            if (x['current'] == true) ...[const SizedBox(width: 8), StatusChip(tr('Shu qurilma'), cs.primary)],
+                for (var i = 0; i < _sessions.length; i++)
+                  Reveal(
+                    index: i.clamp(0, 8),
+                    child: GlassRow(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      tint: _sessions[i]['current'] == true ? cs.primary.withValues(alpha: 0.12) : null,
+                      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+                      child: Row(children: [
+                        IconTile(icon: _sessions[i]['kind'] == 'web' ? Icons.language_rounded : Icons.smartphone_rounded, color: _sessions[i]['current'] == true ? Brand.green : Brand.blue, size: 40),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Row(children: [
+                              Flexible(child: Text('${_sessions[i]['title']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5))),
+                              if (_sessions[i]['current'] == true) ...[const SizedBox(width: 8), StatusChip(tr('Shu qurilma'), cs.primary)],
+                            ]),
+                            const SizedBox(height: 2),
+                            Text([if ('${_sessions[i]['ip'] ?? ''}'.isNotEmpty) '${_sessions[i]['ip']}', _ago('${_sessions[i]['at']}')].where((e) => e.isNotEmpty).join(' · '), style: TextStyle(color: cs.outline, fontSize: 12)),
                           ]),
-                          Text([if ('${x['ip'] ?? ''}'.isNotEmpty) '${x['ip']}', _ago('${x['at']}')].where((e) => e.isNotEmpty).join(' · '), style: TextStyle(color: cs.outline, fontSize: 12)),
-                        ]),
-                      ),
-                      if (x['current'] != true) IconButton(tooltip: tr('Seansni yopish'), onPressed: () => _revoke(x), icon: Icon(Icons.logout_rounded, color: cs.error, size: 20)),
-                    ]),
+                        ),
+                        if (_sessions[i]['current'] != true) IconButton(tooltip: tr('Seansni yopish'), onPressed: () => _revoke(_sessions[i]), icon: Icon(Icons.logout_rounded, color: cs.error, size: 20)),
+                      ]),
+                    ),
                   ),
               if (_sessions.where((e) => e['current'] != true).isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 4),
                 SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: _revokeOthers, icon: const Icon(Icons.phonelink_erase_rounded, size: 18), label: const Text('Boshqa hammasidan chiqish'))),
               ],
             ]),
           ),
-          const SizedBox(height: 14),
-          Glass(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [const IconTile(icon: Icons.translate, color: Brand.teal, size: 40), const SizedBox(width: 12), const Text('Til', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5))]),
-              const SizedBox(height: 12),
-              const LangSwitch(),
+          _sec(
+            3,
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _title('Til'),
+              Glass(
+                radius: 24,
+                padding: const EdgeInsets.all(16),
+                child: Row(children: [
+                  const IconTile(icon: Icons.translate, color: Brand.teal, size: 42),
+                  const SizedBox(width: 12),
+                  const Expanded(child: LangSwitch()),
+                ]),
+              ),
             ]),
           ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 52,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(foregroundColor: cs.error, side: BorderSide(color: cs.error.withValues(alpha: 0.5))),
-              onPressed: () async {
+          _sec(
+            4,
+            GlassRow(
+              margin: EdgeInsets.zero,
+              tint: Colors.red.withValues(alpha: 0.08),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              onTap: () async {
                 Navigator.of(context).pop();
                 await widget.onLogout();
               },
-              icon: const Icon(Icons.logout_rounded),
-              label: const Text('Chiqish'),
+              child: Row(children: [
+                IconTile(icon: Icons.logout_rounded, color: cs.error, size: 42),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Hisobdan chiqish', style: TextStyle(color: cs.error, fontWeight: FontWeight.w800, fontSize: 15.5))),
+                Icon(Icons.chevron_right, color: cs.error.withValues(alpha: 0.6)),
+              ]),
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _contact(IconData icon, String t) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white.withValues(alpha: 0.9))),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 15, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 7), Text(t, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13))]),
+      );
 }

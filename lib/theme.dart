@@ -1,7 +1,9 @@
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/scheduler.dart' show Ticker, TickerProvider, TickerCallback;
 import 'package:flutter/services.dart';
 
 import 'l10n.dart';
@@ -20,7 +22,31 @@ class Brand {
   static const orange = Color(0xFFF27A1A);
 }
 
-/// Butun ilova foni: och mint–ko'k–krem gradient va yumshoq rangli nur dog'lari (qorong'i mavzuda — to'q).
+/// Hamma sahifalar uchun umumiy «soat»: fon sharlari bir xil fazada sekin suzadi (sahifa almashganda ham sakramaydi).
+class BackdropClock {
+  static final ValueNotifier<double> t = ValueNotifier(0);
+  static Ticker? _ticker;
+  static Duration _last = Duration.zero;
+
+  static void start() {
+    if (_ticker != null) return;
+    _ticker = const _Provider().createTicker((e) {
+      if ((e - _last).inMilliseconds < 33) return; // ~30 kadr/s yetarli: fon sekin harakatlanadi
+      _last = e;
+      t.value = e.inMilliseconds / 1000.0;
+    })
+      ..start();
+  }
+}
+
+class _Provider implements TickerProvider {
+  const _Provider();
+
+  @override
+  Ticker createTicker(TickerCallback onTick) => Ticker(onTick);
+}
+
+/// Butun ilova foni: jonli — rangli yorug' sharlar sekin suzib yuradi; ustidagi shisha kartalar ularning rangini tovlantiradi.
 class GlassBackdrop extends StatelessWidget {
   const GlassBackdrop({super.key, required this.child});
 
@@ -29,21 +55,31 @@ class GlassBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return Stack(fit: StackFit.expand, children: [
-      DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: dark ? const [Color(0xFF0B1511), Color(0xFF0D1A22), Color(0xFF0C1913)] : const [Color(0xFFDDF1E6), Color(0xFFEAF0FB), Color(0xFFF3F8EA)],
-          ),
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final base = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: dark ? const [Color(0xFF0A1410), Color(0xFF0C1822), Color(0xFF0B1711)] : const [Color(0xFFD6EFE2), Color(0xFFE6EEFB), Color(0xFFF4F7E8)],
         ),
       ),
-      _Glow(alignment: const Alignment(1.15, -0.95), color: dark ? const Color(0xFF2B5CA8) : const Color(0xFF86B3FF), radius: 0.8, alpha: dark ? 0.5 : 0.7),
-      _Glow(alignment: const Alignment(-1.25, -0.25), color: dark ? const Color(0xFF1B7A4D) : const Color(0xFF6FD6A0), radius: 0.75, alpha: dark ? 0.55 : 0.65),
-      _Glow(alignment: const Alignment(1.05, 0.55), color: dark ? const Color(0xFF6B4FB5) : const Color(0xFFC3B2FF), radius: 0.6, alpha: dark ? 0.35 : 0.55),
-      _Glow(alignment: const Alignment(-0.9, 1.1), color: dark ? const Color(0xFF8A6512) : const Color(0xFFFFD36B), radius: 0.75, alpha: dark ? 0.35 : 0.65),
-      _Glow(alignment: const Alignment(0.2, -0.3), color: dark ? const Color(0xFF1E4D6B) : const Color(0xFFBFEBFF), radius: 0.5, alpha: dark ? 0.25 : 0.5),
+      child: const SizedBox.expand(),
+    );
+    Widget orbs(double t) {
+      Alignment p(double ax, double ay, double bx, double by, double sx, double sy, double ph) => Alignment(ax + bx * math.cos(t * sx + ph), ay + by * math.sin(t * sy + ph * 1.3));
+      return Stack(fit: StackFit.expand, children: [
+        _Glow(alignment: p(0.95, -0.75, 0.30, 0.22, 0.11, 0.13, 0.0), color: dark ? const Color(0xFF2F63B8) : const Color(0xFF6EA8FF), radius: 0.95, alpha: dark ? 0.55 : 0.78),
+        _Glow(alignment: p(-1.05, -0.05, 0.28, 0.55, 0.09, 0.07, 1.4), color: dark ? const Color(0xFF1C8556) : const Color(0xFF45D6A0), radius: 0.9, alpha: dark ? 0.6 : 0.72),
+        _Glow(alignment: p(1.0, 0.55, 0.32, 0.40, 0.10, 0.08, 2.6), color: dark ? const Color(0xFF7255C8) : const Color(0xFFB59BFF), radius: 0.8, alpha: dark ? 0.45 : 0.66),
+        _Glow(alignment: p(-0.8, 1.05, 0.42, 0.30, 0.06, 0.09, 3.7), color: dark ? const Color(0xFF9A7014) : const Color(0xFFFFC94A), radius: 0.9, alpha: dark ? 0.4 : 0.74),
+        _Glow(alignment: p(0.1, -0.2, 0.55, 0.45, 0.05, 0.06, 4.8), color: dark ? const Color(0xFF1E5A7A) : const Color(0xFF7DE3FF), radius: 0.65, alpha: dark ? 0.32 : 0.6),
+      ]);
+    }
+
+    return Stack(fit: StackFit.expand, children: [
+      base,
+      if (still) orbs(0) else ValueListenableBuilder<double>(valueListenable: BackdropClock.t, builder: (_, t, _) => orbs(t)),
       child,
     ]);
   }
@@ -116,7 +152,7 @@ class Glass extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final br = BorderRadius.circular(radius);
     final fill = tint;
-    final fillGradient = gradient ?? (tint != null ? null : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? [Colors.white.withValues(alpha: 0.13), Colors.white.withValues(alpha: 0.04)] : [Colors.white.withValues(alpha: 0.58), Colors.white.withValues(alpha: 0.26)]));
+    final fillGradient = gradient ?? (tint != null ? null : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? [Colors.white.withValues(alpha: 0.14), Colors.white.withValues(alpha: 0.04)] : [Colors.white.withValues(alpha: blur ? 0.46 : 0.5), Colors.white.withValues(alpha: blur ? 0.16 : 0.2)]));
     Widget body = DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: br,

@@ -309,18 +309,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             );
           },
         ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Glass(
-            padding: const EdgeInsets.all(14),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [const IconTile(icon: Icons.translate, color: Brand.purple, size: 40), const SizedBox(width: 12), const Text('Til', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15))]),
-              const SizedBox(height: 10),
-              const LangSwitch(),
-            ]),
-          ),
-        ),
-        row(Icons.logout, cs.error, 'Chiqish', onTap: _logout, titleColor: cs.error),
       ],
     );
   }
