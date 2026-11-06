@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' as w show Text;
+import 'package:url_launcher/url_launcher.dart';
 
 
+import '../avatar.dart';
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
@@ -76,6 +79,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     widget.refresh?.removeListener(_load);
     _clock?.cancel();
     super.dispose();
+  }
+
+  /// «Hozir ishda» qatori bosilganda: xodim kartochkasi (kelgan vaqti, ishlagan vaqt, joylashuv, oylik hisobi)
+  void _openWorker(Map<String, dynamic> x) {
+    HapticFeedback.selectionClick();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _WorkerNowSheet(
+        session: s,
+        x: x,
+        onAttendance: () {
+          Navigator.of(context).pop();
+          widget.onOpen?.call('Davomat');
+        },
+      ),
+    );
   }
 
   /// Bo'limlar ketma-ket yumshoq paydo bo'ladi
@@ -272,7 +292,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (!searching && me.can('attendance:read') && _now.isNotEmpty) ...[
             _Section(title: 'Hozir ishda', trailing: '${_now.length} kishi', onTap: () => widget.onOpen?.call('Davomat')),
             for (var i = 0; i < _now.take(8).length; i++)
-              Reveal(index: i, child: GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11), child: _WorkingRow(_now[i]))),
+              Reveal(index: i, child: GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11), onTap: () => _openWorker(_now[i]), child: _WorkingRow(_now[i]))),
             if (_now.length > 8) Padding(padding: const EdgeInsets.only(top: 6, left: 6), child: Text('+${_now.length - 8} ${tr('kishi yana')}', style: TextStyle(color: cs.outline, fontSize: 12.5))),
             const SizedBox(height: 18),
           ],
@@ -610,6 +630,128 @@ class _OpRow extends StatelessWidget {
       title: Text('${o['category'] ?? (inc ? 'Kirim' : 'Chiqim')}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
       subtitle: Text('${formatDate('${o['date'] ?? ''}')}${(o['note'] ?? '').toString().isEmpty ? '' : ' · ${o['note']}'}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
       trailing: Text('${inc ? '+' : '−'}${money(amount)}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: c)),
+    );
+  }
+}
+
+/// Hozir ishdagi xodim kartochkasi
+class _WorkerNowSheet extends StatefulWidget {
+  const _WorkerNowSheet({required this.session, required this.x, required this.onAttendance});
+
+  final Session session;
+  final Map<String, dynamic> x;
+  final VoidCallback onAttendance;
+
+  @override
+  State<_WorkerNowSheet> createState() => _WorkerNowSheetState();
+}
+
+class _WorkerNowSheetState extends State<_WorkerNowSheet> {
+  Map<String, dynamic>? _month; // oylik hisob (faqat ko'rishga ruxsati bo'lganlarga)
+  bool _loading = false;
+  String _cur = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.x['office'] != true && widget.session.me!.can('crew:read')) {
+      _loading = true;
+      _loadMonth();
+    }
+  }
+
+  Future<void> _loadMonth() async {
+    try {
+      final n = DateTime.now();
+      final d = await widget.session.api!.crew(month: '${n.year}-${n.month.toString().padLeft(2, '0')}');
+      final id = '${widget.x['id']}';
+      for (final o in ((d['objects'] as List?) ?? const []).whereType<Map>()) {
+        for (final w in ((o['workers'] as List?) ?? const []).whereType<Map>()) {
+          if ('${w['id']}' == id) _month = Map<String, dynamic>.from((w['month'] as Map?) ?? const {});
+        }
+      }
+      final c = '${d['currency'] ?? ''}'.trim();
+      _cur = (c.isEmpty || c == 'UZS' || c.toLowerCase() == 'сум' || c.toLowerCase() == 'сўм') ? tr("so'm") : c;
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Widget _kv(IconData icon, String k, String v, {Color? color}) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(children: [
+          Icon(icon, size: 19, color: Theme.of(context).colorScheme.outline),
+          const SizedBox(width: 12),
+          Expanded(child: Text(k, style: TextStyle(color: Theme.of(context).colorScheme.outline, fontSize: 13))),
+          Text(v, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: color)),
+        ]),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final x = widget.x;
+    final since = shiftMoment(x, 'in');
+    final dur = since == null ? null : DateTime.now().difference(since);
+    final office = x['office'] == true;
+    final phone = '${x['phone'] ?? ''}'.trim();
+    final lat = x['in_lat'] as num?, lng = x['in_lng'] as num?, dist = x['in_dist'] as num?;
+    final where = lat == null ? tr('joylashuvsiz') : (dist == null ? tr('joylashuv bor') : (dist <= 300 ? tr('obyektda') : '${tr('obyektdan')} ${distLabel(dist)}'));
+    final accrued = _month?['accrued'] as num?, paid = _month?['paid'] as num?, due = _month?['due'] as num?;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            UserAvatar(session: widget.session, name: '${x['name']}', size: 56, url: null, ring: false),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${x['name']}', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900, letterSpacing: -0.3)),
+                Text([if ('${x['role'] ?? ''}'.isNotEmpty) '${x['role']}', if (x['site'] != null) '${x['site']}'].join(' · '), style: TextStyle(color: cs.outline, fontSize: 13)),
+              ]),
+            ),
+            StatusChip(tr('Ishda'), Colors.green.shade700),
+          ]),
+          const SizedBox(height: 18),
+          if (dur != null)
+            HeroGlass(
+              tint: Brand.teal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(children: [
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('${tr('Keldi')} ${x['in'] ?? ''}', style: TextStyle(color: cs.outline, fontWeight: FontWeight.w700, fontSize: 13)),
+                    const SizedBox(height: 2),
+                    Text(durationText(dur), style: TextStyle(color: context.ink, fontWeight: FontWeight.w900, fontSize: 24, letterSpacing: -0.4)),
+                    Text(tr('ishlagan vaqt'), style: TextStyle(color: cs.outline, fontSize: 12)),
+                  ]),
+                ),
+                const Icon(Icons.timer_rounded, color: Brand.teal, size: 34),
+              ]),
+            ),
+          const SizedBox(height: 16),
+          if (office) _kv(Icons.place_outlined, tr('Joylashuv'), where),
+          if (x['week_days'] is num) _kv(Icons.calendar_month_outlined, tr('Shu hafta ish kuni'), '${x['week_days']}'),
+          if (_loading) const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator(minHeight: 3)),
+          if (accrued != null) ...[
+            _kv(Icons.payments_outlined, tr("Oy bo'yicha hisoblangan"), '${money(accrued)} $_cur'),
+            if (paid != null) _kv(Icons.check_circle_outline, tr("To'langan"), money(paid), color: Colors.green.shade700),
+            if (due != null) _kv(Icons.pending_outlined, tr('Qoldi'), money(due), color: due > 0 ? cs.error : null),
+          ],
+          const SizedBox(height: 8),
+          Row(children: [
+            if (phone.isNotEmpty) ...[
+              Expanded(child: FilledButton.icon(onPressed: () => launchUrl(Uri.parse('tel:${phone.replaceAll(RegExp(r'[^0-9+]'), '')}')), icon: const Icon(Icons.call_rounded, size: 19), label: Text(tr("Qo'ng'iroq")))),
+              const SizedBox(width: 10),
+            ],
+            if (lat != null && lng != null) ...[
+              Expanded(child: OutlinedButton.icon(onPressed: () => launchUrl(Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng'), mode: LaunchMode.externalApplication), icon: const Icon(Icons.map_outlined, size: 19), label: Text(tr('Xarita')))),
+              const SizedBox(width: 10),
+            ],
+            Expanded(child: OutlinedButton.icon(onPressed: widget.onAttendance, icon: const Icon(Icons.how_to_reg_outlined, size: 19), label: Text(tr('Davomat')))),
+          ]),
+        ]),
+      ),
     );
   }
 }
