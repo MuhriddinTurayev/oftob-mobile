@@ -86,7 +86,10 @@ class _RevealState extends State<Reveal> with SingleTickerProviderStateMixin {
     return AnimatedBuilder(
       animation: _a,
       child: widget.child,
-      builder: (context, child) => Opacity(opacity: _a.value, child: Transform.translate(offset: Offset(0, (1 - _a.value) * widget.dy), child: child)),
+      builder: (context, child) {
+        if (_c.isCompleted) return child!; // animatsiya tugagach qo'shimcha qatlam (saveLayer) qolmaydi
+        return Opacity(opacity: _a.value, child: Transform.translate(offset: Offset(0, (1 - _a.value) * widget.dy), child: child));
+      },
     );
   }
 }
@@ -150,7 +153,8 @@ class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin
   }
 }
 
-/// Pastki bo'limlar almashganda yumshoq o'tish (eskisi so'nadi, yangisi kichik siljib kiradi); har bo'lim holati saqlanadi.
+/// Pastki bo'limlar: faqat BIRINCHI ochilganda quriladi (ilova ochilganda hammasi birdaniga yuklanmaydi) va bo'limlar orasida
+/// o'tish bir lahzada — ikkita og'ir ekran bir vaqtda chizilmaydi (telefon qotmaydi). Har bo'lim holati (ro'yxat joyi) saqlanadi.
 class AnimatedTabs extends StatefulWidget {
   const AnimatedTabs({super.key, required this.index, required this.children});
 
@@ -161,55 +165,19 @@ class AnimatedTabs extends StatefulWidget {
   State<AnimatedTabs> createState() => _AnimatedTabsState();
 }
 
-class _AnimatedTabsState extends State<AnimatedTabs> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 320), value: 1);
-  late final Animation<double> _a = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
-  int _prev = 0;
-
-  @override
-  void didUpdateWidget(covariant AnimatedTabs old) {
-    super.didUpdateWidget(old);
-    if (old.index != widget.index) {
-      _prev = old.index;
-      _c.forward(from: 0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
+class _AnimatedTabsState extends State<AnimatedTabs> {
+  final Set<int> _built = {};
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _a,
-      builder: (context, _) {
-        final animating = _c.isAnimating;
-        final dir = widget.index >= _prev ? 1.0 : -1.0;
-        return Stack(fit: StackFit.expand, children: [
-          for (var i = 0; i < widget.children.length; i++)
-            () {
-              final active = i == widget.index;
-              final leaving = animating && i == _prev && !active;
-              final visible = active || leaving;
-              final v = active ? _a.value : (leaving ? 1 - _a.value : 0.0);
-              final dx = active ? (1 - _a.value) * 28 * dir : (leaving ? -_a.value * 18 * dir : 0.0);
-              // bir xil o'ram zanjiri: bo'lim holati (ro'yxat joyi, kiritilgan matn) yo'qolmaydi
-              return Offstage(
-                offstage: !visible,
-                child: TickerMode(
-                  enabled: visible,
-                  child: IgnorePointer(
-                    ignoring: !active,
-                    child: Opacity(opacity: v.clamp(0.0, 1.0), child: Transform.translate(offset: Offset(dx, 0), child: widget.children[i])),
-                  ),
-                ),
-              );
-            }(),
-        ]);
-      },
-    );
+    _built.add(widget.index);
+    return Stack(fit: StackFit.expand, children: [
+      for (var i = 0; i < widget.children.length; i++)
+        if (_built.contains(i))
+          Offstage(
+            offstage: i != widget.index,
+            child: TickerMode(enabled: i == widget.index, child: widget.children[i]),
+          ),
+    ]);
   }
 }

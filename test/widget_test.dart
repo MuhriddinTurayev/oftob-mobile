@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:oftob_mobile/motion.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:oftob_mobile/api.dart';
@@ -86,5 +87,30 @@ void main() {
     expect(find.textContaining('sslip'), findsNothing);
     expect(find.textContaining('http'), findsNothing);
     expect(find.text('Server manzili'), findsNothing);
+  });
+
+  testWidgets('tablar faqat birinchi ochilganda quriladi va holati saqlanadi', (tester) async {
+    var built0 = 0, built1 = 0;
+    Widget app(int index) => MaterialApp(
+          home: AnimatedTabs(index: index, children: [
+            Builder(builder: (_) {
+              built0++;
+              return const Text('bir');
+            }),
+            Builder(builder: (_) {
+              built1++;
+              return const Text('ikki');
+            }),
+          ]),
+        );
+    await tester.pumpWidget(app(0));
+    expect(built0, greaterThan(0));
+    expect(built1, 0); // ikkinchi tab hali ochilmagan: qurilmagan
+    expect(find.text('ikki'), findsNothing);
+    await tester.pumpWidget(app(1));
+    expect(find.text('ikki'), findsOneWidget);
+    expect(find.text('bir'), findsNothing); // eskisi yashirin (Offstage)
+    await tester.pumpWidget(app(0));
+    expect(find.text('bir'), findsOneWidget);
   });
 }

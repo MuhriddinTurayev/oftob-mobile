@@ -234,7 +234,7 @@ class GlassIconButton extends StatelessWidget {
       height: size,
       child: Glass(
         radius: size / 2,
-        blur: true,
+        blur: false,
         onTap: onTap,
         child: Center(child: Badge(isLabelVisible: badge > 0, label: Text(badge > 99 ? '99+' : '$badge'), child: icon)),
       ),
