@@ -53,7 +53,7 @@ class _CurrenciesScreenState extends State<CurrenciesScreen> {
         final baseCode = '${base['code']}';
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
           children: [
             Container(
               padding: const EdgeInsets.all(14),

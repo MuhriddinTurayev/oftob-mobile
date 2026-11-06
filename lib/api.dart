@@ -204,6 +204,8 @@ class ApiClient {
           if (st['status'] == 'none' || st['status'] == null) {
             st..['status'] = 'working'
               ..['in'] = _hm('${b['at']}')
+              ..['in_ts'] = b['at']
+              ..['out_ts'] = null
               ..['out'] = null
               ..['in_lat'] = b['lat']
               ..['in_lng'] = b['lng']
@@ -214,6 +216,7 @@ class ApiClient {
           if (st['status'] == 'working') {
             st..['status'] = 'left'
               ..['out'] = _hm('${b['at']}')
+              ..['out_ts'] = b['at']
               ..['pending'] = true;
           }
         case 'reopen':
@@ -863,6 +866,22 @@ class ApiClient {
       if (all == null) rethrow;
       return _localPaged(all.where((x) => '${x['type']}' == type).toList(), page, 40);
     }
+  }
+
+  /* ---------------- kontragentlar va to'lov so'rovlari ---------------- */
+
+  Future<Paged> counterparties({int page = 1, String q = '', String? kind}) async {
+    final m = await _getMap('/counterparties', {'page': page, 'per_page': 30, 'q': q.isEmpty ? null : q, 'kind': kind});
+    return Paged(_list(m['data']), PageMeta.from(m['meta']));
+  }
+
+  Future<void> counterpartyCreate(Map<String, dynamic> body) async {
+    await _send(() => _http.post(_uri('/counterparties'), headers: _headers, body: jsonEncode(body)));
+  }
+
+  Future<Paged> paymentRequests({int page = 1, String? status}) async {
+    final m = await _getMap('/payment-requests', {'page': page, 'per_page': 30, 'status': status});
+    return Paged(_list(m['data']), PageMeta.from(m['meta']));
   }
 
   void close() => _http.close();

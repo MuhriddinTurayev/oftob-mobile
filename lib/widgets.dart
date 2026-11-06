@@ -5,6 +5,7 @@ import 'api.dart';
 import 'offline.dart';
 import 'session.dart';
 import 'l10n.dart';
+import 'theme.dart';
 
 /// Sahifalab yuklanadigan ro'yxat: tortib yangilash, pastga tushganda yana yuklash, xatoda "Qayta urinish".
 class PagedList extends StatefulWidget {
@@ -102,7 +103,7 @@ class PagedListState extends State<PagedList> {
       child: ListView.builder(
         controller: _scroll,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 88),
+        padding: const EdgeInsets.only(bottom: 132),
         itemCount: (widget.header != null ? 1 : 0) + (_items.isEmpty ? 1 : _items.length) + (_more ? 1 : 0),
         itemBuilder: (context, i) {
           if (widget.header != null) {
@@ -257,19 +258,21 @@ class OfflineBar extends StatelessWidget {
           if (p > 0) '$p ta amal yuborilmagan',
           if (f > 0) '$f ta xato',
         ].join(' · ');
-        return Material(
-          color: f > 0 ? Colors.red.shade700 : (online ? Colors.blueGrey.shade600 : Colors.orange.shade800),
-          child: InkWell(
+        final c = f > 0 ? Colors.red.shade700 : (online ? Colors.blueGrey.shade600 : Colors.orange.shade800);
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Glass(
+            radius: 16,
+            tint: c.withValues(alpha: 0.14),
+            shadow: false,
             onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(children: [
-                Icon(online ? Icons.sync : Icons.cloud_off, size: 18, color: Colors.white),
-                const SizedBox(width: 10),
-                Expanded(child: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13))),
-                const Icon(Icons.chevron_right, size: 18, color: Colors.white),
-              ]),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(children: [
+              Icon(online ? Icons.sync_rounded : Icons.cloud_off_rounded, size: 17, color: c),
+              const SizedBox(width: 9),
+              Expanded(child: Text(text, style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 12.5))),
+              Icon(Icons.chevron_right, size: 18, color: c),
+            ]),
           ),
         );
       },

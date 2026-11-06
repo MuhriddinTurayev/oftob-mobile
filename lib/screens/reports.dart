@@ -217,7 +217,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
         children: _kind == _Kind.foreman ? _foremanView(d, cs) : _salesView(d, cs),
       ),
     );

@@ -159,7 +159,7 @@ class _SalesScreenState extends State<SalesScreen> {
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 100),
+        padding: const EdgeInsets.only(bottom: 132),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
@@ -186,7 +186,7 @@ class _SalesScreenState extends State<SalesScreen> {
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 100),
+        padding: const EdgeInsets.only(bottom: 132),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
+import '../theme.dart';
 import '../l10n.dart';
 
 /// Davomat: kim ishga keldi, kim ishda, kim ketdi, kim kelmadi — obyektlar bo'yicha.
@@ -108,9 +109,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final came = _office.where((o) => o['status'] != 'none').length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Container(
+      child: Glass(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: cs.outlineVariant)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             const Expanded(child: Text('Prorablar va ofis xodimlari', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
@@ -232,11 +232,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: _pickDate,
-            child: Container(
+            child: Glass(
+              radius: 14,
               padding: const EdgeInsets.symmetric(vertical: 10),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(12)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 const Icon(Icons.calendar_today_outlined, size: 16),
                 const SizedBox(width: 8),
                 Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -259,14 +258,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final ws = ((site['workers'] as List?) ?? const []).whereType<Map>().where(_passes).toList();
       if (ws.isEmpty) continue;
       rows.add(Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
         child: Row(children: [
-          Expanded(child: Text('${site['name']}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15), maxLines: 1, overflow: TextOverflow.ellipsis)),
-          Text('${site['came']}/${site['total']}', style: TextStyle(color: cs.outline, fontWeight: FontWeight.w600)),
+          Expanded(child: Text('${site['name']}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+            child: Text('${site['came']}/${site['total']}', style: TextStyle(color: cs.primary, fontWeight: FontWeight.w800, fontSize: 12.5)),
+          ),
         ]),
       ));
+      final tiles = <Widget>[];
       for (final w in ws) {
-        rows.add(_WorkerTile(
+        tiles.add(_WorkerTile(
           w: w,
           selected: _selected.contains('${site['id']}|${w['id']}'),
           selecting: _selected.isNotEmpty,
@@ -283,14 +287,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 }
               : null,
           onAction: (act) => _mark(act, {'${site['id']}': ['${w['id']}']}),
+          live: _isToday,
         ));
       }
+      rows.add(Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Glass(padding: const EdgeInsets.symmetric(vertical: 4), child: Column(children: tiles))));
     }
     return RefreshIndicator(
       onRefresh: () => _load(quiet: true),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 110),
+        padding: const EdgeInsets.only(bottom: 132),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -345,10 +351,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       );
 
   Widget _selectionBar(ColorScheme cs) {
-    return Material(
-      elevation: 6,
-      borderRadius: BorderRadius.circular(18),
-      color: cs.surfaceContainerHigh,
+    return Glass(
+      radius: 22,
+      blur: true,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
         child: Row(children: [
@@ -379,21 +384,17 @@ class _Stat extends StatelessWidget {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3),
-        child: Material(
-          color: on ? color.withValues(alpha: 0.14) : cs.surface,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: onTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: on ? BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: color, width: 1.4)) : null,
-              child: Column(children: [
-                Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color)),
-                Text(label, style: TextStyle(fontSize: 11.5, color: cs.outline, fontWeight: FontWeight.w600)),
-              ]),
-            ),
-          ),
+        child: Glass(
+          radius: 16,
+          onTap: onTap,
+          tint: on ? color.withValues(alpha: 0.16) : null,
+          shadow: on,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(children: [
+            Text(value, style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: color, height: 1.1)),
+            const SizedBox(height: 2),
+            Text(label, style: TextStyle(fontSize: 11.5, color: on ? color : cs.outline, fontWeight: FontWeight.w700)),
+          ]),
         ),
       ),
     );
@@ -401,7 +402,7 @@ class _Stat extends StatelessWidget {
 }
 
 class _WorkerTile extends StatelessWidget {
-  const _WorkerTile({required this.w, required this.selected, required this.selecting, required this.canMark, required this.busy, required this.onToggle, required this.onLong, required this.onAction});
+  const _WorkerTile({required this.w, required this.selected, required this.selecting, required this.canMark, required this.busy, required this.onToggle, required this.onLong, required this.onAction, this.live = false});
 
   final Map w;
   final bool selected;
@@ -411,6 +412,31 @@ class _WorkerTile extends StatelessWidget {
   final VoidCallback onToggle;
   final VoidCallback? onLong;
   final void Function(String act) onAction;
+  final bool live;
+
+  /// Ishlagan vaqt: «8 soat 12 daq». Ishdagi xodim uchun (bugun) — kelgan vaqtidan hozirgacha
+  String _worked(String st) {
+    var h = ((w['hours'] as num?) ?? 0).toDouble();
+    if (h <= 0 && live && st == 'working') {
+      final ts = DateTime.tryParse('${w['in_ts'] ?? ''}');
+      if (ts != null) {
+        final d = DateTime.now().difference(ts);
+        if (!d.isNegative) h = d.inMinutes / 60;
+      }
+    }
+    if (h <= 0 && live && st == 'working') {
+      final p = '${w['in'] ?? ''}'.split(':');
+      final hh = p.length > 1 ? int.tryParse(p[0]) : null, mm = p.length > 1 ? int.tryParse(p[1]) : null;
+      if (hh != null && mm != null) {
+        final n = DateTime.now();
+        final d = n.difference(DateTime(n.year, n.month, n.day, hh, mm));
+        if (!d.isNegative) h = d.inMinutes / 60;
+      }
+    }
+    if (h <= 0) return '';
+    final total = (h * 60).round();
+    return total >= 60 ? '${total ~/ 60} ${tr('soat')} ${total % 60} ${tr('daq')}' : '$total ${tr('daq')}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -424,11 +450,11 @@ class _WorkerTile extends StatelessWidget {
     };
     final name = '${w['name']}';
     final times = [if (w['in'] != null) '${w['in']}', if (w['out'] != null) '${w['out']}'].join(' – ');
-    final hours = (w['hours'] as num?) ?? 0;
+    final wk = _worked(st);
     final sub = [
       if ('${w['role']}'.isNotEmpty) '${w['role']}',
       if (times.isNotEmpty) times,
-      if (hours > 0) '${area(hours)} soat',
+      if (wk.isNotEmpty) wk,
     ].join(' · ');
     return InkWell(
       onTap: selecting ? onToggle : null,

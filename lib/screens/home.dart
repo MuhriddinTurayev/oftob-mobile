@@ -16,6 +16,7 @@ import 'funds.dart';
 import 'leads.dart';
 import 'notifications.dart';
 import 'objects.dart';
+import 'parties.dart';
 import 'reports.dart';
 import 'sales.dart';
 import 'stock.dart';
@@ -23,6 +24,7 @@ import 'sync_screen.dart';
 import 'tasks.dart';
 import '../l10n.dart';
 import '../widgets.dart';
+import '../theme.dart';
 
 class _Tab {
   const _Tab(this.label, this.icon, this.activeIcon, this.builder);
@@ -129,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<_Tab> get _primary {
     final me = s.me!;
     return [
-      _Tab('Bosh', Icons.home_outlined, Icons.home, (x) => DashboardScreen(session: x, onOpen: _open)),
+      _Tab('Bosh', Icons.home_outlined, Icons.home, (x) => DashboardScreen(session: x, onOpen: _open, sections: _sections, onProfile: () => setState(() => _index = _primary.length))),
       // prorab uchun davomat — eng asosiy ish; boshqa rollarda «Yana» ichida (Bosh ekrandagi karta orqali ham ochiladi)
       if (me.can('attendance:read') && me.role == 'foreman') _Tab('Davomat', Icons.how_to_reg_outlined, Icons.how_to_reg, (x) => AttendanceScreen(session: x)),
       if (me.can('funds:read') && me.role == 'foreman') _Tab('Pul', Icons.payments_outlined, Icons.payments, (x) => FundsScreen(session: x)),
@@ -152,12 +154,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (me.can('sales:read')) _Tab('Sotuv', Icons.key_outlined, Icons.key, (x) => SalesScreen(session: x)),
       if (me.can('crew:read') && !primary.contains('Xodimlar')) _Tab('Xodimlar', Icons.groups_outlined, Icons.groups, (x) => CrewScreen(session: x)),
       if (me.can('tasks:read')) _Tab('Vazifalar', Icons.checklist, Icons.checklist, (x) => TasksScreen(session: x)),
+      if (me.can('parties:read')) _Tab('Kontragentlar', Icons.contacts_outlined, Icons.contacts, (x) => PartiesScreen(session: x)),
+      if (me.can('payments:read')) _Tab("To'lov so'rovlari", Icons.request_quote_outlined, Icons.request_quote, (x) => PaymentRequestsScreen(session: x)),
       if (me.can('stock:read')) _Tab('Ombor', Icons.inventory_2_outlined, Icons.inventory_2, (x) => StockScreen(session: x)),
       if (me.can('objects:read') && !primary.contains('Obyektlar')) _Tab('Obyektlar', Icons.apartment_outlined, Icons.apartment, (x) => ObjectsScreen(session: x)),
       if (me.can('cash:read') && !primary.contains('Kassa')) _Tab('Kassa', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, (x) => CashScreen(session: x)),
       if (me.can('leads:read') && !primary.contains('Lidlar')) _Tab('Lidlar', Icons.people_alt_outlined, Icons.people_alt, (x) => LeadsScreen(session: x)),
     ];
   }
+
+  static const _colors = <String, Color>{
+    'Obyektlar': Brand.blue,
+    'Sotuv': Brand.orange,
+    'Kassa': Brand.green,
+    'Lidlar': Brand.pink,
+    'Vazifalar': Brand.purple,
+    'Ombor': Brand.amber,
+    'Davomat': Brand.teal,
+    'Xodimlar': Brand.blue,
+    'Pul': Brand.green,
+    'Prorab puli': Brand.green,
+    'Hisobotlar': Brand.purple,
+    'Valyutalar': Brand.amber,
+    'Kontragentlar': Brand.orange,
+    "To'lov so'rovlari": Brand.blue,
+  };
+
+  /// Bosh ekrandagi «Xizmatlar» tugmalari: rol ruxsat bergan hamma bo'limlar (asosiy tablar ham, «Yana» dagilar ham)
+  List<DashSection> get _sections => [
+        for (final t in [..._primary.skip(1), ..._more]) DashSection(t.label, t.icon, _colors[t.label] ?? Brand.green),
+      ];
 
   /// Bosh ekrandan bo'limga o'tish: asosiy tab bo'lsa — tab almashadi, bo'lmasa — to'liq ekran sifatida ochiladi
   void _open(String label) {
@@ -197,61 +223,71 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _moreTab() {
     final cs = Theme.of(context).colorScheme;
     final me = s.me!;
+    final name = s.userName.isEmpty ? me.company : s.userName;
+    Widget row(IconData icon, Color color, String title, {String? sub, Widget? trailing, VoidCallback? onTap, Color? titleColor}) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Glass(
+            onTap: onTap,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(children: [
+              IconTile(icon: icon, color: color, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: titleColor)),
+                  if (sub != null) Text(sub, style: TextStyle(color: cs.outline, fontSize: 12.5)),
+                ]),
+              ),
+              trailing ?? (onTap == null ? const SizedBox.shrink() : Icon(Icons.chevron_right, color: cs.outline)),
+            ]),
+          ),
+        );
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
       children: [
-        Container(
+        Glass(
+          radius: 26,
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(18)),
           child: Row(children: [
-            CircleAvatar(radius: 24, backgroundColor: cs.primary, foregroundColor: cs.onPrimary, child: Text(_initials(s.userName.isEmpty ? me.company : s.userName), style: const TextStyle(fontWeight: FontWeight.w800))),
+            _Avatar(name, size: 54),
             const SizedBox(width: 14),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(s.userName.isEmpty ? me.company : s.userName, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-                Text('${me.company} · ${me.roleName}${me.readOnly ? ' · faqat ko\'rish' : ''}', style: TextStyle(color: cs.outline, fontSize: 13)),
+                Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text('${me.company} · ${me.roleName}${me.readOnly ? " · faqat ko'rish" : ''}', style: TextStyle(color: cs.outline, fontSize: 13)),
               ]),
             ),
           ]),
         ),
         const SizedBox(height: 16),
-        for (final t in _more)
-          ListTile(
-            leading: Icon(t.icon, color: cs.primary),
-            title: Text(t.label, style: const TextStyle(fontWeight: FontWeight.w600)),
-            trailing: const Icon(Icons.chevron_right),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            onTap: () => _push(t),
-          ),
-        const SizedBox(height: 8),
+        for (final t in _more) row(t.icon, _colors[t.label] ?? Brand.green, t.label, onTap: () => _push(t)),
         ListenableBuilder(
           listenable: Listenable.merge([Offline.pending, Offline.failed]),
           builder: (context, _) {
             final n = Offline.pending.value + Offline.failed.value;
-            return ListTile(
-              leading: Badge(isLabelVisible: n > 0, label: Text('$n'), child: Icon(Icons.cloud_sync_outlined, color: cs.primary)),
-              title: const Text('Sinxronlash', style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text("Offline ma'lumot va yuborilmagan amallar"),
-              trailing: const Icon(Icons.chevron_right),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            return row(
+              Icons.cloud_sync_outlined,
+              Brand.blue,
+              'Sinxronlash',
+              sub: "Offline ma'lumot va yuborilmagan amallar",
+              trailing: Badge(isLabelVisible: n > 0, label: Text('$n'), child: Icon(Icons.chevron_right, color: cs.outline)),
               onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s))),
             );
           },
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [Icon(Icons.translate, color: cs.primary), const SizedBox(width: 12), const Text('Til', style: TextStyle(fontWeight: FontWeight.w600))]),
-            const SizedBox(height: 8),
-            const LangSwitch(),
-          ]),
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Glass(
+            padding: const EdgeInsets.all(14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [const IconTile(icon: Icons.translate, color: Brand.purple, size: 40), const SizedBox(width: 12), const Text('Til', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15))]),
+              const SizedBox(height: 10),
+              const LangSwitch(),
+            ]),
+          ),
         ),
-        ListTile(
-          leading: Icon(Icons.logout, color: cs.error),
-          title: Text('Chiqish', style: TextStyle(fontWeight: FontWeight.w600, color: cs.error)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          onTap: _logout,
-        ),
+        row(Icons.logout, cs.error, 'Chiqish', onTap: _logout, titleColor: cs.error),
       ],
     );
   }
@@ -262,29 +298,105 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return (p.first[0] + (p.length > 1 ? p[1][0] : '')).toUpperCase();
   }
 
+  String get _greeting {
+    final h = DateTime.now().hour;
+    return h < 11 ? 'Xayrli tong' : (h < 18 ? 'Xayrli kun' : 'Xayrli kech');
+  }
+
+  Widget _header(int i, int moreIndex, List<_Tab> tabs) {
+    final cs = Theme.of(context).colorScheme;
+    final me = s.me!;
+    final name = s.userName.isEmpty ? me.company : s.userName;
+    final first = name.trim().split(' ').first;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Row(children: [
+        if (i == 0) ...[
+          GestureDetector(onTap: () => setState(() => _index = moreIndex), child: _Avatar(name, size: 46)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr(_greeting), style: TextStyle(color: cs.outline, fontSize: 12.5, fontWeight: FontWeight.w600)),
+              Text(first, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: -0.3)),
+            ]),
+          ),
+        ] else
+          Expanded(child: Text(i == moreIndex ? 'Yana' : tabs[i].label, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: -0.5))),
+        ListenableBuilder(
+          listenable: Listenable.merge([Offline.online, Offline.pending, Offline.failed]),
+          builder: (context, _) {
+            final n = Offline.pending.value + Offline.failed.value;
+            if (Offline.online.value && n == 0) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GlassIconButton(
+                badge: n,
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s))),
+                icon: Icon(Offline.online.value ? Icons.cloud_sync_outlined : Icons.cloud_off_outlined, size: 22, color: Offline.online.value ? cs.primary : Colors.orange.shade800),
+              ),
+            );
+          },
+        ),
+        ListenableBuilder(
+          listenable: _nc,
+          builder: (context, _) => GlassIconButton(
+            badge: _nc.unread,
+            tooltip: tr('Bildirishnomalar'),
+            onTap: _openNotifications,
+            icon: Icon(_nc.unread > 0 ? Icons.notifications_active : Icons.notifications_none, size: 24, color: cs.onSurface),
+          ),
+        ),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tabs = _primary;
     final moreIndex = tabs.length; // oxirgi — «Yana»
     final i = _index.clamp(0, moreIndex);
-    final title = i == moreIndex ? 'Yana' : (i == 0 ? s.me!.company : tabs[i].label);
     return Scaffold(
-      appBar: AppBar(title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), centerTitle: false, scrolledUnderElevation: 0, actions: [BellButton(center: _nc, onTap: _openNotifications), const SizedBox(width: 4)]),
-      body: Column(children: [
-        OfflineBar(onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s)))),
-        Expanded(child: IndexedStack(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()])),
-      ]),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: i,
-        onDestinationSelected: (v) {
-          HapticFeedback.selectionClick();
-          setState(() => _index = v);
-        },
-        destinations: [
-          for (final t in tabs) NavigationDestination(icon: Icon(t.icon), selectedIcon: Icon(t.activeIcon), label: tr(t.label)),
-          NavigationDestination(icon: const Icon(Icons.menu), label: tr('Yana')),
+      extendBody: true, // tarkib suzuvchi panel ostidan o'tadi (xira ko'rinadi)
+      body: SafeArea(
+        bottom: false,
+        child: Column(children: [
+          _header(i, moreIndex, tabs),
+          OfflineBar(onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s)))),
+          Expanded(child: IndexedStack(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()])),
+        ]),
+      ),
+      bottomNavigationBar: GlassNavBar(
+        index: i,
+        onTap: (v) => setState(() => _index = v),
+        items: [
+          for (final t in tabs) NavItem(t.label, t.icon, t.activeIcon),
+          const NavItem('Yana', Icons.grid_view_outlined, Icons.grid_view_rounded),
         ],
       ),
+    );
+  }
+}
+
+/// Ism bosh harflari bilan gradient doira
+class _Avatar extends StatelessWidget {
+  const _Avatar(this.name, {this.size = 46});
+
+  final String name;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Brand.green, Color(0xFF16A05A)]),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 2),
+        boxShadow: [BoxShadow(color: Brand.green.withValues(alpha: 0.28), blurRadius: 14, offset: const Offset(0, 5))],
+      ),
+      child: Text(_HomeScreenState._initials(name), style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: size * 0.36)),
     );
   }
 }

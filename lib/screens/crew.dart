@@ -166,7 +166,7 @@ class _CrewScreenState extends State<CrewScreen> {
       onRefresh: () => _load(quiet: true),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 110),
+        padding: const EdgeInsets.only(bottom: 132),
         children: [
           if (_money)
             Padding(

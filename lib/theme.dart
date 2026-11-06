@@ -1,0 +1,354 @@
+import 'dart:ui' show ImageFilter;
+
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
+import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/services.dart';
+
+import 'l10n.dart';
+
+/// Brend ranglari (logotip: to'q yashil + sariq) va «shisha» (glass) uslubi:
+/// yumshoq gradient fon, yarim shaffof oq kartalar, suzuvchi pastki panel.
+class Brand {
+  static const green = Color(0xFF0B7A3B);
+  static const greenDark = Color(0xFF064D26);
+  static const amber = Color(0xFFF2A900);
+  static const blue = Color(0xFF2F6FDE);
+  static const purple = Color(0xFF7B5CE0);
+  static const pink = Color(0xFFE0457B);
+  static const teal = Color(0xFF14A39A);
+  static const orange = Color(0xFFF27A1A);
+}
+
+/// Butun ilova foni: och mint–ko'k–krem gradient va yumshoq rangli nur dog'lari (qorong'i mavzuda — to'q).
+class GlassBackdrop extends StatelessWidget {
+  const GlassBackdrop({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Stack(fit: StackFit.expand, children: [
+      DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: dark ? const [Color(0xFF0B1511), Color(0xFF0D1A22), Color(0xFF0C1913)] : const [Color(0xFFDDF1E6), Color(0xFFEAF0FB), Color(0xFFF3F8EA)],
+          ),
+        ),
+      ),
+      _Glow(alignment: const Alignment(1.1, -0.95), color: dark ? const Color(0xFF244E86) : const Color(0xFFB9D3FF), radius: 0.85, alpha: dark ? 0.45 : 0.55),
+      _Glow(alignment: const Alignment(-1.2, -0.1), color: dark ? const Color(0xFF176B43) : const Color(0xFF9FE3BD), radius: 0.8, alpha: dark ? 0.5 : 0.5),
+      _Glow(alignment: const Alignment(1.0, 1.0), color: dark ? const Color(0xFF7A5A12) : const Color(0xFFFFE6A0), radius: 0.85, alpha: dark ? 0.3 : 0.55),
+      child,
+    ]);
+  }
+}
+
+class _Glow extends StatelessWidget {
+  const _Glow({required this.alignment, required this.color, required this.radius, required this.alpha});
+
+  final Alignment alignment;
+  final Color color;
+  final double radius;
+  final double alpha;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(center: alignment, radius: radius, colors: [color.withValues(alpha: alpha), color.withValues(alpha: 0)]),
+        ),
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+}
+
+/// Har bir sahifa o'z fonini oladi (o'tish animatsiyasida sahifalar bir-birining ichidan ko'rinmasin).
+class GlassTransitions extends PageTransitionsBuilder {
+  const GlassTransitions();
+
+  @override
+  Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
+    return const CupertinoPageTransitionsBuilder().buildTransitions<T>(route, context, animation, secondaryAnimation, GlassBackdrop(child: child));
+  }
+}
+
+/// Shisha karta: yarim shaffof oq, yupqa oq chegara, yumshoq soya. [blur] — orqasidagi narsani xira qiladi (suzuvchi panellar uchun).
+class Glass extends StatelessWidget {
+  const Glass({
+    super.key,
+    required this.child,
+    this.radius = 22,
+    this.padding,
+    this.margin,
+    this.blur = false,
+    this.onTap,
+    this.onLongPress,
+    this.tint,
+    this.gradient,
+    this.shadow = true,
+  });
+
+  final Widget child;
+  final double radius;
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? margin;
+  final bool blur;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final Color? tint;
+  final Gradient? gradient;
+  final bool shadow;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final br = BorderRadius.circular(radius);
+    final fill = tint ?? (dark ? Colors.white.withValues(alpha: 0.07) : Colors.white.withValues(alpha: blur ? 0.62 : 0.66));
+    Widget body = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: br,
+        color: gradient == null ? fill : null,
+        gradient: gradient,
+        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.85), width: 1),
+      ),
+      child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
+    );
+    if (onTap != null || onLongPress != null) {
+      body = Stack(fit: StackFit.passthrough, children: [
+        body,
+        Positioned.fill(child: Material(type: MaterialType.transparency, child: InkWell(borderRadius: br, onTap: onTap, onLongPress: onLongPress))),
+      ]);
+    }
+    if (blur) {
+      body = BackdropFilter(filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22), child: body);
+    }
+    body = ClipRRect(borderRadius: br, child: body);
+    return Container(
+      margin: margin,
+      decoration: shadow ? BoxDecoration(borderRadius: br, boxShadow: [BoxShadow(color: (dark ? Colors.black : const Color(0xFF1B4332)).withValues(alpha: dark ? 0.35 : 0.10), blurRadius: 22, offset: const Offset(0, 8))]) : null,
+      child: body,
+    );
+  }
+}
+
+/// Dumaloq shisha tugma (sarlavhadagi qo'ng'iroq, sinxronlash va h.k.)
+class GlassIconButton extends StatelessWidget {
+  const GlassIconButton({super.key, required this.icon, required this.onTap, this.badge = 0, this.tooltip, this.size = 44});
+
+  final Widget icon;
+  final VoidCallback onTap;
+  final int badge;
+  final String? tooltip;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final b = SizedBox(
+      width: size,
+      height: size,
+      child: Glass(
+        radius: size / 2,
+        blur: true,
+        onTap: onTap,
+        child: Center(child: Badge(isLabelVisible: badge > 0, label: Text(badge > 99 ? '99+' : '$badge'), child: icon)),
+      ),
+    );
+    return tooltip == null ? b : Tooltip(message: tooltip!, child: b);
+  }
+}
+
+class NavItem {
+  const NavItem(this.label, this.icon, this.activeIcon);
+  final String label;
+  final IconData icon;
+  final IconData activeIcon;
+}
+
+/// Suzuvchi shisha pastki panel (HEMIS uslubi): tanlangan bo'lim yumshoq «tabletka» ichida.
+class GlassNavBar extends StatelessWidget {
+  const GlassNavBar({super.key, required this.items, required this.index, required this.onTap});
+
+  final List<NavItem> items;
+  final int index;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+        child: SizedBox(
+          height: 66,
+          child: Glass(
+            radius: 33,
+            blur: true,
+            padding: const EdgeInsets.all(6),
+            child: Row(children: [
+              for (var i = 0; i < items.length; i++)
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      onTap(i);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutCubic,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(27),
+                        color: i == index ? cs.primary.withValues(alpha: 0.14) : Colors.transparent,
+                      ),
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        AnimatedScale(
+                          scale: i == index ? 1.08 : 1,
+                          duration: const Duration(milliseconds: 260),
+                          curve: Curves.easeOutBack,
+                          child: Icon(i == index ? items[i].activeIcon : items[i].icon, size: 24, color: i == index ? cs.primary : cs.outline),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          tr(items[i].label),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, fontWeight: i == index ? FontWeight.w800 : FontWeight.w600, color: i == index ? cs.primary : cs.outline),
+                        ),
+                      ]),
+                    ),
+                  ),
+                ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Rangli yumaloq kvadrat ichida ikonka (xizmat tugmalari, ro'yxat qatorlari)
+class IconTile extends StatelessWidget {
+  const IconTile({super.key, required this.icon, required this.color, this.size = 44, this.iconSize});
+
+  final IconData icon;
+  final Color color;
+  final double size;
+  final double? iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(size * 0.32),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [color.withValues(alpha: 0.20), color.withValues(alpha: 0.10)]),
+      ),
+      child: Icon(icon, size: iconSize ?? size * 0.5, color: color),
+    );
+  }
+}
+
+class AppTheme {
+  static ThemeData build(Brightness b) {
+    final dark = b == Brightness.dark;
+    final text = dark ? const Color(0xFFEAF2ED) : const Color(0xFF10201A);
+    final card = dark ? const Color(0x14FFFFFF) : const Color(0xA8FFFFFF); // yarim shaffof («shisha»)
+    final solid = dark ? const Color(0xFF16221C) : const Color(0xFFF7FAF8); // dialog, varaq, menyu — shaffof emas
+    final border = dark ? const Color(0x1FFFFFFF) : const Color(0x14123524);
+    final primary = dark ? const Color(0xFF4CC38A) : Brand.green;
+    final scheme = ColorScheme.fromSeed(seedColor: Brand.green, brightness: b).copyWith(
+      primary: primary,
+      onPrimary: dark ? const Color(0xFF05301A) : Colors.white,
+      primaryContainer: dark ? const Color(0xFF14432A) : const Color(0xFFD3EEDD),
+      onPrimaryContainer: dark ? const Color(0xFFD7F5E3) : const Color(0xFF05301A),
+      secondaryContainer: dark ? const Color(0xFF1D4A31) : const Color(0xFFD3EEDD),
+      onSecondaryContainer: dark ? const Color(0xFFD7F5E3) : const Color(0xFF05301A),
+      tertiary: Brand.amber,
+      surface: card,
+      onSurface: text,
+      surfaceContainerHighest: card,
+      surfaceContainerHigh: solid,
+      surfaceContainer: solid,
+      surfaceContainerLow: solid,
+      outline: dark ? const Color(0xFF9DB0A5) : const Color(0xFF5E6F66),
+      outlineVariant: border,
+    );
+    OutlineInputBorder ob(Color c, double w) => OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: c, width: w));
+    return ThemeData(
+      colorScheme: scheme,
+      useMaterial3: true,
+      scaffoldBackgroundColor: Colors.transparent, // fon — GlassBackdrop (har sahifada)
+      canvasColor: solid,
+      visualDensity: VisualDensity.standard,
+      textTheme: Typography.material2021(platform: TargetPlatform.android).black.apply(bodyColor: text, displayColor: text).copyWith(
+            bodyLarge: TextStyle(fontSize: 15.5, color: text),
+            bodyMedium: TextStyle(fontSize: 14, color: text),
+            titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: text),
+          ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: text, letterSpacing: -0.3),
+        iconTheme: IconThemeData(color: text),
+        systemOverlayStyle: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      ),
+      cardTheme: CardThemeData(color: card, elevation: 0, margin: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: border))),
+      chipTheme: ChipThemeData(
+        backgroundColor: card,
+        selectedColor: primary,
+        side: BorderSide(color: border),
+        shape: const StadiumBorder(),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        labelStyle: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: text),
+        secondaryLabelStyle: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: scheme.onPrimary),
+        checkmarkColor: scheme.onPrimary,
+        iconTheme: IconThemeData(color: text, size: 18),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: dark ? const Color(0x14FFFFFF) : const Color(0xB3FFFFFF),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: ob(border, 1),
+        enabledBorder: ob(dark ? border : const Color(0x26123524), 1),
+        focusedBorder: ob(primary, 1.6),
+        labelStyle: TextStyle(color: scheme.outline),
+        hintStyle: TextStyle(color: scheme.outline),
+      ),
+      filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(minimumSize: const Size(56, 46), padding: const EdgeInsets.symmetric(horizontal: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800))),
+      outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(minimumSize: const Size(56, 44), side: BorderSide(color: dark ? border : const Color(0x33123524), width: 1.2), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700))),
+      textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700))),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(backgroundColor: primary, foregroundColor: scheme.onPrimary, elevation: 3, extendedTextStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800)),
+      listTileTheme: const ListTileThemeData(contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 2)),
+      dividerTheme: DividerThemeData(color: border, space: 1),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: primary, linearTrackColor: primary.withValues(alpha: 0.14), circularTrackColor: Colors.transparent),
+      popupMenuTheme: PopupMenuThemeData(color: solid, surfaceTintColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(0, 42)),
+          backgroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? primary : card),
+          foregroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? scheme.onPrimary : text),
+          side: WidgetStatePropertyAll(BorderSide(color: border)),
+          textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: dark ? const Color(0xFF263530) : const Color(0xFF16261E), contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+      bottomSheetTheme: BottomSheetThemeData(backgroundColor: solid, surfaceTintColor: Colors.transparent, showDragHandle: true, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28)))),
+      dialogTheme: DialogThemeData(backgroundColor: solid, surfaceTintColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26))),
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: GlassTransitions(),
+        TargetPlatform.iOS: GlassTransitions(),
+      }),
+    );
+  }
+}
