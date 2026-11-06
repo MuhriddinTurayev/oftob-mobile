@@ -427,7 +427,7 @@ class AiBubble extends StatefulWidget {
 class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin {
   static const _size = 58.0;
   static const _store = FlutterSecureStorage();
-  late final AnimationController _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))..repeat();
+  late final AnimationController _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))..repeat(count: 2); // bir necha marta pulsatsiya qilib to'xtaydi: cheksiz animatsiya batareyani yeydi
   Offset? _pos; // yuqori-chap burchak (mantiqiy piksel)
   Offset _frac = const Offset(0, -1); // saqlangan joy: x: 0 chap / 1 o'ng; y: ekran balandligiga ulushi (-1 — standart: navigatsiya ustida)
   bool _dragging = false;

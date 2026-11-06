@@ -884,6 +884,20 @@ class ApiClient {
     return Paged(_list(m['data']), PageMeta.from(m['meta']));
   }
 
+  /* ---------------- oylik berish ---------------- */
+
+  /// Buxgalter/kassir/admin uchun: oylik to'lanadigan kassalar (obyekt kassasi, keyin umumiy)
+  Future<List<Map<String, dynamic>>> crewDesks(String object) async {
+    final m = await _getMap('/crew/desks', {'object': object});
+    return _list((m['data'] as Map?)?['desks']);
+  }
+
+  /// Oylik to'lash (faqat internet bilan: pul harakati). Prorab — [kind] (cash|card), boshqalar — [deskId].
+  Future<void> crewPay({required String object, required String staffId, required String month, required num amount, String? kind, int? deskId, String? note, required String idemKey}) async {
+    final body = <String, dynamic>{'object': object, 'staff_id': staffId, 'month': month, 'amount': amount, if (kind != null) 'kind': kind, if (deskId != null) 'desk_id': deskId, if (note != null && note.isNotEmpty) 'note': note};
+    await _send(() => _http.post(_uri('/crew/pay'), headers: {..._headers, 'Idempotency-Key': idemKey}, body: jsonEncode(body)));
+  }
+
   /* ---------------- profil: rasm, parol, faol seanslar ---------------- */
 
   Future<Map<String, dynamic>> profile() async => Map<String, dynamic>.from(((await _getMap('/profile'))['data'] as Map?) ?? const {});

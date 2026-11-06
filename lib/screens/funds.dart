@@ -275,35 +275,39 @@ class _FundsScreenState extends State<FundsScreen> {
     };
     final title = spend ? ('${o['note'] ?? ''}'.isEmpty ? 'Xarid' : '${o['note']}') : (fund == 'return' ? 'Qaytarilgan pul' : 'Pul berildi');
     final who = boss && o['holder'] is Map ? '${(o['holder'] as Map)['name']} · ' : '';
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () => _opSheet(context, o, cur, boss: boss),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            CircleAvatar(backgroundColor: color.withValues(alpha: 0.12), child: Icon(spend ? Icons.shopping_cart_outlined : (isIn ? Icons.south_west : Icons.north_east), color: color, size: 20)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                const SizedBox(height: 3),
-                Text('$who${formatDate('${o['date']}')}${'${o['object'] ?? ''}'.isNotEmpty ? ' · ${o['object']}' : ''} · ${_kind(o['kind'])}', style: TextStyle(color: cs.outline, fontSize: 12.5)),
-                if (spend)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Wrap(spacing: 6, runSpacing: 4, children: [
+    // hamma kartalar bir xil balandlikda (chekli xaridlar ham, oddiy kirimlar ham): sarlavha va tavsif bir qatorda, belgilar alohida qatorda
+    return GlassRow(
+      margin: const EdgeInsets.only(bottom: 10),
+      onTap: () => _opSheet(context, o, cur, boss: boss),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: SizedBox(
+        height: 74,
+        child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          IconTile(icon: spend ? Icons.shopping_cart_outlined : (isIn ? Icons.south_west_rounded : Icons.north_east_rounded), color: color, size: 42),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              const SizedBox(height: 2),
+              Text('$who${formatDate('${o['date']}')}${'${o['object'] ?? ''}'.isNotEmpty ? ' · ${o['object']}' : ''} · ${_kind(o['kind'])}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12.5)),
+              if (spend)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: SizedBox(
+                    height: 24,
+                    child: ListView(scrollDirection: Axis.horizontal, physics: const NeverScrollableScrollPhysics(), children: [
                       StatusChip(stLabel, stColor),
-                      if (o['pending'] == true) const StatusChip('Yuborilmagan', Colors.orange),
-                      if (o['has_receipt'] == true) StatusChip('Chek bor', Colors.blueGrey) else StatusChip('Chek yo\'q', Colors.deepOrange),
+                      const SizedBox(width: 6),
+                      if (o['pending'] == true) ...[const StatusChip('Yuborilmagan', Colors.orange), const SizedBox(width: 6)],
+                      if (o['has_receipt'] == true) StatusChip('Chek bor', Colors.blueGrey) else StatusChip("Chek yo'q", Colors.deepOrange),
                     ]),
                   ),
-              ]),
-            ),
-            const SizedBox(width: 8),
-            Text('${spend ? '−' : (isIn ? '+' : '−')}${money(_n(o['amount']))}', style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15)),
-          ]),
-        ),
+                ),
+            ]),
+          ),
+          const SizedBox(width: 8),
+          Text('${spend ? '−' : (isIn ? '+' : '−')}${money(_n(o['amount']))}', style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 15)),
+        ]),
       ),
     );
   }
@@ -734,6 +738,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   XFile? _photo;
   bool _noReceipt = false;
   bool _busy = false;
+  String? _formErr; // xato sababi yuborish tugmasi ustida doimiy ko'rinadi
   DateTime _date = DateTime.now();
 
   @override
@@ -781,10 +786,15 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       err = 'Chek suratini qo\'shing yoki "Chek yo\'q" ni belgilang';
     }
     if (err != null) {
+      HapticFeedback.heavyImpact();
+      setState(() => _formErr = err);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
       return;
     }
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _formErr = null;
+    });
     try {
       final res = await s.api!.fundsSpend(
         kind: _kindV,
@@ -818,8 +828,12 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     } catch (e) {
       await s.handleError(e);
       if (mounted) {
-        setState(() => _busy = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        final m = e is ApiException ? e.message : '$e';
+        setState(() {
+          _busy = false;
+          _formErr = m;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
       }
     }
   }
@@ -950,10 +964,26 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: FilledButton(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            if (_formErr != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  decoration: BoxDecoration(color: cs.error.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14), border: Border.all(color: cs.error.withValues(alpha: 0.4))),
+                  child: Row(children: [
+                    Icon(Icons.error_outline_rounded, color: cs.error, size: 19),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(_formErr!, style: TextStyle(color: cs.error, fontWeight: FontWeight.w700, fontSize: 13))),
+                  ]),
+                ),
+              ),
+            FilledButton(
             onPressed: _busy ? null : _submit,
-            child: _busy ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : const Text('Rahbar va buxgalterga yuborish'),
+            child: _busy ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)) : const Text('Rahbar va buxgalterga yuborish'),
           ),
+          ]),
         ),
       ),
     );

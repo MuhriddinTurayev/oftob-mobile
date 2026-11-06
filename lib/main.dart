@@ -12,7 +12,6 @@ import 'theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await L.load(); // saqlangan (yoki telefon) tili birinchi kadrdan to'g'ri bo'lsin
-  BackdropClock.start();
   await ThemeController.load();
   final session = Session()..restore();
   L.notifier.addListener(session.refreshMe); // til o'zgarsa — rol nomi kabi server matnlari yangi tilda olinadi

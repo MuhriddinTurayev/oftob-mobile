@@ -92,7 +92,6 @@ class GlassBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     final base = DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -114,11 +113,11 @@ class GlassBackdrop extends StatelessWidget {
       ]);
     }
 
+    // fon bir marta chiziladi va alohida qatlamda saqlanadi: ustidagi ro'yxatlar siljiganda qayta chizilmaydi (telefon qizimaydi)
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(statusBarColor: Colors.transparent, systemNavigationBarColor: Colors.transparent, systemNavigationBarDividerColor: Colors.transparent),
       child: Stack(fit: StackFit.expand, children: [
-        base,
-        if (still) orbs(0) else ValueListenableBuilder<double>(valueListenable: BackdropClock.t, builder: (_, t, _) => orbs(t)),
+        RepaintBoundary(child: Stack(fit: StackFit.expand, children: [base, orbs(0)])),
         child,
       ]),
     );
@@ -168,12 +167,12 @@ class Glass extends StatelessWidget {
     this.radius = 22,
     this.padding,
     this.margin,
-    this.blur = true,
+    this.blur = false,
     this.onTap,
     this.onLongPress,
     this.tint,
     this.gradient,
-    this.shadow = true,
+    this.shadow = false,
   });
 
   final Widget child;
@@ -203,12 +202,12 @@ class Glass extends StatelessWidget {
       child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
     );
     if (blur) {
-      body = BackdropFilter(filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26), child: body);
+      body = BackdropFilter(filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14), child: body);
     }
     body = ClipRRect(borderRadius: br, child: body);
     Widget out = Container(
       margin: margin,
-      decoration: shadow ? BoxDecoration(borderRadius: br, boxShadow: [BoxShadow(color: (dark ? Colors.black : const Color(0xFF1B4332)).withValues(alpha: dark ? 0.35 : 0.10), blurRadius: 22, offset: const Offset(0, 8))]) : null,
+      decoration: shadow ? BoxDecoration(borderRadius: br, boxShadow: [BoxShadow(color: (dark ? Colors.black : const Color(0xFF1B4332)).withValues(alpha: dark ? 0.35 : 0.10), blurRadius: 16, offset: const Offset(0, 6))]) : null,
       child: body,
     );
     if (onTap != null || onLongPress != null) {
@@ -510,7 +509,8 @@ class HeroGlass extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Glass(
       radius: radius,
-      blur: true,
+      blur: false,
+      shadow: true,
       onTap: onTap,
       gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [tint.withValues(alpha: dark ? 0.28 : 0.17), tint.withValues(alpha: dark ? 0.08 : 0.05), Colors.white.withValues(alpha: dark ? 0.04 : 0.46)]),
       child: Stack(children: [
@@ -542,7 +542,7 @@ class GlassFab extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
               height: 54,
               padding: const EdgeInsets.symmetric(horizontal: 20),

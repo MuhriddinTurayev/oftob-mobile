@@ -161,7 +161,7 @@ class _CrewScreenState extends State<CrewScreen> {
         ]),
       ));
       for (final w in workers) {
-        tiles.add(Reveal(index: (tiles.length ~/ 2).clamp(0, 9), child: _WorkerRow(w: w, money: _money, cur: _cur, onTap: () => _open(w, '${o['name']}'))));
+        tiles.add(Reveal(index: (tiles.length ~/ 2).clamp(0, 9), child: _WorkerRow(w: w, money: _money, cur: _cur, onTap: () => _open(w, '${o['name']}', '${o['id']}'))));
       }
     }
     return RefreshIndicator(
@@ -224,13 +224,13 @@ class _CrewScreenState extends State<CrewScreen> {
         child: ChoiceChip(label: Text(t), selected: on, onSelected: (_) => f(), showCheckmark: false),
       );
 
-  void _open(Map w, String object) {
+  void _open(Map w, String object, String objectId) {
     HapticFeedback.selectionClick();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _WorkerSheet(w: w, object: object, money: _money, cur: _cur, month: '${_months[_month.month - 1]} ${_month.year}'),
+      builder: (_) => _WorkerSheet(session: s, w: w, object: object, objectId: objectId, monthKey: _monthStr, money: _money, cur: _cur, month: '${_months[_month.month - 1]} ${_month.year}', onPaid: () => _load(quiet: true)),
     );
   }
 }
@@ -298,8 +298,12 @@ class _WorkerRow extends StatelessWidget {
 String _fmtMoney(num? v) => money(v);
 
 class _WorkerSheet extends StatelessWidget {
-  const _WorkerSheet({required this.w, required this.object, required this.money, required this.cur, required this.month});
+  const _WorkerSheet({required this.session, required this.w, required this.object, required this.objectId, required this.monthKey, required this.money, required this.cur, required this.month, required this.onPaid});
 
+  final Session session;
+  final String objectId;
+  final String monthKey;
+  final VoidCallback onPaid;
   final Map w;
   final String object;
   final bool money;
@@ -361,6 +365,28 @@ class _WorkerSheet extends StatelessWidget {
             _kv(context, 'Hisoblangan', '${_fmtMoney(m['accrued'] as num?)} $cur'),
             _kv(context, 'To\'langan', '${_fmtMoney(m['paid'] as num?)} $cur', color: Colors.green.shade700),
             _kv(context, 'Qoldi', '${_fmtMoney(due)} $cur', color: due > 0 ? cs.error : null),
+            if (session.me != null && !session.me!.readOnly && const ['foreman', 'admin', 'accountant', 'cashier'].contains(session.me!.role)) ...[
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    final ok = await showModalBottomSheet<bool>(
+                      context: context,
+                      isScrollControlled: true,
+                      showDragHandle: true,
+                      builder: (_) => _PaySheet(session: session, w: w, objectId: objectId, monthKey: monthKey, cur: cur, due: due),
+                    );
+                    if (ok == true) {
+                      onPaid();
+                      if (context.mounted) Navigator.pop(context);
+                    }
+                  },
+                  icon: const Icon(Icons.payments_rounded, size: 20),
+                  label: const Text('Oylik berish'),
+                ),
+              ),
+            ],
           ],
           if (work.isNotEmpty) ...[
             const SizedBox(height: 16),
@@ -498,6 +524,154 @@ class _HireSheetState extends State<_HireSheet> {
               child: _busy ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : const Text('Qo\'shish', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             ),
           ),
+        ]),
+      ),
+    );
+  }
+}
+
+
+/// Oylik berish: summa (qoldiq oldindan yoziladi), prorab uchun — naqd/karta, boshqalar uchun — kassa tanlash
+class _PaySheet extends StatefulWidget {
+  const _PaySheet({required this.session, required this.w, required this.objectId, required this.monthKey, required this.cur, required this.due});
+
+  final Session session;
+  final Map w;
+  final String objectId;
+  final String monthKey;
+  final String cur;
+  final num due;
+
+  @override
+  State<_PaySheet> createState() => _PaySheetState();
+}
+
+class _PaySheetState extends State<_PaySheet> {
+  late final _amount = TextEditingController(text: widget.due > 0 ? widget.due.round().toString() : '');
+  final _note = TextEditingController();
+  final String _idem = 'pay-${DateTime.now().microsecondsSinceEpoch}';
+  bool get _foreman => widget.session.me!.role == 'foreman';
+  String _kind = 'cash';
+  num _cash = 0, _card = 0;
+  List<Map<String, dynamic>> _desks = const [];
+  int? _desk;
+  bool _loading = true, _busy = false;
+  String? _err;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  Future<void> _init() async {
+    final api = widget.session.api!;
+    try {
+      if (_foreman) {
+        final f = await api.funds();
+        final me = Map<String, dynamic>.from((f['me'] as Map?) ?? const {});
+        _cash = (me['cash'] as num?) ?? 0;
+        _card = (me['card'] as num?) ?? 0;
+      } else {
+        _desks = await api.crewDesks(widget.objectId);
+        if (_desks.isNotEmpty) _desk = (_desks.first['id'] as num).toInt();
+      }
+    } catch (e) {
+      _err = e is ApiException ? e.message : '$e';
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _pay() async {
+    if (_busy) return;
+    final amount = num.tryParse(_amount.text.replaceAll(' ', '').replaceAll(',', '.'));
+    if (amount == null || amount < 1) {
+      setState(() => _err = tr('Summani yozing'));
+      return;
+    }
+    if (!_foreman && _desk == null) {
+      setState(() => _err = tr('Kassani tanlang'));
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _err = null;
+    });
+    try {
+      await widget.session.api!.crewPay(object: widget.objectId, staffId: '${widget.w['id']}', month: widget.monthKey, amount: amount, kind: _foreman ? _kind : null, deskId: _foreman ? null : _desk, note: _note.text.trim(), idemKey: _idem);
+      HapticFeedback.mediumImpact();
+      if (mounted) {
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('Oylik berildi')}: ${money(amount)} ${widget.cur}')));
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _err = e.isNetwork ? tr("Internet yo'q — oylik berish uchun internet kerak") : e.message;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + bottom),
+      child: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Oylik berish', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 2),
+          Text('${widget.w['name']} · ${widget.monthKey}', style: TextStyle(color: cs.outline)),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _amount,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(labelText: '${tr('Summa')} (${widget.cur})', helperText: widget.due > 0 ? '${tr('Qoldi')}: ${money(widget.due)}' : null),
+          ),
+          const SizedBox(height: 12),
+          if (_loading)
+            const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator()))
+          else if (_foreman)
+            Row(children: [
+              Expanded(child: ChoiceChip(label: Text('${tr('Naqd')} · ${money(_cash)}'), selected: _kind == 'cash', showCheckmark: false, onSelected: (_) => setState(() => _kind = 'cash'))),
+              const SizedBox(width: 8),
+              Expanded(child: ChoiceChip(label: Text('${tr('Karta')} · ${money(_card)}'), selected: _kind == 'card', showCheckmark: false, onSelected: (_) => setState(() => _kind = 'card'))),
+            ])
+          else ...[
+            Text('Qaysi kassadan', style: TextStyle(color: cs.outline, fontSize: 13, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            for (final d in _desks)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: GlassRow(
+                  margin: EdgeInsets.zero,
+                  tint: _desk == (d['id'] as num).toInt() ? cs.primary.withValues(alpha: 0.16) : null,
+                  onTap: () => setState(() => _desk = (d['id'] as num).toInt()),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(children: [
+                    Icon(_desk == (d['id'] as num).toInt() ? Icons.radio_button_checked : Icons.radio_button_unchecked, color: cs.primary, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text('${d['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
+                    Text(money(d['balance'] as num?), style: TextStyle(color: cs.outline, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              ),
+          ],
+          const SizedBox(height: 8),
+          TextField(controller: _note, decoration: InputDecoration(labelText: tr('Izoh (ixtiyoriy)'))),
+          if (_err != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_err!, style: TextStyle(color: cs.error, fontWeight: FontWeight.w700, fontSize: 13))),
+          const SizedBox(height: 16),
+          SizedBox(width: double.infinity, child: FilledButton(onPressed: (_busy || _loading) ? null : _pay, child: Text(_busy ? 'Yuborilmoqda…' : 'Oylikni berish'))),
         ]),
       ),
     );

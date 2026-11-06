@@ -239,7 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             0,
             Glass(
               radius: 30,
-              blur: true,
+              blur: false,
               padding: const EdgeInsets.fromLTRB(20, 26, 20, 22),
               child: Column(children: [
                 Tappable(
