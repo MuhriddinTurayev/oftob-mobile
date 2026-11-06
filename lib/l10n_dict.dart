@@ -637,4 +637,10 @@ const Map<String, List<String>> kDict = {
   "Bajarilmoqda — Bosh ekranda natijani ko'rasiz": ["Выполняется — результат на главном экране", "Иҷро мешавад — натиҷа дар экрани асосӣ"],
   "Salom! Men ma'lumotlaringiz bo'yicha savollarga javob beraman (kassa, xodimlar, vazifalar…). Ovoz bilan ham ishlayman: mikrofonni bosing va ayting — masalan «Kassani och», «Ishga keldim», «Bugun kim ishda?».": ["Здравствуйте! Я отвечаю на вопросы по вашим данным (касса, сотрудники, задачи…). Работаю и голосом: нажмите микрофон и скажите, например: «Открой кассу», «Я пришёл», «Кто сегодня на работе?».", "Салом! Ман ба саволҳо аз рӯи маълумоти шумо ҷавоб медиҳам (касса, кормандон, вазифаҳо…). Бо овоз низ кор мекунам: микрофонро пахш кунед ва гӯед, масалан «Кассаро кушо», «Омадам», «Имрӯз кӣ дар кор аст?»."],
   "Ovoz uchun administrator platformada Gemini/ChatGPT kalitini ulashi kerak.": ["Для голоса администратор платформы должен подключить ключ Gemini/ChatGPT.", "Барои овоз администратор бояд калиди Gemini/ChatGPT-ро пайваст кунад."],
+  "Suhbatlar tarixi": ["История чатов", "Таърихи сӯҳбатҳо"],
+  "Suhbatga": ["К чату", "Ба сӯҳбат"],
+  "Tarix": ["История", "Таърих"],
+  "Yangi chat": ["Новый чат", "Сӯҳбати нав"],
+  "Hozircha suhbat yo'q. Birinchi savolingizni bering.": ["Чатов пока нет. Задайте первый вопрос.", "Ҳоло сӯҳбат нест. Саволи аввалинро диҳед."],
+  "xabar": ["сообщ.", "паём"],
 };

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
@@ -9,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import 'api.dart';
+import 'format.dart';
 import 'l10n.dart';
 import 'session.dart';
 import 'theme.dart';
@@ -101,6 +103,9 @@ class AssistantController extends ChangeNotifier {
   final List<AiMsg> messages = [];
   List<String> chips = const [];
   bool loaded = false;
+  String conv = _newId(); // joriy suhbat
+  List<Map<String, dynamic>> history = const [];
+  bool historyLoading = false;
   bool busy = false;
   bool voiceReady = true;
   bool aiReady = true;
@@ -115,6 +120,8 @@ class AssistantController extends ChangeNotifier {
   String? _recPath;
 
   ApiClient? get _api => session.api;
+
+  static String _newId() => 'c${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}${Random().nextInt(1296).toRadixString(36).padLeft(2, '0')}';
 
   Future<void> load() async {
     if (loaded) return;
@@ -134,13 +141,50 @@ class AssistantController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> clear() async {
+  /// Yangi (bo'sh) suhbat — eskisi tarixda qoladi
+  void newChat() {
     stopSpeaking();
-    try {
-      await _api!.aiClear();
-    } catch (_) {}
+    conv = _newId();
     messages.clear();
     notifyListeners();
+  }
+
+  Future<void> loadHistory() async {
+    historyLoading = true;
+    notifyListeners();
+    try {
+      history = await _api!.aiChats();
+    } catch (_) {}
+    historyLoading = false;
+    notifyListeners();
+  }
+
+  /// Tarixdan suhbatni ochish
+  Future<bool> openChat(String id) async {
+    stopSpeaking();
+    try {
+      final d = await _api!.aiState(conv: id);
+      conv = id;
+      messages
+        ..clear()
+        ..addAll(((d['messages'] as List?) ?? const []).whereType<Map>().where((m) => '${m['content']}'.trim().isNotEmpty).map((m) => AiMsg('${m['role']}', '${m['content']}', error: m['status'] == 'error')));
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> deleteChat(String id) async {
+    try {
+      await _api!.aiClear(id);
+    } catch (_) {}
+    history = history.where((h) => '${h['id']}' != id).toList();
+    if (id == conv) {
+      newChat();
+    } else {
+      notifyListeners();
+    }
   }
 
   /// Matn (yozilgan yoki ovozdan o'girilgan) — avval buyruq, bo'lmasa AI
@@ -203,7 +247,7 @@ class AssistantController extends ChangeNotifier {
     messages.add(pending);
     notifyListeners();
     try {
-      final a = await _api!.aiSend(q);
+      final a = await _api!.aiSend(q, conv);
       pending
         ..pending = false
         ..text = a;
@@ -440,6 +484,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
   final _text = TextEditingController();
   final _scroll = ScrollController();
   String? _note;
+  bool _history = false;
 
   AssistantController get c => widget.controller;
 
@@ -513,18 +558,36 @@ class _AssistantSheetState extends State<AssistantSheet> {
                   child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
                 ),
                 const SizedBox(width: 10),
-                const Expanded(child: Text('AI yordamchi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
-                IconButton(
-                  tooltip: tr('Javobni ovozda aytish'),
-                  onPressed: c.toggleSpeak,
-                  icon: Icon(c.speak ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: c.speak ? cs.primary : cs.outline),
-                ),
-                IconButton(tooltip: tr('Tozalash'), onPressed: c.messages.isEmpty ? null : c.clear, icon: Icon(Icons.delete_outline_rounded, color: cs.outline)),
+                Expanded(child: Text(_history ? 'Suhbatlar tarixi' : 'AI yordamchi', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
+                if (_history)
+                  TextButton.icon(onPressed: () => setState(() => _history = false), icon: const Icon(Icons.arrow_back_rounded, size: 18), label: const Text('Suhbatga'))
+                else ...[
+                  IconButton(
+                    tooltip: tr('Javobni ovozda aytish'),
+                    onPressed: c.toggleSpeak,
+                    icon: Icon(c.speak ? Icons.volume_up_rounded : Icons.volume_off_rounded, color: c.speak ? cs.primary : cs.outline),
+                  ),
+                  IconButton(
+                    tooltip: tr('Tarix'),
+                    onPressed: () {
+                      setState(() => _history = true);
+                      c.loadHistory();
+                    },
+                    icon: Icon(Icons.history_rounded, color: cs.onSurface),
+                  ),
+                  IconButton(
+                    tooltip: tr('Yangi chat'),
+                    onPressed: c.messages.isEmpty ? null : c.newChat,
+                    icon: Icon(Icons.add_comment_outlined, color: c.messages.isEmpty ? cs.outline : cs.primary),
+                  ),
+                ],
                 IconButton(onPressed: _close, icon: const Icon(Icons.close_rounded)),
               ]),
             ),
             Expanded(
-              child: !c.loaded
+              child: _history
+                  ? _historyView(cs)
+                  : !c.loaded
                   ? const Center(child: CircularProgressIndicator())
                   : ListView(
                       controller: _scroll,
@@ -535,8 +598,9 @@ class _AssistantSheetState extends State<AssistantSheet> {
                       ],
                     ),
             ),
-            if (_note != null) Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 6), child: Text(_note!, style: TextStyle(color: cs.error, fontSize: 12.5))),
-            if (c.recording || c.transcribing) _listening(cs),
+            if (!_history && _note != null) Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 6), child: Text(_note!, style: TextStyle(color: cs.error, fontSize: 12.5))),
+            if (!_history && (c.recording || c.transcribing)) _listening(cs),
+            if (!_history)
             Padding(
               padding: EdgeInsets.fromLTRB(12, 4, 12, 12 + (mq.viewInsets.bottom > 0 ? 0 : mq.padding.bottom)),
               child: Row(children: [
@@ -568,6 +632,45 @@ class _AssistantSheetState extends State<AssistantSheet> {
           ]),
         ),
       ),
+    );
+  }
+
+  Widget _historyView(ColorScheme cs) {
+    if (c.historyLoading && c.history.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (c.history.isEmpty) {
+      return Center(child: Padding(padding: const EdgeInsets.all(32), child: Text(tr("Hozircha suhbat yo'q. Birinchi savolingizni bering."), textAlign: TextAlign.center, style: TextStyle(color: cs.outline))));
+    }
+    return ListView(
+      padding: EdgeInsets.fromLTRB(14, 6, 14, 16 + MediaQuery.paddingOf(context).bottom),
+      children: [
+        for (final h in c.history)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Glass(
+              radius: 18,
+              blur: false,
+              shadow: false,
+              tint: '${h['id']}' == c.conv ? cs.primary.withValues(alpha: 0.12) : null,
+              onTap: () async {
+                final ok = await c.openChat('${h['id']}');
+                if (ok && mounted) setState(() => _history = false);
+              },
+              padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+              child: Row(children: [
+                const IconTile(icon: Icons.chat_bubble_outline_rounded, color: Brand.teal, size: 38),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    w.Text('${h['title']}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                    const SizedBox(height: 2),
+                    w.Text('${h['count']} ${tr('xabar')} · ${formatDate('${h['at']}')}', style: TextStyle(color: cs.outline, fontSize: 12)),
+                  ]),
+                ),
+                IconButton(tooltip: tr("O'chirish"), onPressed: () => c.deleteChat('${h['id']}'), icon: Icon(Icons.delete_outline_rounded, color: cs.outline)),
+              ]),
+            ),
+          ),
+      ],
     );
   }
 

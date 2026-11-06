@@ -886,16 +886,20 @@ class ApiClient {
 
   /* ---------------- AI yordamchi ---------------- */
 
-  Future<Map<String, dynamic>> aiState() async => Map<String, dynamic>.from(((await _getMap('/ai/chat'))['data'] as Map?) ?? const {});
+  /// [conv] — suhbat identifikatori; bo'sh bo'lsa yangi (bo'sh) suhbat va tayyor savollar qaytadi
+  Future<Map<String, dynamic>> aiState({String? conv}) async => Map<String, dynamic>.from(((await _getMap('/ai/chat', {'conv': conv}))['data'] as Map?) ?? const {});
+
+  /// Suhbatlar tarixi: [{id, title, count, at}]
+  Future<List<Map<String, dynamic>>> aiChats() async => _list((await _getMap('/ai/chats'))['data']);
 
   /// Savolga javob (server tugatguncha kutadi: odatda 3–20 soniya)
-  Future<String> aiSend(String text) async {
-    final b = await _send(() => _http.post(_uri('/ai/chat'), headers: _headers, body: jsonEncode({'text': text})), timeout: const Duration(seconds: 150));
+  Future<String> aiSend(String text, String conv) async {
+    final b = await _send(() => _http.post(_uri('/ai/chat'), headers: _headers, body: jsonEncode({'text': text, 'conv': conv})), timeout: const Duration(seconds: 150));
     return '${((b as Map)['data'] as Map)['text']}';
   }
 
-  Future<void> aiClear() async {
-    await _send(() => _http.delete(_uri('/ai/chat'), headers: _headers));
+  Future<void> aiClear(String conv) async {
+    await _send(() => _http.delete(_uri('/ai/chat', {'conv': conv}), headers: _headers));
   }
 
   /// Ovoz yozuvi (wav) → matn
