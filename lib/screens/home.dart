@@ -293,7 +293,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Icon(Icons.chevron_right, color: cs.outline),
           ]),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Glass(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: ValueListenableBuilder<ThemeMode>(
+              valueListenable: ThemeController.mode,
+              builder: (context, tm, _) => Row(children: [
+                const IconTile(icon: Icons.contrast_rounded, color: Brand.purple, size: 40),
+                const SizedBox(width: 12),
+                const Expanded(child: Text("Ko'rinish", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15))),
+                _ThemeDot(icon: Icons.brightness_auto_rounded, tip: 'Avto', on: tm == ThemeMode.system, onTap: () => ThemeController.set(ThemeMode.system)),
+                const SizedBox(width: 6),
+                _ThemeDot(icon: Icons.light_mode_rounded, tip: 'Kun', on: tm == ThemeMode.light, onTap: () => ThemeController.set(ThemeMode.light)),
+                const SizedBox(width: 6),
+                _ThemeDot(icon: Icons.dark_mode_rounded, tip: 'Tun', on: tm == ThemeMode.dark, onTap: () => ThemeController.set(ThemeMode.dark)),
+              ]),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
         for (final t in _more) row(t.icon, _colors[t.label] ?? Brand.green, t.label, onTap: () => _push(t)),
         ListenableBuilder(
           listenable: Listenable.merge([Offline.pending, Offline.failed]),
@@ -352,21 +372,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             );
           },
         ),
-        Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: GlassIconButton(
-            tooltip: tr('Kun / Tun'),
-            onTap: () {
-              HapticFeedback.selectionClick();
-              ThemeController.set(context.isDark ? ThemeMode.light : ThemeMode.dark);
-            },
-            icon: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 350),
-              transitionBuilder: (c, a) => RotationTransition(turns: Tween(begin: 0.75, end: 1.0).animate(a), child: FadeTransition(opacity: a, child: ScaleTransition(scale: a, child: c))),
-              child: Icon(context.isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded, key: ValueKey(context.isDark), size: 22, color: context.isDark ? const Color(0xFFFFD36B) : const Color(0xFF5B4BC7)),
-            ),
-          ),
-        ),
         ListenableBuilder(
           listenable: _nc,
           builder: (context, _) => GlassIconButton(
@@ -405,6 +410,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           for (final t in tabs) NavItem(t.label, t.icon, t.activeIcon),
           const NavItem('Yana', Icons.grid_view_outlined, Icons.grid_view_rounded),
         ],
+      ),
+    );
+  }
+}
+
+/// Kun/Tun/Avto uchun kichik dumaloq tugma
+class _ThemeDot extends StatelessWidget {
+  const _ThemeDot({required this.icon, required this.tip, required this.on, required this.onTap});
+
+  final IconData icon;
+  final String tip;
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: tr(tip),
+      child: Tappable(
+        scale: 0.88,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: on ? cs.primary.withValues(alpha: 0.2) : context.pill,
+            border: Border.all(color: on ? cs.primary.withValues(alpha: 0.55) : context.pillBorder, width: 1.2),
+          ),
+          child: Icon(icon, size: 20, color: on ? cs.primary : cs.outline),
+        ),
       ),
     );
   }
