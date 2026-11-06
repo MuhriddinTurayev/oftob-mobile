@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:http/http.dart' as http;
 
 import 'offline.dart';
 
 /// Server xatosi: matni foydalanuvchiga ko'rsatiladi.
+/// Katta JSON alohida oqimda o'qiladi (yopilma faqat baytlarni ushlaydi — boshqa obyektlar oqimga o'tmaydi).
+Future<dynamic> _decodeInBackground(List<int> bytes) => Isolate.run(() => jsonDecode(utf8.decode(bytes)));
+
 class ApiException implements Exception {
   ApiException(this.message, {this.status, this.code});
 
@@ -80,7 +84,9 @@ class ApiClient {
     Offline.markOnline(true); // server javob berdi (xato bo'lsa ham) — internet bor
     dynamic body;
     try {
-      body = r.body.isEmpty ? null : jsonDecode(utf8.decode(r.bodyBytes));
+      final bytes = r.bodyBytes;
+      // katta javob (ro'yxatlar) alohida oqimda o'qiladi — ekran shu paytda qotmaydi
+      body = bytes.isEmpty ? null : (bytes.length > 24000 ? await _decodeInBackground(bytes) : jsonDecode(utf8.decode(bytes)));
     } catch (_) {
       body = null;
     }

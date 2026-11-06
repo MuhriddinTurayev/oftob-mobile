@@ -24,6 +24,8 @@ class UserAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final u = url ?? session.photoUrl;
+    // rasm ekrandagi o'lchamda yechiladi: 4000 px'lik telefon surati 46 px doira uchun xotira va GPU'ni band qilmaydi
+    final px = (size * MediaQuery.devicePixelRatioOf(context)).round();
     final fallback = Center(child: Text(initials(name), style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: size * 0.36, decoration: TextDecoration.none)));
     return Container(
       width: size,
@@ -44,6 +46,7 @@ class UserAvatar extends StatelessWidget {
                 fit: BoxFit.cover,
                 headers: session.api?.authHeaders,
                 gaplessPlayback: true,
+                cacheWidth: px,
                 errorBuilder: (_, _, _) => fallback,
                 loadingBuilder: (_, child, p) => p == null ? child : fallback,
               ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -108,7 +109,9 @@ class Offline {
     if (d == null) return;
     final f = File('${d.path}/$name');
     final tmp = File('${d.path}/$name.tmp');
-    await tmp.writeAsString(jsonEncode(value), flush: true);
+    // JSON yozish alohida oqimda: har bir javobni keshlash ekranni qotirmaydi
+    final path = tmp.path;
+    await Isolate.run(() => File(path).writeAsStringSync(jsonEncode(value), flush: true));
     await tmp.rename(f.path);
   }
 
@@ -118,7 +121,8 @@ class Offline {
     final f = File('${d.path}/$name');
     if (!await f.exists()) return null;
     try {
-      return jsonDecode(await f.readAsString());
+      final path = f.path;
+      return await Isolate.run(() => jsonDecode(File(path).readAsStringSync()));
     } catch (_) {
       return null;
     }

@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+import 'dart:ui' as ui show Image, PictureRecorder;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -83,66 +83,92 @@ class _Provider implements TickerProvider {
   Ticker createTicker(TickerCallback onTick) => Ticker(onTick);
 }
 
-/// Butun ilova foni: jonli — rangli yorug' sharlar sekin suzib yuradi; ustidagi shisha kartalar ularning rangini tovlantiradi.
+/// Butun ilova foni: yumshoq gradient ustida rangli yorug' dog'lar; ustidagi shisha kartalar ularning rangini tovlantiradi.
+///
+/// TEZLIK: fon bir marta kichik rasmga chiziladi va keyin har kadrda faqat shu bitta rasm cho'ziladi.
+/// Oldin har kadrda 6 ta to'liq ekranli gradient qatlami qayta chizilardi (iPhone'dagi Impeller'da RepaintBoundary
+/// rasmni saqlab qolmaydi) — 120 Hz ekranda bu GPU'ni to'ldirib, ro'yxat siljiganda kadrlar tushib qolardi.
 class GlassBackdrop extends StatelessWidget {
   const GlassBackdrop({super.key, required this.child});
 
   final Widget child;
 
+  static final Map<String, ui.Image> _cache = {};
+
+  static List<Color> _base(bool dark) => dark ? const [Color(0xFF0A1410), Color(0xFF0C1822), Color(0xFF0B1711)] : const [Color(0xFFD6EFE2), Color(0xFFE6EEFB), Color(0xFFF4F7E8)];
+
+  /// (markaz, rang, radius, shaffoflik)
+  static List<(Alignment, Color, double, double)> _glows(bool dark) => [
+        (const Alignment(1.25, -0.75), dark ? const Color(0xFF2F63B8) : const Color(0xFF6EA8FF), 0.95, dark ? 0.55 : 0.78),
+        (const Alignment(-1.0, 0.48), dark ? const Color(0xFF1C8556) : const Color(0xFF45D6A0), 0.9, dark ? 0.6 : 0.72),
+        (const Alignment(0.73, 0.46), dark ? const Color(0xFF7255C8) : const Color(0xFFB59BFF), 0.8, dark ? 0.45 : 0.66),
+        (const Alignment(-1.16, 0.75), dark ? const Color(0xFF9A7014) : const Color(0xFFFFC94A), 0.9, dark ? 0.4 : 0.74),
+        (const Alignment(0.15, -0.22), dark ? const Color(0xFF1E5A7A) : const Color(0xFF7DE3FF), 0.65, dark ? 0.32 : 0.6),
+      ];
+
+  static void _paint(Canvas c, Rect rect, bool dark) {
+    c.drawRect(rect, Paint()..shader = LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: _base(dark)).createShader(rect));
+    for (final g in _glows(dark)) {
+      c.drawRect(rect, Paint()..shader = RadialGradient(center: g.$1, radius: g.$3, colors: [g.$2.withValues(alpha: g.$4), g.$2.withValues(alpha: 0)]).createShader(rect));
+    }
+  }
+
+  /// Fon rasmi (ekranning yarim o'lchamida — gradient silliq, kattalashtirilganda farqi ko'rinmaydi). Xato bo'lsa null.
+  static ui.Image? _image(bool dark, Size size) {
+    if (!size.isFinite || size.isEmpty) return null;
+    final w = (size.width / 2).ceil(), h = (size.height / 2).ceil();
+    final key = '$dark:$w:$h';
+    final hit = _cache[key];
+    if (hit != null) return hit;
+    try {
+      final rec = ui.PictureRecorder();
+      _paint(Canvas(rec), Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()), dark);
+      final pic = rec.endRecording();
+      final img = pic.toImageSync(w, h);
+      pic.dispose();
+      if (_cache.length >= 6) _cache.remove(_cache.keys.first); // eski o'lchamlar (burilish va h.k.)
+      return _cache[key] = img;
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final base = DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: dark ? const [Color(0xFF0A1410), Color(0xFF0C1822), Color(0xFF0B1711)] : const [Color(0xFFD6EFE2), Color(0xFFE6EEFB), Color(0xFFF4F7E8)],
-        ),
-      ),
-      child: const SizedBox.expand(),
-    );
-    Widget orbs(double t) {
-      Alignment p(double ax, double ay, double bx, double by, double sx, double sy, double ph) => Alignment(ax + bx * math.cos(t * sx + ph), ay + by * math.sin(t * sy + ph * 1.3));
-      return Stack(fit: StackFit.expand, children: [
-        _Glow(alignment: p(0.95, -0.75, 0.30, 0.22, 0.11, 0.13, 0.0), color: dark ? const Color(0xFF2F63B8) : const Color(0xFF6EA8FF), radius: 0.95, alpha: dark ? 0.55 : 0.78),
-        _Glow(alignment: p(-1.05, -0.05, 0.28, 0.55, 0.09, 0.07, 1.4), color: dark ? const Color(0xFF1C8556) : const Color(0xFF45D6A0), radius: 0.9, alpha: dark ? 0.6 : 0.72),
-        _Glow(alignment: p(1.0, 0.55, 0.32, 0.40, 0.10, 0.08, 2.6), color: dark ? const Color(0xFF7255C8) : const Color(0xFFB59BFF), radius: 0.8, alpha: dark ? 0.45 : 0.66),
-        _Glow(alignment: p(-0.8, 1.05, 0.42, 0.30, 0.06, 0.09, 3.7), color: dark ? const Color(0xFF9A7014) : const Color(0xFFFFC94A), radius: 0.9, alpha: dark ? 0.4 : 0.74),
-        _Glow(alignment: p(0.1, -0.2, 0.55, 0.45, 0.05, 0.06, 4.8), color: dark ? const Color(0xFF1E5A7A) : const Color(0xFF7DE3FF), radius: 0.65, alpha: dark ? 0.32 : 0.6),
-      ]);
-    }
-
-    // fon bir marta chiziladi va alohida qatlamda saqlanadi: ustidagi ro'yxatlar siljiganda qayta chizilmaydi (telefon qizimaydi)
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(statusBarColor: Colors.transparent, systemNavigationBarColor: Colors.transparent, systemNavigationBarDividerColor: Colors.transparent),
       child: Stack(fit: StackFit.expand, children: [
-        RepaintBoundary(child: Stack(fit: StackFit.expand, children: [base, orbs(0)])),
+        RepaintBoundary(
+          child: LayoutBuilder(
+            builder: (context, bc) => CustomPaint(painter: _BackdropPainter(dark, _image(dark, bc.biggest)), child: const SizedBox.expand()),
+          ),
+        ),
         child,
       ]),
     );
   }
 }
 
-class _Glow extends StatelessWidget {
-  const _Glow({required this.alignment, required this.color, required this.radius, required this.alpha});
+class _BackdropPainter extends CustomPainter {
+  _BackdropPainter(this.dark, this.image);
 
-  final Alignment alignment;
-  final Color color;
-  final double radius;
-  final double alpha;
+  final bool dark;
+  final ui.Image? image;
 
   @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(center: alignment, radius: radius, colors: [color.withValues(alpha: alpha), color.withValues(alpha: 0)]),
-        ),
-        child: const SizedBox.expand(),
-      ),
-    );
+  void paint(Canvas canvas, Size size) {
+    final dst = Offset.zero & size;
+    final img = image;
+    if (img == null) {
+      GlassBackdrop._paint(canvas, dst, dark); // zaxira: to'g'ridan-to'g'ri chizish
+      return;
+    }
+    canvas.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), dst, Paint()..filterQuality = FilterQuality.medium);
   }
+
+  @override
+  bool shouldRepaint(_BackdropPainter old) => old.dark != dark || old.image != image;
 }
 
 /// Har bir sahifa o'z fonini oladi (o'tish animatsiyasida sahifalar bir-birining ichidan ko'rinmasin).
@@ -173,6 +199,7 @@ class Glass extends StatelessWidget {
     this.tint,
     this.gradient,
     this.shadow = false,
+    this.clip = false,
   });
 
   final Widget child;
@@ -185,6 +212,9 @@ class Glass extends StatelessWidget {
   final Color? tint;
   final Gradient? gradient;
   final bool shadow;
+
+  /// Ichidagi narsa burchakdan chiqib ketsa (masalan, HeroGlass doiralari). Oddiy kartada kesish yo'q — har bir kesish GPU'ga qimmat.
+  final bool clip;
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +234,7 @@ class Glass extends StatelessWidget {
     if (blur) {
       body = BackdropFilter(filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14), child: body);
     }
-    body = ClipRRect(borderRadius: br, child: body);
+    if (blur || clip) body = ClipRRect(borderRadius: br, child: body);
     Widget out = Container(
       margin: margin,
       decoration: shadow ? BoxDecoration(borderRadius: br, boxShadow: [BoxShadow(color: (dark ? Colors.black : const Color(0xFF1B4332)).withValues(alpha: dark ? 0.35 : 0.10), blurRadius: 16, offset: const Offset(0, 6))]) : null,
@@ -270,7 +300,13 @@ class GlassNavBar extends StatelessWidget {
           height: 66,
           child: Glass(
             radius: 33,
-            blur: true,
+            blur: false,
+            shadow: true,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: context.isDark ? const [Color(0xF2182621), Color(0xF0101A16)] : const [Color(0xF5FFFFFF), Color(0xE8F3F8F5)],
+            ),
             padding: const EdgeInsets.all(6),
             child: LayoutBuilder(
               builder: (context, bc) {
@@ -510,6 +546,7 @@ class HeroGlass extends StatelessWidget {
     return Glass(
       radius: radius,
       blur: false,
+      clip: true,
       shadow: true,
       onTap: onTap,
       gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [tint.withValues(alpha: dark ? 0.28 : 0.17), tint.withValues(alpha: dark ? 0.08 : 0.05), Colors.white.withValues(alpha: dark ? 0.04 : 0.46)]),
@@ -555,25 +592,21 @@ class GlassFab extends StatelessWidget {
       padding: EdgeInsets.only(bottom: NavInset.of(context) + 6),
       child: Tappable(
         onTap: onPressed,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              height: 54,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                gradient: LinearGradient(colors: [cs.primary.withValues(alpha: context.isDark ? 0.30 : 0.20), Colors.white.withValues(alpha: context.isDark ? 0.06 : 0.36)]),
-                border: Border.all(color: cs.primary.withValues(alpha: 0.4), width: 1.1),
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(icon, color: fg, size: 22),
-                const SizedBox(width: 9),
-                Text(tr(label), style: TextStyle(color: fg, fontSize: 14.5, fontWeight: FontWeight.w800, decoration: TextDecoration.none)),
-              ]),
-            ),
+        // xira qilish (BackdropFilter) yo'q: ro'yxat ostida siljiganda har kadrda butun ekranni nusxalardi
+        child: Container(
+          height: 54,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: LinearGradient(colors: context.isDark ? [Color.alphaBlend(cs.primary.withValues(alpha: 0.32), const Color(0xF0141F1A)), const Color(0xEE141F1A)] : [Color.alphaBlend(cs.primary.withValues(alpha: 0.18), const Color(0xF5FFFFFF)), const Color(0xF0FFFFFF)]),
+            border: Border.all(color: cs.primary.withValues(alpha: 0.4), width: 1.1),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: context.isDark ? 0.3 : 0.08), blurRadius: 14, offset: const Offset(0, 5))],
           ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, color: fg, size: 22),
+            const SizedBox(width: 9),
+            Text(tr(label), style: TextStyle(color: fg, fontSize: 14.5, fontWeight: FontWeight.w800, decoration: TextDecoration.none)),
+          ]),
         ),
       ),
     );

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'screens/home.dart';
@@ -15,7 +18,27 @@ Future<void> main() async {
   await ThemeController.load();
   final session = Session()..restore();
   L.notifier.addListener(session.refreshMe); // til o'zgarsa — rol nomi kabi server matnlari yangi tilda olinadi
+  if (_fpsLog) _startFpsLog();
   runApp(OftobApp(session: session));
+}
+
+/// Faqat sinov qurilmasida (--dart-define=OFTOB_FPSLOG=true): har soniyada nechta kadr chizilgani va eng sekin kadr.
+/// Ilova tinch turganda kadr 0 bo'lishi kerak — aks holda nimadir bekorga to'xtovsiz chizilyapti.
+const _fpsLog = bool.fromEnvironment('OFTOB_FPSLOG');
+
+void _startFpsLog() {
+  var n = 0, worstBuild = 0, worstRaster = 0;
+  SchedulerBinding.instance.addTimingsCallback((list) {
+    for (final t in list) {
+      n++;
+      if (t.buildDuration.inMicroseconds > worstBuild) worstBuild = t.buildDuration.inMicroseconds;
+      if (t.rasterDuration.inMicroseconds > worstRaster) worstRaster = t.rasterDuration.inMicroseconds;
+    }
+  });
+  Timer.periodic(const Duration(seconds: 1), (_) {
+    debugPrint('FPSLOG frames=$n build=${(worstBuild / 1000).toStringAsFixed(1)}ms raster=${(worstRaster / 1000).toStringAsFixed(1)}ms');
+    n = worstBuild = worstRaster = 0;
+  });
 }
 
 class OftobApp extends StatefulWidget {

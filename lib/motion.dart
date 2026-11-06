@@ -51,8 +51,9 @@ class _TappableState extends State<Tappable> {
   }
 }
 
-/// Ekranga chiqqanda yumshoq ko'tarilib paydo bo'ladi; [index] bo'yicha ketma-ket (har biri ~55 ms kechikib).
-class Reveal extends StatefulWidget {
+/// Oldin ro'yxat qatorlari ketma-ket «ko'tarilib» chiqardi — har ochilishda kadr tushirardi. Endi darhol ko'rinadi
+/// (chaqiruvlar o'zgarmasligi uchun nom qoldirildi).
+class Reveal extends StatelessWidget {
   const Reveal({super.key, required this.child, this.index = 0, this.dy = 22});
 
   final Widget child;
@@ -60,61 +61,23 @@ class Reveal extends StatefulWidget {
   final double dy;
 
   @override
-  State<Reveal> createState() => _RevealState();
+  Widget build(BuildContext context) => child;
 }
 
-class _RevealState extends State<Reveal> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 520));
-  late final Animation<double> _a = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(Duration(milliseconds: 40 + widget.index.clamp(0, 14) * 55), () {
-      if (mounted) _c.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _a,
-      child: widget.child,
-      builder: (context, child) {
-        if (_c.isCompleted) return child!; // animatsiya tugagach qo'shimcha qatlam (saveLayer) qolmaydi
-        return Opacity(opacity: _a.value, child: Transform.translate(offset: Offset(0, (1 - _a.value) * widget.dy), child: child));
-      },
-    );
-  }
-}
-
-/// Raqam 0 dan (yoki oldingi qiymatdan) yangisiga silliq sanaladi.
+/// Raqam darhol ko'rsatiladi (oldin 0 dan sanalardi — har ochilishda ~1 soniya qayta chizish).
 class CountUp extends StatelessWidget {
-  const CountUp({super.key, required this.value, required this.builder, this.duration = const Duration(milliseconds: 900)});
+  const CountUp({super.key, required this.value, required this.builder, this.duration = Duration.zero});
 
   final num value;
   final Widget Function(BuildContext context, num v) builder;
   final Duration duration;
 
   @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: value.toDouble()),
-      duration: duration,
-      curve: Curves.easeOutCubic,
-      builder: (context, v, _) => builder(context, v.round()),
-    );
-  }
+  Widget build(BuildContext context) => builder(context, value.round());
 }
 
-/// Yuklanayotgan joyda yaltiraydigan «skelet» (spinner o'rniga).
-class Skeleton extends StatefulWidget {
+/// Yuklanayotgan joy uchun tinch «skelet» (yaltirash animatsiyasi yo'q).
+class Skeleton extends StatelessWidget {
   const Skeleton({super.key, this.height = 80, this.width, this.radius = 22});
 
   final double height;
@@ -122,33 +85,12 @@ class Skeleton extends StatefulWidget {
   final double radius;
 
   @override
-  State<Skeleton> createState() => _SkeletonState();
-}
-
-class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final base = dark ? Colors.white.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.55);
-    final hi = dark ? Colors.white.withValues(alpha: 0.16) : Colors.white.withValues(alpha: 0.95);
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) => Container(
-        width: widget.width,
-        height: widget.height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(widget.radius),
-          gradient: LinearGradient(begin: Alignment(-1.4 + 2.8 * _c.value, -0.3), end: Alignment(-0.4 + 2.8 * _c.value, 0.3), colors: [base, hi, base]),
-        ),
-      ),
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(radius), color: dark ? Colors.white.withValues(alpha: 0.07) : Colors.white.withValues(alpha: 0.6)),
     );
   }
 }
