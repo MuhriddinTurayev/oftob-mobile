@@ -249,15 +249,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ]),
               ),
             const SizedBox(height: 10),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              FilledButton.tonalIcon(onPressed: () => openPdf(context, s, path: '${x['pdf']}', fileName: file), icon: const Icon(Icons.picture_as_pdf_rounded, size: 18), label: const Text('PDF')),
-              OutlinedButton.icon(onPressed: () => openPdf(context, s, path: '${x['pdf']}', fileName: file, share: true), icon: const Icon(Icons.ios_share_rounded, size: 18), label: const Text('Ulashish')),
-              if (kind == 'company' && canFwd && x['forward'] != null)
-                FilledButton.icon(
-                  onPressed: _busy ? null : () => _forwardCompany(x),
-                  icon: const Icon(Icons.send_rounded, size: 18),
-                  label: Text(sent.isEmpty ? tr('Direktorga yuborish') : tr('Qayta yuborish')),
-                ),
+            // bir qatorda, bir xil kenglikda: PDF · Ulashish · Yuborish
+            Row(children: [
+              Expanded(child: _ActBtn(icon: Icons.picture_as_pdf_rounded, label: 'PDF', color: Brand.blue, onTap: () => openPdf(context, s, path: '${x['pdf']}', fileName: file))),
+              const SizedBox(width: 8),
+              Expanded(child: _ActBtn(icon: Icons.ios_share_rounded, label: 'Ulashish', color: Brand.purple, onTap: () => openPdf(context, s, path: '${x['pdf']}', fileName: file, share: true))),
+              if (kind == 'company' && canFwd && x['forward'] != null) ...[
+                const SizedBox(width: 8),
+                Expanded(child: _ActBtn(icon: sent.isEmpty ? Icons.send_rounded : Icons.forward_to_inbox_rounded, label: 'Yuborish', color: Brand.green, filled: sent.isEmpty, onTap: _busy ? null : () => _forwardCompany(x))),
+              ],
             ]),
           ]),
         ),
@@ -798,6 +798,39 @@ class _Line {
             const SizedBox(width: 12),
             Text(value, style: TextStyle(fontWeight: FontWeight.w800, color: warn ? cs.error : null)),
             if (onTap != null) Icon(Icons.chevron_right_rounded, color: cs.outline, size: 20),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Ixcham harakat tugmasi: ikonka ustida, nom ostida — kartada bir qatorda bir xil o'lchamda turadi
+class _ActBtn extends StatelessWidget {
+  const _ActBtn({required this.icon, required this.label, required this.color, required this.onTap, this.filled = false});
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback? onTap;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final on = onTap != null;
+    return Material(
+      color: filled ? color.withValues(alpha: on ? 0.9 : 0.4) : color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: SizedBox(
+          height: 58,
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, size: 21, color: filled ? Colors.white : color),
+            const SizedBox(height: 3),
+            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: filled ? Colors.white : color)),
           ]),
         ),
       ),

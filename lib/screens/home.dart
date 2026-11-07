@@ -1,4 +1,5 @@
 import 'rates.dart';
+import 'support.dart';
 import 'package:flutter/material.dart' hide Text;
 
 import 'package:flutter/services.dart';
@@ -140,6 +141,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       'funds' => me.role == 'foreman' ? 'Pul' : 'Prorab puli',
       'attendance' => 'Davomat',
       'reports' => 'Hisobotlar',
+      'support' => 'Yordam',
       _ => '',
     });
   }
@@ -178,6 +180,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (me.can('objects:read') && !primary.contains('Obyektlar')) _Tab('Obyektlar', Icons.apartment_outlined, Icons.apartment, (x) => ObjectsScreen(session: x)),
       if (me.can('cash:read') && !primary.contains('Kassa')) _Tab('Kassa', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, (x) => CashScreen(session: x)),
       if (me.can('leads:read') && !primary.contains('Lidlar')) _Tab('Lidlar', Icons.people_alt_outlined, Icons.people_alt, (x) => LeadsScreen(session: x)),
+      // yordam: xodim → direktor, direktor → platforma administratori
+      _Tab('Yordam', Icons.support_agent_outlined, Icons.support_agent, (x) => SupportScreen(session: x)),
     ];
   }
 

@@ -418,6 +418,18 @@ class ApiClient {
   }
 
   /// Kvartira holatini o'zgartirish (bron / sotuv / bo'sh). Faqat o'zgargan maydonlarni yuboring.
+  /* ---------------- yordam (support) ---------------- */
+
+  Future<Map<String, dynamic>> supportIndex() async => Map<String, dynamic>.from(((await _getMap('/support'))['data'] as Map?) ?? const {});
+
+  Future<Map<String, dynamic>> supportMessages(int thread, {int after = 0}) async =>
+      Map<String, dynamic>.from(((await _getMap('/support/$thread/messages', {'after': after > 0 ? after : null}))['data'] as Map?) ?? const {});
+
+  Future<Map<String, dynamic>> supportSend({required String body, int? threadId}) async {
+    final b = await _send(() => _http.post(_uri('/support/send'), headers: _headers, body: jsonEncode({'body': body, if (threadId != null) 'thread_id': threadId})));
+    return Map<String, dynamic>.from(((b as Map?)?['data'] as Map?) ?? const {});
+  }
+
   /* ---------------- lid manbalari ---------------- */
 
   Future<Map<String, dynamic>> leadSources() async => Map<String, dynamic>.from(((await _getMap('/leads/sources'))['data'] as Map?) ?? const {});

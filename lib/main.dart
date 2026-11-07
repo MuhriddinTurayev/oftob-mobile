@@ -56,6 +56,8 @@ class OftobApp extends StatefulWidget {
 class _OftobAppState extends State<OftobApp> {
   late bool _splashDone = widget.skipSplash;
   final _navKey = GlobalKey<NavigatorState>();
+  final _msgKey = GlobalKey<ScaffoldMessengerState>();
+  bool _wasIn = false;
   AssistantController? _ai;
 
   /// AI yordamchi har kirgan hisob uchun alohida (chiqqanda o'chadi)
@@ -81,6 +83,7 @@ class _OftobAppState extends State<OftobApp> {
         builder: (context, tm, _) => MaterialApp(
         title: 'Oftob Building',
         navigatorKey: _navKey,
+        scaffoldMessengerKey: _msgKey,
         navigatorObservers: [ModalWatcher()],
         debugShowCheckedModeBanner: false,
         theme: AppTheme.build(Brightness.light),
@@ -95,6 +98,9 @@ class _OftobAppState extends State<OftobApp> {
         builder: (context, child) => ListenableBuilder(
           listenable: session,
           builder: (context, _) {
+            // hisobdan chiqilganda oldingi foydalanuvchining pastki xabarlari ekranda qolmasin
+            if (_wasIn && !session.signedIn) WidgetsBinding.instance.addPostFrameCallback((_) => _msgKey.currentState?.clearSnackBars());
+            _wasIn = session.signedIn;
             final ai = _splashDone ? _assistant() : null;
             return Stack(children: [
               child ?? const SizedBox.shrink(),

@@ -9,11 +9,11 @@ import '../format.dart';
 import '../session.dart';
 import '../l10n.dart';
 
-/// Bildirishnomalar markazi: serverdan voqealar lentasini har daqiqada (ilova ochiq turganda) so'raydi,
+/// Bildirishnomalar markazi: serverdan voqealar lentasini har 10 soniyada (ilova ochiq turganda) so'raydi,
 /// o'qilmaganlarni sanaydi va yangi voqea kelganda [onFresh] orqali xabar beradi.
 /// DIQQAT: bu push EMAS — ilova yopiq turganda telefon xabar bermaydi (buning uchun pullik Apple Developer + APNs kerak).
 /// Ilova yopiq paytda xabarlar Telegram orqali keladi (profil Telegram'ga ulangan bo'lsa).
-class NotificationCenter extends ChangeNotifier {
+class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
   NotificationCenter(this.session, {this.onFresh});
 
   final Session session;
@@ -39,7 +39,26 @@ class NotificationCenter extends ChangeNotifier {
       _seen = await _storage.read(key: _key) ?? '';
     } catch (_) {}
     await refresh();
-    _timer = Timer.periodic(const Duration(seconds: 60), (_) => refresh());
+    WidgetsBinding.instance.addObserver(this);
+    _arm();
+  }
+
+  /// Ilova ochiq turganda har 10 soniyada yangilanadi (deyarli real vaqt); fonda — to'xtaydi (batareya), qaytganda darhol yangilanadi
+  static const period = Duration(seconds: 10);
+
+  void _arm() {
+    _timer?.cancel();
+    if (!_disposed) _timer = Timer.periodic(period, (_) => refresh());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      refresh();
+      _arm();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      _timer?.cancel();
+    }
   }
 
   Future<void> refresh() async {
@@ -80,6 +99,7 @@ class NotificationCenter extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 }
@@ -147,6 +167,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         'lead' => (Icons.person_add_alt, Colors.orange.shade800),
         'shift' => (Icons.how_to_reg, Colors.teal.shade700),
         'report' => (Icons.outgoing_mail, Colors.deepPurple.shade400),
+        'support' => (Icons.support_agent, Colors.teal.shade600),
         _ => (Icons.notifications_none, Colors.blueGrey),
       };
 

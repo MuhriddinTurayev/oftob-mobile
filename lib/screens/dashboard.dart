@@ -341,7 +341,7 @@ class _ObjectCards extends StatefulWidget {
 }
 
 class _ObjectCardsState extends State<_ObjectCards> {
-  final _page = PageController(viewportFraction: 0.9);
+  final _page = PageController(); // to'liq kenglik: yonidagi karta chetdan ko'rinmaydi
   int _at = 0;
 
   @override
@@ -361,19 +361,10 @@ class _ObjectCardsState extends State<_ObjectCards> {
         height: 112,
         child: PageView.builder(
           controller: _page,
-          clipBehavior: Clip.none,
-          padEnds: false,
+          clipBehavior: Clip.hardEdge,
           itemCount: n,
           onPageChanged: (i) => setState(() => _at = i),
-          itemBuilder: (_, i) => Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: AnimatedScale(
-              scale: i == _at ? 1 : 0.95,
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-              child: _ObjectCard(objs[i], onTap: widget.onTap),
-            ),
-          ),
+          itemBuilder: (_, i) => _ObjectCard(objs[i], onTap: widget.onTap),
         ),
       ),
       const SizedBox(height: 8),
