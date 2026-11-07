@@ -1231,4 +1231,8 @@ const Map<String, List<String>> kDict = {
   "Yangi fotohisobot": ["Новый фотоотчёт", "Фотоҳисоботи нав"],
   "Bu qurilma hisobdan chiqariladi va qayta kirish uchun parol kerak bo'ladi.": ["Это устройство выйдет из аккаунта, для повторного входа понадобится пароль.", "Ин дастгоҳ аз ҳисоб хориҷ мешавад ва барои вуруди дубора парол лозим мешавад."],
   "Qurilma hisobdan chiqarildi": ["Устройство вышло из аккаунта", "Дастгоҳ аз ҳисоб хориҷ шуд"],
+  "Javob kechikdi — suhbatni qayta oching, javob tayyor bo'lsa ko'rinadi.": ["Ответ задерживается — откройте переписку снова, готовый ответ появится.", "Ҷавоб дер мекунад — сӯҳбатро боз кушоед, ҷавоби тайёр пайдо мешавад."],
+  "Ochish": ["Открыть", "Кушодан"],
+  "SI javob berdi": ["ИИ ответил", "СИ ҷавоб дод"],
+  "Salom! Men savollarga javob beraman va ishni o'zim bajaraman — yozing yoki mikrofonni bosib ayting. Masalan: «Bobur ishga keldi, telefoni yo'q, belgilab qo'y», «Ertaga betonni tekshirish vazifasini qo'y», «Bugun kim ishda?», «Kassani och». Pulga oid ishlarni tasdiqlaganingizdan keyin bajaraman.": ["Здравствуйте! Я отвечаю на вопросы и сам выполняю работу — напишите или нажмите микрофон и скажите. Например: «Бобур пришёл, телефона нет, отметь его», «Поставь задачу на завтра — проверить бетон», «Кто сегодня на работе?», «Открой кассу». Действия с деньгами выполняю после вашего подтверждения.", "Салом! Ман ба саволҳо ҷавоб медиҳам ва корро худам иҷро мекунам — нависед ё микрофонро пахш карда гӯед. Масалан: «Бобур ба кор омад, телефон надорад, қайд кун», «Барои пагоҳ вазифа гузор — бетонро санҷидан», «Имрӯз кӣ дар кор аст?», «Хазинаро кушо». Корҳои пулиро пас аз тасдиқи шумо иҷро мекунам."],
 };

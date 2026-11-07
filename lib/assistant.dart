@@ -45,7 +45,8 @@ VoiceCmd? parseCommand(String raw) {
   bool has(List<String> keys) => keys.any(t.contains);
 
   if (words.length <= 6) {
-    const startK = ['ishga keldim', 'ishga keldi', 'ишга келдим', 'я пришел', 'пришел на работу', 'я на работе', 'ба кор омадам', 'кор омадам'];
+    // faqat «men» haqida: «Bobur ishga keldi» — boshqa odam, uni SI tushunadi va davomatda belgilaydi
+    const startK = ['ishga keldim', 'ишга келдим', 'я пришел', 'я пришла', 'я на работе', 'ба кор омадам', 'кор омадам'];
     const endK = ['ketdim', 'ishdan ketdim', 'кетдим', 'ишдан кетдим', 'я ушел', 'ушел с работы', 'я ухожу', 'аз кор рафтам', 'рафтам'];
     if (has(endK)) return const VoiceCmd(VoiceKind.shiftEnd);
     if (has(startK)) return const VoiceCmd(VoiceKind.shiftStart);
@@ -88,12 +89,16 @@ VoiceCmd? parseCommand(String raw) {
 }
 
 class AiMsg {
-  AiMsg(this.role, this.text, {this.pending = false, this.error = false, this.confirm});
+  AiMsg(this.role, this.text, {this.pending = false, this.error = false, this.confirm, this.id, this.ask = false});
   final String role; // user | assistant
   String text;
   bool pending;
   bool error;
-  VoiceCmd? confirm; // «Ha / Yo'q» kutilmoqda
+  VoiceCmd? confirm; // «Ha / Yo'q» kutilmoqda (telefondagi buyruq)
+  int? id; // serverdagi javob raqami
+  bool ask; // SI pulga oid amalni bajarishdan oldin tasdiq so'rayapti («Tasdiqlash / Bekor qilish»)
+
+  static AiMsg fromServer(Map m) => AiMsg('${m['role']}', '${m['content']}', error: m['status'] == 'error', id: (m['id'] as num?)?.toInt(), ask: m['confirm'] == true, pending: m['status'] == 'streaming');
 }
 
 /// AI yordamchi holati: yozishma, ovoz yozish, gapirib berish. Bitta nusxa — yozishma panel yopilsa ham saqlanadi.
@@ -116,6 +121,15 @@ class AssistantController extends ChangeNotifier {
   bool speak = false;
   int recSeconds = 0;
 
+  /// Yozishma oynasi ochiqmi — yopiq bo'lsa, javob kelganda ekranda xabar chiqadi ([onBackgroundReply])
+  bool sheetOpen = false;
+
+  /// Oyna yopiq paytda SI javob berdi: ilova xabar ko'rsatadi («Ochish» bilan)
+  void Function(String text)? onBackgroundReply;
+
+  /// Yozishma oynasini ochish so'rovi (xabardagi «Ochish» tugmasi) — suzuvchi tugma tinglaydi
+  final ValueNotifier<int> openRequest = ValueNotifier(0);
+
   final AudioRecorder _rec = AudioRecorder();
   final FlutterTts _tts = FlutterTts();
   Timer? _recTimer;
@@ -131,8 +145,9 @@ class AssistantController extends ChangeNotifier {
       final d = await _api!.aiState();
       messages
         ..clear()
-        ..addAll(((d['messages'] as List?) ?? const []).whereType<Map>().where((m) => '${m['content']}'.trim().isNotEmpty).map((m) => AiMsg('${m['role']}', '${m['content']}', error: m['status'] == 'error')));
+        ..addAll(((d['messages'] as List?) ?? const []).whereType<Map>().where((m) => '${m['content']}'.trim().isNotEmpty || m['status'] == 'streaming').map(AiMsg.fromServer));
       chips = ((d['chips'] as List?) ?? const []).map((e) => '$e').toList();
+      _resumePending();
       voiceReady = d['voice'] != false;
       final lim = d['limit'];
       if (lim is Map && lim['line'] != null) limitLine = '${lim['line']}';
@@ -171,8 +186,9 @@ class AssistantController extends ChangeNotifier {
       conv = id;
       messages
         ..clear()
-        ..addAll(((d['messages'] as List?) ?? const []).whereType<Map>().where((m) => '${m['content']}'.trim().isNotEmpty).map((m) => AiMsg('${m['role']}', '${m['content']}', error: m['status'] == 'error')));
+        ..addAll(((d['messages'] as List?) ?? const []).whereType<Map>().where((m) => '${m['content']}'.trim().isNotEmpty || m['status'] == 'streaming').map(AiMsg.fromServer));
       notifyListeners();
+      _resumePending();
       return true;
     } catch (_) {
       return false;
@@ -252,11 +268,14 @@ class AssistantController extends ChangeNotifier {
     notifyListeners();
     try {
       final a = await _api!.aiSend(q, conv);
-      pending
-        ..pending = false
-        ..text = a.text;
+      pending.id = a.id;
       if (a.line != null) limitLine = a.line;
-      if (speak) unawaited(_say(a.text));
+      if (a.text != null) {
+        _finish(pending, a.text!, ask: a.confirm);
+      } else if (a.id != null) {
+        // javob serverda yozilyapti — oyna yopilsa ham kutamiz va tayyor bo'lgach xabar beramiz
+        await _waitFor(pending);
+      }
     } on ApiException catch (e) {
       pending
         ..pending = false
@@ -269,6 +288,71 @@ class AssistantController extends ChangeNotifier {
         ..text = '$e';
     }
     busy = false;
+    notifyListeners();
+  }
+
+  /// Javob tayyor: matn, tasdiq tugmalari, ovoz bilan o'qish; oyna yopiq bo'lsa — ilovada xabar
+  void _finish(AiMsg m, String text, {bool ask = false, bool error = false}) {
+    m
+      ..pending = false
+      ..text = text
+      ..ask = ask
+      ..error = error;
+    if (!error && speak) unawaited(_say(text));
+    if (!sheetOpen && text.trim().isNotEmpty) onBackgroundReply?.call(text);
+  }
+
+  /// Serverda yozilayotgan javobni kutish (har 1,2 soniyada so'raladi; internet uzilsa — qayta urinadi, 4 daqiqagacha)
+  Future<void> _waitFor(AiMsg m) async {
+    final id = m.id;
+    if (id == null) return;
+    var fails = 0;
+    final until = DateTime.now().add(const Duration(minutes: 4));
+    while (DateTime.now().isBefore(until)) {
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      if (!messages.contains(m)) return; // suhbat almashtirildi
+      try {
+        final d = await _api!.aiMsg(id);
+        fails = 0;
+        final st = '${d['status']}';
+        if (st == 'streaming') continue;
+        if (d['limit_line'] != null) limitLine = '${d['limit_line']}';
+        _finish(m, st == 'error' ? '${d['error'] ?? d['text'] ?? ''}' : '${d['text'] ?? ''}', ask: d['confirm'] == true, error: st == 'error');
+        notifyListeners();
+        return;
+      } catch (_) {
+        if (++fails > 60) break;
+      }
+    }
+    _finish(m, tr("Javob kechikdi — suhbatni qayta oching, javob tayyor bo'lsa ko'rinadi."), error: true);
+    notifyListeners();
+  }
+
+  /// Ochilgan suhbatda hali yozilayotgan javob bo'lsa — kutishni davom ettirish
+  void _resumePending() {
+    for (final m in messages.where((x) => x.pending && x.id != null).toList()) {
+      busy = true;
+      unawaited(_waitFor(m).whenComplete(() {
+        busy = messages.any((x) => x.pending);
+        notifyListeners();
+      }));
+    }
+  }
+
+  /// «Tasdiqlash» / «Bekor qilish» — SI taklif qilgan pulga oid amal
+  Future<void> answerAsk(AiMsg m, bool yes) async {
+    final id = m.id;
+    if (id == null || !m.ask) return;
+    m.ask = false;
+    notifyListeners();
+    try {
+      final t = await _api!.aiAction(id, yes);
+      m.text = t;
+      HapticFeedback.mediumImpact();
+      if (speak) unawaited(_say(t));
+    } on ApiException catch (e) {
+      messages.add(AiMsg('assistant', e.isNetwork ? tr("Internet yo'q") : e.message, error: true));
+    }
     notifyListeners();
   }
 
@@ -437,7 +521,10 @@ class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin
   void initState() {
     super.initState();
     _loadPos();
+    widget.controller.openRequest.addListener(_openReq);
   }
+
+  void _openReq() => _show();
 
   Future<void> _loadPos() async {
     try {
@@ -453,6 +540,7 @@ class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin
   @override
   void dispose() {
     _pulse.dispose();
+    widget.controller.openRequest.removeListener(_openReq);
     super.dispose();
   }
 
@@ -581,12 +669,14 @@ class _AssistantSheetState extends State<AssistantSheet> {
   @override
   void initState() {
     super.initState();
+    c.sheetOpen = true;
     c.addListener(_changed);
     if (widget.autoListen) WidgetsBinding.instance.addPostFrameCallback((_) => _mic());
   }
 
   @override
   void dispose() {
+    c.sheetOpen = false;
     c.removeListener(_changed);
     if (c.recording) unawaited(c.cancelRecording());
     _text.dispose();
@@ -805,7 +895,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
           shadow: false,
           padding: const EdgeInsets.all(14),
           child: Text(
-            tr("Salom! Men ma'lumotlaringiz bo'yicha savollarga javob beraman (kassa, xodimlar, vazifalar…). Ovoz bilan ham ishlayman: mikrofonni bosing va ayting — masalan «Kassani och», «Ishga keldim», «Bugun kim ishda?»."),
+            tr("Salom! Men savollarga javob beraman va ishni o'zim bajaraman — yozing yoki mikrofonni bosib ayting. Masalan: «Bobur ishga keldi, telefoni yo'q, belgilab qo'y», «Ertaga betonni tekshirish vazifasini qo'y», «Bugun kim ishda?», «Kassani och». Pulga oid ishlarni tasdiqlaganingizdan keyin bajaraman."),
             style: const TextStyle(fontSize: 14, height: 1.35),
           ),
         ),
@@ -826,6 +916,19 @@ class _AssistantSheetState extends State<AssistantSheet> {
         ? const _TypingDots()
         : Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
             SelectableText(m.error ? tr(m.text) : m.text, style: TextStyle(fontSize: 14.5, height: 1.35, color: m.error ? cs.error : (me ? Colors.white : cs.onSurface))),
+            if (m.ask && m.id != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Wrap(spacing: 8, runSpacing: 6, children: [
+                  FilledButton.icon(
+                    onPressed: () => c.answerAsk(m, true),
+                    style: FilledButton.styleFrom(minimumSize: const Size(70, 38)),
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: const Text('Tasdiqlash'),
+                  ),
+                  OutlinedButton(onPressed: () => c.answerAsk(m, false), style: OutlinedButton.styleFrom(minimumSize: const Size(70, 38)), child: const Text('Bekor qilish')),
+                ]),
+              ),
             if (m.confirm != null)
               Padding(
                 padding: const EdgeInsets.only(top: 10),

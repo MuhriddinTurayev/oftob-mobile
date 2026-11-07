@@ -1276,11 +1276,30 @@ class ApiClient {
   /// Suhbatlar tarixi: [{id, title, count, at}]
   Future<List<Map<String, dynamic>>> aiChats() async => _list((await _getMap('/ai/chats'))['data']);
 
-  /// Savolga javob (server tugatguncha kutadi: odatda 3–20 soniya)
-  Future<({String text, String? line})> aiSend(String text, String conv) async {
-    final b = await _send(() => _http.post(_uri('/ai/chat'), headers: _headers, body: jsonEncode({'text': text, 'conv': conv})), timeout: const Duration(seconds: 150));
+  /// Savol — fon rejimida: server darhol qabul qiladi va javobni o'zi yozadi (chatdan, ilovadan chiqilsa ham to'xtamaydi);
+  /// javob [aiMsg] bilan olinadi. text != null — javob shu zahoti tayyor (eski server).
+  Future<({int? id, String? text, bool confirm, String? line})> aiSend(String text, String conv) async {
+    final b = await _send(() => _http.post(_uri('/ai/chat'), headers: _headers, body: jsonEncode({'text': text, 'conv': conv, 'async': true})), timeout: const Duration(seconds: 150));
     final d = (b as Map)['data'] as Map;
-    return (text: '${d['text']}', line: d['limit_line'] == null ? null : '${d['limit_line']}');
+    final ready = d['status'] != 'streaming' && d['text'] != null;
+    return (
+      id: (d['id'] as num?)?.toInt(),
+      text: ready ? '${d['text']}' : null,
+      confirm: d['confirm'] == true,
+      line: d['limit_line'] == null ? null : '${d['limit_line']}',
+    );
+  }
+
+  /// SI javobi holati: status streaming|done|error, text, confirm (pulga oid amal tasdiq kutyapti)
+  Future<Map<String, dynamic>> aiMsg(int id) async {
+    final b = await _send(() => _http.get(_uri('/ai/msg/$id'), headers: _headers), timeout: const Duration(seconds: 20));
+    return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
+  }
+
+  /// SI taklif qilgan amalni tasdiqlash (yes) yoki bekor qilish — natija matni qaytadi
+  Future<String> aiAction(int id, bool yes) async {
+    final d = await aSend('POST', '/ai/action/$id', {'yes': yes});
+    return d is Map ? '${d['text'] ?? ''}' : '';
   }
 
   Future<void> aiClear(String conv) async {

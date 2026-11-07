@@ -69,7 +69,19 @@ class _OftobAppState extends State<OftobApp> {
       _ai = null;
       return null;
     }
-    return _ai ??= AssistantController(session);
+    return _ai ??= (AssistantController(session)
+      // yozishma yopiq paytda SI javob bersa (masalan, buyruq bajarildi) — pastda xabar, «Ochish» bilan
+      ..onBackgroundReply = (text) {
+        final t = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+        _msgKey.currentState
+          ?..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 6),
+            content: Text('${tr('SI javob berdi')}: ${t.length > 120 ? '${t.substring(0, 120)}…' : t}', maxLines: 3),
+            action: SnackBarAction(label: tr('Ochish'), onPressed: () => _ai?.openRequest.value++),
+          ));
+      });
   }
 
   Session get session => widget.session;
