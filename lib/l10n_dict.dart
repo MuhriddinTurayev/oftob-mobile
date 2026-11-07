@@ -1229,4 +1229,6 @@ const Map<String, List<String>> kDict = {
   "shundan": ["из них", "аз он"],
   "shundan muddati o'tgan": ["из них просрочено", "аз он мӯҳлаташ гузашта"],
   "Yangi fotohisobot": ["Новый фотоотчёт", "Фотоҳисоботи нав"],
+  "Bu qurilma hisobdan chiqariladi va qayta kirish uchun parol kerak bo'ladi.": ["Это устройство выйдет из аккаунта, для повторного входа понадобится пароль.", "Ин дастгоҳ аз ҳисоб хориҷ мешавад ва барои вуруди дубора парол лозим мешавад."],
+  "Qurilma hisobdan chiqarildi": ["Устройство вышло из аккаунта", "Дастгоҳ аз ҳисоб хориҷ шуд"],
 };

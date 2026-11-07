@@ -174,9 +174,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _revoke(Map<String, dynamic> x) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Seansni yopish'),
+        content: Text('${x['title']}\n\n${tr("Bu qurilma hisobdan chiqariladi va qayta kirish uchun parol kerak bo'ladi.")}'),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Yo'q")), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Ha, chiqarish'))],
+      ),
+    );
+    if (ok != true) return;
     try {
       await s.api!.profileSessionRevoke('${x['id']}');
       HapticFeedback.selectionClick();
+      _snack(tr('Qurilma hisobdan chiqarildi'));
       _loadSessions();
     } on ApiException catch (e) {
       _snack(e.message);
@@ -208,8 +218,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final m = DateTime.now().difference(d).inMinutes;
     if (m < 2) return tr('hozirgina');
     if (m < 60) return '$m ${tr('daqiqa oldin')}';
-    if (m < 1440) return '${m ~/ 60} ${tr('soat oldin')}';
-    return formatDate(iso);
+    final hm = '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    if (m < 1440) return '${m ~/ 60} ${tr('soat oldin')} ($hm)';
+    return '${formatDate(iso)} $hm';
   }
 
   Widget _field(TextEditingController c, String label) => Padding(
