@@ -17,9 +17,25 @@ class PickedSite {
 
 /// «41.2775, 69.2177», Google/Yandex xarita havolasi (…@41.27,69.21… yoki ?q=41.27,69.21 yoki ll=69.21,41.27) → nuqta
 LatLng? parseCoords(String raw) {
-  final s = raw.trim();
+  var s = raw.trim();
   if (s.isEmpty) return null;
+  try {
+    s = Uri.decodeFull(s);
+  } catch (_) {}
   bool ok(double a, double b) => a.abs() <= 90 && b.abs() <= 180 && !(a == 0 && b == 0);
+  // gradus-daqiqa-soniya: 41°16'39.2"N 69°13'03.9"E
+  final d = RegExp(r'''(\d{1,3})\s*[°º:\s]\s*(\d{1,2})\s*['′:\s]\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:"|″|'')?\s*([NSnsСЮсю])[\s,;]*(\d{1,3})\s*[°º:\s]\s*(\d{1,2})\s*['′:\s]\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:"|″|'')?\s*([EWewВЗвз])''').firstMatch(s);
+  if (d != null) {
+    double v(int i) => double.parse(d.group(i)!) + double.parse(d.group(i + 1)!) / 60 + double.parse(d.group(i + 2)!.replaceAll(',', '.')) / 3600;
+    final lat = v(1) * (RegExp('[SsЮю]').hasMatch(d.group(4)!) ? -1 : 1), lng = v(5) * (RegExp('[WwЗз]').hasMatch(d.group(8)!) ? -1 : 1);
+    if (ok(lat, lng)) return LatLng(lat, lng);
+  }
+  // Google: belgining aniq nuqtasi (!3d…!4d…) ekran markazidan (@…) muhimroq
+  final g = RegExp(r'!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)').firstMatch(s);
+  if (g != null) {
+    final lat = double.parse(g.group(1)!), lng = double.parse(g.group(2)!);
+    if (ok(lat, lng)) return LatLng(lat, lng);
+  }
   // Yandex: ll=uzunlik,kenglik
   final y = RegExp(r'[?&]ll=(-?\d+(?:\.\d+)?)(?:%2C|,)(-?\d+(?:\.\d+)?)').firstMatch(s);
   if (y != null) {
@@ -86,7 +102,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
         builder: (ctx, set) => AlertDialog(
           title: const Text('Koordinata yoki havola'),
           content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Masalan: 41.277548, 69.217751 — yoki Google/Yandex xaritadagi joy havolasini qo'ying.", style: TextStyle(color: Theme.of(ctx).colorScheme.outline, fontSize: 13)),
+            Text("Masalan: 41.277548, 69.217751 yoki 41°16'39.2\"N 69°13'03.9\"E — yoki Google/Yandex xaritadagi joy havolasini qo'ying.", style: TextStyle(color: Theme.of(ctx).colorScheme.outline, fontSize: 13)),
             const SizedBox(height: 10),
             TextField(controller: c, autofocus: true, minLines: 1, maxLines: 3, decoration: InputDecoration(hintText: '41.277548, 69.217751', errorText: err)),
             Align(
