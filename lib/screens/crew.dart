@@ -10,6 +10,7 @@ import '../theme.dart';
 import '../motion.dart';
 import '../widgets.dart';
 import '../l10n.dart';
+import 'tg_link.dart';
 
 const _months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
 
@@ -351,6 +352,17 @@ class _WorkerSheet extends StatelessWidget {
               onPressed: () => launchUrl(Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^0-9+]'), '')), mode: LaunchMode.externalApplication),
               icon: const Icon(Icons.call_outlined),
               label: Text(phone),
+            ),
+          ],
+          const SizedBox(height: 18),
+          // Telegram-botga ulash: kod, havola, ulanganmi
+          if (w['tg_code'] != null) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => showTelegramLink(context, session, objectId: objectId, staffId: '${w['id']}', name: '${w['name']}', linked: w['tg_linked'] == true),
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(46)),
+              icon: Icon(Icons.telegram, color: w['tg_linked'] == true ? const Color(0xFF229ED9) : null),
+              label: Text(w['tg_linked'] == true ? '${tr('Telegram ulangan')} · ${w['tg_code']}' : '${tr('Telegram-botga ulash')} · ${w['tg_code']}'),
             ),
           ],
           const SizedBox(height: 18),

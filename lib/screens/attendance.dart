@@ -8,6 +8,7 @@ import '../session.dart';
 import '../widgets.dart';
 import '../theme.dart';
 import '../l10n.dart';
+import 'tg_link.dart';
 
 /// Davomat: kim ishga keldi, kim ishda, kim ketdi, kim kelmadi — obyektlar bo'yicha.
 /// Hisob veb-dasturdagi "Kim ishga keldi" bilan bir xil (server hisoblaydi). Prorab faqat o'z ishchilarini ko'radi.
@@ -300,6 +301,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               : null,
           onAction: (act) => _mark(act, {'${site['id']}': ['${w['id']}']}),
           live: _isToday,
+          // ishchini bosish — Telegram-botga ulash kodi
+          onInfo: w['tg_code'] != null
+              ? () => showTelegramLink(context, s,
+                      objectId: '${site['id']}', staffId: '${w['id']}', name: '${w['name']}', code: '${w['tg_code']}', linked: w['tg_linked'] == true, bot: '${_data?['bot'] ?? ''}')
+                  .then((_) => _load(quiet: true))
+              : null,
         ));
         }
         rows.add(Padding(
@@ -433,7 +440,10 @@ class _Stat extends StatelessWidget {
 }
 
 class _WorkerTile extends StatelessWidget {
-  const _WorkerTile({required this.w, required this.selected, required this.selecting, required this.canMark, required this.busy, required this.onToggle, required this.onLong, required this.onAction, this.live = false, this.flat = false});
+  const _WorkerTile({required this.w, required this.selected, required this.selecting, required this.canMark, required this.busy, required this.onToggle, required this.onLong, required this.onAction, this.live = false, this.flat = false, this.onInfo});
+
+  /// Bosilganda (tanlash rejimi bo'lmasa): Telegram-botga ulash kodi
+  final VoidCallback? onInfo;
 
   /// Guruh kartasi ichida: alohida shisha fonsiz qator
   final bool flat;
@@ -521,6 +531,14 @@ class _WorkerTile extends StatelessWidget {
                 ),
             ]),
           ),
+          if (w['tg_code'] != null && !selecting)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, right: 2),
+              child: Tooltip(
+                message: w['tg_linked'] == true ? tr('Telegram ulangan') : tr('Telegram ulanmagan — bosing, kod chiqadi'),
+                child: Icon(Icons.telegram, size: 22, color: w['tg_linked'] == true ? const Color(0xFF229ED9) : cs.outline.withValues(alpha: 0.55)),
+              ),
+            ),
           const SizedBox(width: 8),
           if (canMark && !selecting && (st == 'absent' || st == 'working' || st == 'forgot'))
             SizedBox(
@@ -543,7 +561,7 @@ class _WorkerTile extends StatelessWidget {
         type: MaterialType.transparency,
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: selecting ? onToggle : null,
+          onTap: selecting ? onToggle : onInfo,
           onLongPress: onLong,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
@@ -555,7 +573,7 @@ class _WorkerTile extends StatelessWidget {
       );
     }
     return GlassRow(
-      onTap: selecting ? onToggle : null,
+      onTap: selecting ? onToggle : onInfo,
       onLongPress: onLong,
       tint: selected ? cs.primaryContainer.withValues(alpha: 0.75) : null,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
