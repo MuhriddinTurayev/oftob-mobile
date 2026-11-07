@@ -5,6 +5,7 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../keyboard.dart';
 import '../api.dart';
 import '../format.dart';
 import '../offline.dart';
@@ -1290,7 +1291,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar: KeyboardLift(child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1327,7 +1328,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             ),
           ]),
         ),
-      ),
+      )),
     );
   }
 

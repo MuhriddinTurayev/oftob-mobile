@@ -5,6 +5,7 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../keyboard.dart';
 import '../api.dart';
 import '../format.dart';
 import '../l10n.dart';
@@ -340,7 +341,7 @@ class _NewReportState extends State<_NewReport> {
           ],
         ],
       ),
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar: KeyboardLift(child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -356,7 +357,7 @@ class _NewReportState extends State<_NewReport> {
             ),
           ]),
         ),
-      ),
+      )),
     );
   }
 }

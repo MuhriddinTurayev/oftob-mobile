@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
-import 'l10n.dart';
-
 /// Klaviaturani yopish — butun ilova bo'ylab (har bir maydonga alohida yozish shart emas):
-/// * bo'sh joyga bosilsa klaviatura yopiladi;
-/// * klaviatura ochiq turganda uning ustida «Tayyor» tugmasi chiqadi — iPhone'ning raqam klaviaturasida
-///   «Enter/Готово» tugmasi yo'q, usiz summa kiritilgach klaviatura yopilmay qolardi;
-/// * yangi oyna/varaq ochilganda klaviatura yopiladi ([KeyboardRouteObserver]) — aks holda u oynani berkitib qo'yardi.
+/// * bo'sh joyga bosilsa klaviatura yopiladi (iPhone raqam klaviaturasida «Enter» yo'q — shu yo'l bilan yopiladi);
+/// * yangi oyna/varaq ochilganda klaviatura yopiladi ([KeyboardRouteObserver]) — aks holda u oynani berkitib qo'yardi;
+/// * pastdagi «Yuborish/Saqlash» tugmalari klaviatura bilan birga tepaga ko'tariladi ([KeyboardLift]).
+/// Klaviatura ustida alohida «Tayyor» tugmasi yo'q — u chatdagi yuborish tugmasini to'sib qo'yardi.
 class KeyboardDismiss extends StatelessWidget {
   const KeyboardDismiss({super.key, required this.child});
 
@@ -20,52 +18,28 @@ class KeyboardDismiss extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kb = MediaQuery.viewInsetsOf(context).bottom;
-    return Stack(children: [
-      GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: hide,
-        child: child,
-      ),
-      if (kb > 80)
-        Positioned(
-          right: 10,
-          bottom: kb + 6,
-          child: _DoneButton(onTap: hide),
-        ),
-    ]);
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: hide,
+      child: child,
+    );
   }
 }
 
-class _DoneButton extends StatelessWidget {
-  const _DoneButton({required this.onTap});
+/// Ekran pastidagi tugmalar paneli (Scaffold.bottomNavigationBar): klaviatura ochilganda uning ustiga ko'tariladi,
+/// yopilganda joyiga tushadi — tugma hech qachon klaviatura ostida qolmaydi.
+class KeyboardLift extends StatelessWidget {
+  const KeyboardLift({super.key, required this.child});
 
-  final VoidCallback onTap;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Material(
-      color: dark ? const Color(0xFF2A3430) : Colors.white,
-      elevation: 4,
-      shadowColor: Colors.black26,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        key: const ValueKey('kb-done'),
-        borderRadius: BorderRadius.circular(20),
-        onTap: () {
-          HapticFeedback.selectionClick();
-          onTap();
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.keyboard_hide_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(width: 6),
-            Text(tr('Tayyor'), style: TextStyle(fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.primary)),
-          ]),
-        ),
-      ),
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: child,
     );
   }
 }

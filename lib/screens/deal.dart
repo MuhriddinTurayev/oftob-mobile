@@ -5,6 +5,7 @@ import 'package:flutter/material.dart' hide Text;
 
 import 'package:flutter/services.dart';
 
+import '../keyboard.dart';
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
@@ -292,7 +293,7 @@ class _DealScreenState extends State<DealScreen> {
           ],
         ],
       ),
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar: KeyboardLift(child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: FilledButton(
@@ -300,7 +301,7 @@ class _DealScreenState extends State<DealScreen> {
             child: _busy ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : Text(booking ? 'Bron qilish' : 'Sotuvni rasmiylashtirish'),
           ),
         ),
-      ),
+      )),
     );
   }
 
