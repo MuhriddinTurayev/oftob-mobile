@@ -821,16 +821,17 @@ class _ActBtn extends StatelessWidget {
     final on = onTap != null;
     return Material(
       color: filled ? color.withValues(alpha: on ? 0.9 : 0.4) : color.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
+        // ixcham: ikonka va nom yonma-yon, past bo'yli
         child: SizedBox(
-          height: 58,
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(icon, size: 21, color: filled ? Colors.white : color),
-            const SizedBox(height: 3),
-            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: filled ? Colors.white : color)),
+          height: 36,
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, size: 16, color: filled ? Colors.white : color),
+            const SizedBox(width: 5),
+            Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: filled ? Colors.white : color))),
           ]),
         ),
       ),
