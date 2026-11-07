@@ -168,6 +168,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         'shift' => (Icons.how_to_reg, Colors.teal.shade700),
         'report' => (Icons.outgoing_mail, Colors.deepPurple.shade400),
         'support' => (Icons.support_agent, Colors.teal.shade600),
+        'ai' => (Icons.auto_awesome, Colors.purple.shade400),
         _ => (Icons.notifications_none, Colors.blueGrey),
       };
 

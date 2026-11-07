@@ -55,6 +55,23 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _search() async {
+    // platforma administratori: korxona kodi o'rniga maxsus kod (sozlamada o'zgartiriladi) — o'z login va paroli bilan kirish oynasi
+    final raw = _code.text.trim();
+    if (raw.isNotEmpty && RegExp(r'^[A-Za-z0-9-]{4,32}$').hasMatch(raw)) {
+      setState(() {
+        _busy = true;
+        _error = null;
+      });
+      final admin = await ApiClient.platformGate(s.serverUrl, raw);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      if (admin) {
+        FocusScope.of(context).unfocus();
+        _code.clear();
+        await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PlatformLoginScreen(session: s)));
+        return;
+      }
+    }
     final code = parseCompanyCode(_code.text);
     if (code == null) {
       setState(() {
@@ -74,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() {
         _found = c;
-        _error = c == null ? 'Bunday korxona topilmadi. Kodni tekshiring.\n(server: ${Uri.parse(s.serverUrl).host})' : null;
+        _error = c == null ? 'Bunday korxona topilmadi. Kodni tekshiring.' : null;
       });
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -212,15 +229,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(color: cs.outline, fontSize: 12),
                   ),
-                  const SizedBox(height: 10),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PlatformLoginScreen(session: widget.session))),
-                      icon: Icon(Icons.admin_panel_settings_outlined, size: 18, color: cs.outline),
-                      label: Text('Platforma administratori kirishi', style: TextStyle(color: cs.outline, fontSize: 13, fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 16),
                   Text(_version, textAlign: TextAlign.center, style: TextStyle(color: cs.outline.withValues(alpha: 0.7), fontSize: 11)),
                 ],
               ),

@@ -12,6 +12,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import '../screens/notifications.dart';
 import '../screens/support.dart';
+import 'platform_extra.dart';
 
 /// Platforma administratori (super admin) uchun ilova: veb-admin paneldagi ishlar — kompaniyalar, to'lovlar, tariflar,
 /// saytdan arizalar, yordam. Murakkab bo'limlar (sayt matnlari, blog, API, bazalar, administratorlar) «To'liq panel» orqali
@@ -85,8 +86,16 @@ class _PlatformHomeState extends State<PlatformHome> {
   }
 
   void _go(String go) {
-    final i = switch (go) { 'companies' => 1, 'leads' => 2, 'support' => 3, _ => 0 };
     Navigator.of(context).popUntil((r) => r.isFirst);
+    if (go == 'billing') {
+      openPlatformPage(context, tr("To'lovlarni tasdiqlash"), ClaimsScreen(session: s));
+      return;
+    }
+    if (go == 'ai') {
+      openPlatformPage(context, tr("Sun'iy intellekt"), PlatformAiScreen(session: s));
+      return;
+    }
+    final i = switch (go) { 'companies' => 1, 'leads' => 2, 'support' => 3, _ => 0 };
     setState(() => _index = i);
   }
 
@@ -315,6 +324,14 @@ class _OverviewState extends State<_Overview> {
                 const SizedBox(width: 8),
                 stat(tr('AI so\'rov'), d['ai_month'] ?? 0, Brand.orange),
               ]),
+              if (((d['claims_pending'] as num?) ?? 0) > 0 || ((d['ai_requests_pending'] as num?) ?? 0) > 0) ...[
+                const SizedBox(height: 8),
+                Row(children: [
+                  stat(tr("To'lov tasdig'i"), d['claims_pending'] ?? 0, Brand.green, onTap: () => openPlatformPage(context, tr("To'lovlarni tasdiqlash"), ClaimsScreen(session: s)).then((_) => reload())),
+                  const SizedBox(width: 8),
+                  stat(tr('AI arizalar'), d['ai_requests_pending'] ?? 0, Brand.purple, onTap: () => openPlatformPage(context, tr("Sun'iy intellekt"), PlatformAiScreen(session: s)).then((_) => reload())),
+                ]),
+              ],
               for (final (title, key) in [("Tarif so'raganlar", 'requests'), ('Muddati tugayapti', 'ending'), ('Yangi kompaniyalar', 'latest')])
                 if (l(key).isNotEmpty) ...[
                   Padding(padding: const EdgeInsets.fromLTRB(4, 18, 4, 8), child: Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))),
@@ -1025,7 +1042,10 @@ class _More extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         if (can('payments')) row(Icons.receipt_long_rounded, Brand.green, "To'lovlar", "Barcha kompaniyalar to'lovlari", () => push(tr("To'lovlar"), _Payments(session: s))),
-        if (can('plans')) row(Icons.workspace_premium_rounded, Brand.orange, 'Tariflar', 'Narx va limitlar', () => push(tr('Tariflar'), _Plans(session: s))),
+        if (can('payments')) row(Icons.verified_rounded, Brand.green, "To'lovlarni tasdiqlash", "Kompaniyalar yuborgan to'lovlar", () => push(tr("To'lovlarni tasdiqlash"), ClaimsScreen(session: s))),
+        if (can('plans')) row(Icons.workspace_premium_rounded, Brand.orange, 'Tariflar', 'Narx, umrbod narx va limitlar', () => push(tr('Tariflar'), _Plans(session: s))),
+        if (can('ai')) row(Icons.auto_awesome_rounded, Brand.purple, "Sun'iy intellekt", 'Kalitlar, real limitlar, arizalar', () => push(tr("Sun'iy intellekt"), PlatformAiScreen(session: s))),
+        if (can('settings')) row(Icons.pin_rounded, Brand.teal, 'Kirish kodi', "Ilovada administrator kirishi uchun kod", () => changeGateCode(context, s)),
         Padding(padding: const EdgeInsets.fromLTRB(4, 8, 4, 8), child: Text("To'liq panel (sayt bo'limlari)", style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))),
         for (final (perm, path, icon, color, title) in [
           ('', '/admin', Icons.space_dashboard_rounded, Brand.blue, 'Bosh panel'),
@@ -1139,6 +1159,7 @@ class _PlansState extends State<_Plans> {
     final mu = TextEditingController(text: p['max_users'] == null ? '' : '${p['max_users']}');
     final ai = TextEditingController(text: p['ai_requests'] == null ? '' : '${p['ai_requests']}');
     final td = TextEditingController(text: p['trial_days'] == null ? '' : '${p['trial_days']}');
+    final po = TextEditingController(text: fmtInput(p['price_once'] as num?));
     var active = p['is_active'] == true;
     final ok = await showModalBottomSheet<bool>(
       context: context,
@@ -1156,6 +1177,13 @@ class _PlansState extends State<_Plans> {
                 const SizedBox(width: 8),
                 Expanded(child: TextField(controller: py, keyboardType: TextInputType.number, inputFormatters: const [ThousandsFormatter()], decoration: InputDecoration(labelText: '${tr('Yiliga')} (${curName(p['currency'])})'))),
               ]),
+              const SizedBox(height: 8),
+              TextField(
+                controller: po,
+                keyboardType: TextInputType.number,
+                inputFormatters: const [ThousandsFormatter()],
+                decoration: InputDecoration(labelText: '${tr('Umrbod (bir martalik)')} (${curName(p['currency'])})', helperText: tr("Bo'sh — faqat oylik. To'liq to'lansa — tarif umrbod")),
+              ),
               const SizedBox(height: 8),
               Row(children: [
                 Expanded(child: TextField(controller: mo, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Obyektlar soni')))),
@@ -1181,7 +1209,7 @@ class _PlansState extends State<_Plans> {
     try {
       await s.papi!.pSend('PUT', '/plans/${p['id']}', {
         'price_month': num.tryParse(pm.text.replaceAll(' ', '')) ?? 0, 'price_year': num.tryParse(py.text.replaceAll(' ', '')), 'max_objects': n(mo), 'max_users': n(mu),
-        'ai_requests': n(ai), 'trial_days': n(td), 'is_active': active,
+        'ai_requests': n(ai), 'trial_days': n(td), 'is_active': active, 'price_once': num.tryParse(po.text.replaceAll(' ', '')),
       });
       HapticFeedback.mediumImpact();
       setState(() => _k = UniqueKey());

@@ -1,4 +1,5 @@
 import 'rates.dart';
+import 'company_admin.dart';
 import 'support.dart';
 import 'package:flutter/material.dart' hide Text;
 
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import 'dart:async';
 
+import '../api.dart';
 import '../offline.dart';
 import '../prefetch.dart';
 import '../session.dart';
@@ -64,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _nc.start();
     AppNav.open = _open;
+    ApiClient.onExpired = _expired;
     AppNav.sections = [..._primary.map((e) => e.label), ..._more.map((e) => e.label)];
     _syncTimer = Timer.periodic(const Duration(seconds: 30), (_) => _tickSync());
     // ochilgandan keyin 25 soniya o'tgach (ekran birinchi bo'lib silliq ochilsin)
@@ -96,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     if (AppNav.open == _open) AppNav.open = null;
+    if (ApiClient.onExpired == _expired) ApiClient.onExpired = null;
     WidgetsBinding.instance.removeObserver(this);
     _syncTimer?.cancel();
     _nc.dispose();
@@ -142,6 +146,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       'attendance' => 'Davomat',
       'reports' => 'Hisobotlar',
       'support' => 'Yordam',
+      'billing' => "Tarif va to'lov",
+      'ai' => "Sun'iy intellekt",
       _ => '',
     });
   }
@@ -180,6 +186,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (me.can('objects:read') && !primary.contains('Obyektlar')) _Tab('Obyektlar', Icons.apartment_outlined, Icons.apartment, (x) => ObjectsScreen(session: x)),
       if (me.can('cash:read') && !primary.contains('Kassa')) _Tab('Kassa', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, (x) => CashScreen(session: x)),
       if (me.can('leads:read') && !primary.contains('Lidlar')) _Tab('Lidlar', Icons.people_alt_outlined, Icons.people_alt, (x) => LeadsScreen(session: x)),
+      // rahbar: jamoa (bloklash, rol), AI kalitlari va limit; rahbar va buxgalter: tarif va to'lov
+      if (me.role == 'admin') _Tab('Jamoa va rollar', Icons.manage_accounts_outlined, Icons.manage_accounts, (x) => TeamScreen(session: x)),
+      if (me.role == 'admin') _Tab("Sun'iy intellekt", Icons.auto_awesome_outlined, Icons.auto_awesome, (x) => AiSetupScreen(session: x)),
+      if (me.role == 'admin' || me.role == 'accountant') _Tab("Tarif va to'lov", Icons.workspace_premium_outlined, Icons.workspace_premium, (x) => BillingScreen(session: x)),
       // yordam: xodim → direktor, direktor → platforma administratori
       _Tab('Yordam', Icons.support_agent_outlined, Icons.support_agent, (x) => SupportScreen(session: x)),
     ];
@@ -198,6 +208,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     'Prorab puli': Brand.green,
     'Hisobotlar': Brand.purple,
     'Valyutalar': Brand.amber,
+    'Jamoa va rollar': Brand.blue,
+    "Sun'iy intellekt": Brand.purple,
+    "Tarif va to'lov": Brand.green,
     'Kontragentlar': Brand.orange,
     "To'lov so'rovlari": Brand.blue,
   };
@@ -208,6 +221,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ];
 
   /// Bosh ekrandan bo'limga o'tish: asosiy tab bo'lsa — tab almashadi, bo'lmasa — to'liq ekran sifatida ochiladi
+  bool _expiredShown = false;
+
+  /// Tarif muddati tugagan: rahbar/buxgalterga — to'lov sahifasi, boshqalarga — tushuntirish (bir marta)
+  void _expired() {
+    if (_expiredShown || !mounted) return;
+    _expiredShown = true;
+    final me = s.me;
+    final can = me != null && (me.role == 'admin' || me.role == 'accountant');
+    showDialog<void>(
+      context: context,
+      builder: (c) => AlertDialog(
+        icon: const Icon(Icons.workspace_premium_rounded, size: 36),
+        title: const Text('Tarif muddati tugagan'),
+        content: Text(can
+            ? tr("Ishni davom ettirish uchun tarifni to'lang. To'lovni administrator tasdiqlashi bilan hammasi yana ochiladi.")
+            : tr("Kompaniya tarifi muddati tugagan. Rahbar yoki buxgalter to'lov qilgach, ilova yana ishlaydi.")),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Yopish')),
+          if (can)
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(c);
+                _open("Tarif va to'lov");
+              },
+              child: const Text("Tarif va to'lov"),
+            ),
+        ],
+      ),
+    ).then((_) => Future.delayed(const Duration(minutes: 3), () => _expiredShown = false));
+  }
+
   bool _open(String label) {
     final p = _primary;
     if (label == 'Yana') {

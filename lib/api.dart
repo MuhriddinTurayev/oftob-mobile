@@ -34,6 +34,9 @@ class ApiClient {
   /// 401 kelganda chaqiriladi (Session o'rnatadi): har qanday so'rov — fondagi yangilash ham — bekor qilingan kalitni sezadi
   static void Function()? onUnauthorized;
 
+  /// Kompaniya tarifi muddati tugagan (402): ilova «Tarif va to'lov» ni taklif qiladi
+  static void Function()? onExpired;
+
   /// Server matnlari tili: uz | ru | tg (ilova tili o'zgarganda L.set yangilaydi)
   static String lang = 'uz';
 
@@ -100,6 +103,7 @@ class ApiClient {
     if (r.statusCode >= 200 && r.statusCode < 300) return body;
     // kalit bekor qilingan (boshqa qurilmadan «seansni yopish» yoki parol almashgan): ilova darhol hisobdan chiqadi
     if (r.statusCode == 401 && ApiClient.onUnauthorized != null) scheduleMicrotask(ApiClient.onUnauthorized!);
+    if (r.statusCode == 402 && ApiClient.onExpired != null) scheduleMicrotask(ApiClient.onExpired!);
 
     String msg = 'Xato (${r.statusCode})';
     String? code;
@@ -123,7 +127,7 @@ class ApiClient {
       case 'key_expired':
         msg = 'API kalit muddati tugagan.';
       case 'subscription_inactive':
-        msg = 'Kompaniya tarifi faol emas.';
+        msg = "Kompaniya tarifi muddati tugagan. Rahbar yoki buxgalter «Tarif va to'lov» dan to'lov qilsin.";
       case 'insufficient_scope':
         msg = 'Bu bo\'lim uchun kalitda ruxsat yo\'q.';
       case 'rate_limited':
@@ -480,6 +484,52 @@ class ApiClient {
         }, timeout: const Duration(seconds: 40));
     return b is Map ? b['data'] : null;
   }
+
+  /// Kompaniya kodi o'rniga platforma administratori kodi yozilganmi (server so'raydi; eski serverda — false)
+  static Future<bool> platformGate(String serverUrl, String code) async {
+    final c = ApiClient(serverUrl: serverUrl, apiKey: '');
+    try {
+      final b = await c._send(() => c._http.post(c._uri('/platform/gate'),
+          headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Accept-Language': ApiClient.lang}, body: jsonEncode({'code': code})), timeout: const Duration(seconds: 12));
+      return b is Map && (b['data'] as Map?)?['platform'] == true;
+    } catch (_) {
+      return false;
+    } finally {
+      c.close();
+    }
+  }
+
+  /* ---------------- umumiy: tarif, AI, jamoa (rahbar va buxgalter) ---------------- */
+
+  /// GET → `data` (internet bo'lmasa — oxirgi nusxa)
+  Future<dynamic> aGet(String path, [Map<String, dynamic>? q]) async => (await _getMap(path, q))['data'];
+
+  /// POST / PUT / DELETE → `data`
+  Future<dynamic> aSend(String method, String path, [Map<String, dynamic>? body]) async {
+    final uri = _uri(path);
+    final enc = jsonEncode(body ?? const {});
+    final b = await _send(() => switch (method) {
+          'PUT' => _http.put(uri, headers: _headers, body: enc),
+          'DELETE' => _http.delete(uri, headers: _headers),
+          _ => _http.post(uri, headers: _headers, body: enc),
+        }, timeout: const Duration(seconds: 45));
+    return b is Map ? b['data'] : null;
+  }
+
+  /// Fayl bilan POST (chek): maydonlar + bitta fayl, foiz bilan
+  Future<dynamic> aUpload(String path, Map<String, String> fields, {String? file, String field = 'receipt', UploadProgress? onProgress}) async {
+    final b = await _send(() async {
+      final req = ProgressMultipartRequest('POST', _uri(path), onProgress: onProgress)
+        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang})
+        ..fields.addAll(fields);
+      if (file != null) req.files.add(await http.MultipartFile.fromPath(field, file));
+      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 150)));
+    }, timeout: const Duration(seconds: 160));
+    return b is Map ? b['data'] : null;
+  }
+
+  /// Rasm/fayl manzili (Image.network + authHeaders bilan ko'rsatiladi)
+  String fileUrl(String path) => _uri(path).toString();
 
   /* ---------------- lid manbalari ---------------- */
 
