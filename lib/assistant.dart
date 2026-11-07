@@ -118,6 +118,7 @@ class AssistantController extends ChangeNotifier {
   String? limitLine; // «Osta 978 / 1000 so'rov · 01.12 da yangilanadi»
   bool recording = false;
   bool transcribing = false;
+  int _listenGen = 0; // «Bekor» bosilsa — kelgan matn e'tiborsiz qoldiriladi
   bool speak = false;
   int recSeconds = 0;
 
@@ -356,6 +357,14 @@ class AssistantController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// «Matnga o'girilmoqda» paytida «Bekor»: kutishni to'xtatamiz (server javobi kelsa ham e'tiborsiz)
+  void cancelTranscribing() {
+    if (!transcribing) return;
+    _listenGen++;
+    transcribing = false;
+    notifyListeners();
+  }
+
   /* ---------------- ovoz ---------------- */
 
   Future<String?> startRecording() async {
@@ -407,9 +416,11 @@ class AssistantController extends ChangeNotifier {
     recording = false;
     transcribing = true;
     notifyListeners();
+    final gen = ++_listenGen;
     String? path;
     try {
-      path = await _rec.stop();
+      // ba'zi telefonlarda yozuvni to'xtatish osilib qolishi mumkin — 5 soniyadan keyin saqlangan fayl bilan davom etamiz
+      path = await _rec.stop().timeout(const Duration(seconds: 5));
     } catch (_) {}
     path ??= _recPath;
     String? text;
@@ -421,10 +432,11 @@ class AssistantController extends ChangeNotifier {
         text = await _api!.aiListen(path);
       }
     } on ApiException catch (e) {
-      err = e.isNetwork ? tr("Internet yo'q") : e.message;
+      err = e.isNetwork ? tr("Internet yo'q yoki ovoz serveri javob bermadi — yana bir bor ayting.") : e.message;
     } catch (e) {
       err = '$e';
     }
+    if (gen != _listenGen) return; // foydalanuvchi «Bekor» bosgan
     if (path != null) {
       try {
         await File(path).delete();
@@ -881,6 +893,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
           const SizedBox(width: 10),
           Expanded(child: Text(c.recording ? '${tr('Tinglayapman…')} ${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}' : tr("Matnga o'girilmoqda…"), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5))),
           if (c.recording) TextButton(onPressed: c.cancelRecording, child: const Text('Bekor')),
+          if (!c.recording && c.transcribing) TextButton(onPressed: c.cancelTranscribing, child: const Text('Bekor')),
         ]),
       ),
     );

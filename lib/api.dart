@@ -1312,8 +1312,8 @@ class ApiClient {
       final req = http.MultipartRequest('POST', _uri('/ai/listen'))
         ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang});
       req.files.add(await http.MultipartFile.fromPath('audio', path));
-      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
-    }, timeout: const Duration(seconds: 100));
+      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 55)));
+    }, timeout: const Duration(seconds: 60)); // server o'zi 40 soniyada javob beradi yoki xato qaytaradi
     return '${((b as Map)['data'] as Map)['text']}';
   }
 
