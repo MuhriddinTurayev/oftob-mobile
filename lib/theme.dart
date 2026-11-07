@@ -221,13 +221,13 @@ class Glass extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final br = BorderRadius.circular(radius);
     final fill = tint;
-    final fillGradient = gradient ?? (tint != null ? null : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? [Colors.white.withValues(alpha: 0.14), Colors.white.withValues(alpha: 0.04)] : [Colors.white.withValues(alpha: blur ? 0.46 : 0.5), Colors.white.withValues(alpha: blur ? 0.16 : 0.2)]));
+    final fillGradient = gradient ?? (tint != null ? null : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? const [Color(0xB3222D29), Color(0x99151D1A)] : [Colors.white.withValues(alpha: blur ? 0.46 : 0.5), Colors.white.withValues(alpha: blur ? 0.16 : 0.2)]));
     Widget body = DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: br,
         color: fillGradient == null ? fill : null,
         gradient: fillGradient,
-        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.16) : Colors.white.withValues(alpha: 0.9), width: 1.1),
+        border: Border.all(color: dark ? Colors.white.withValues(alpha: 0.10) : Colors.white.withValues(alpha: 0.9), width: 1.1),
       ),
       child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
     );
@@ -366,14 +366,16 @@ class IconTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(size * 0.32),
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [color.withValues(alpha: 0.20), color.withValues(alpha: 0.10)]),
+        // tungi rejimda yumshoqroq: yorqin rang matndan diqqatni tortmaydi
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? [color.withValues(alpha: 0.13), color.withValues(alpha: 0.06)] : [color.withValues(alpha: 0.20), color.withValues(alpha: 0.10)]),
       ),
-      child: Icon(icon, size: iconSize ?? size * 0.5, color: color),
+      child: Icon(icon, size: iconSize ?? size * 0.5, color: dark ? color.withValues(alpha: 0.78) : color),
     );
   }
 }
@@ -382,7 +384,7 @@ class AppTheme {
   static ThemeData build(Brightness b) {
     final dark = b == Brightness.dark;
     final text = dark ? const Color(0xFFEAF2ED) : const Color(0xFF10201A);
-    final card = dark ? const Color(0x14FFFFFF) : const Color(0x99FFFFFF); // yarim shaffof («shisha»)
+    final card = dark ? const Color(0xA61E2925) : const Color(0x99FFFFFF); // yarim shaffof («shisha»)
     final solid = dark ? const Color(0xFF16221C) : const Color(0xFFF7FAF8); // dialog, varaq, menyu — shaffof emas
     final border = dark ? const Color(0x1FFFFFFF) : const Color(0x14123524);
     final primary = dark ? const Color(0xFF4CC38A) : Brand.green;
@@ -549,7 +551,7 @@ class HeroGlass extends StatelessWidget {
       clip: true,
       shadow: true,
       onTap: onTap,
-      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [tint.withValues(alpha: dark ? 0.28 : 0.17), tint.withValues(alpha: dark ? 0.08 : 0.05), Colors.white.withValues(alpha: dark ? 0.04 : 0.46)]),
+      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? [Color.alphaBlend(tint.withValues(alpha: 0.20), const Color(0xB8222D29)), Color.alphaBlend(tint.withValues(alpha: 0.06), const Color(0xA81A2320)), const Color(0x9E151D1A)] : [tint.withValues(alpha: 0.17), tint.withValues(alpha: 0.05), Colors.white.withValues(alpha: 0.46)]),
       child: Stack(children: [
         Positioned(right: -34, top: -46, child: IgnorePointer(child: Container(width: 150, height: 150, decoration: BoxDecoration(shape: BoxShape.circle, color: tint.withValues(alpha: 0.07))))),
         Positioned(left: -40, bottom: -64, child: IgnorePointer(child: Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, color: Brand.amber.withValues(alpha: 0.07))))),

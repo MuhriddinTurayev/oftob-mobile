@@ -146,6 +146,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         'alert' => (Icons.error_outline, Colors.red.shade700),
         'lead' => (Icons.person_add_alt, Colors.orange.shade800),
         'shift' => (Icons.how_to_reg, Colors.teal.shade700),
+        'report' => (Icons.outgoing_mail, Colors.deepPurple.shade400),
         _ => (Icons.notifications_none, Colors.blueGrey),
       };
 

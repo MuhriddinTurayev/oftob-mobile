@@ -137,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       'leads' => 'Lidlar',
       'funds' => me.role == 'foreman' ? 'Pul' : 'Prorab puli',
       'attendance' => 'Davomat',
+      'reports' => 'Hisobotlar',
       _ => '',
     });
   }

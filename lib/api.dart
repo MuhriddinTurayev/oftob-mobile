@@ -789,6 +789,19 @@ class ApiClient {
   Future<Map<String, dynamic>> reportSales({int? user, required String from, required String to}) async =>
       Map<String, dynamic>.from(((await _getMap('/reports/sales', {'user': user, 'from': from, 'to': to}))['data'] as Map?) ?? const {});
 
+  /// Prorab — o'z hisobotini direktor va buxgalterga topshiradi; buxgalter — tanlangan prorab hisobotini direktorga yuboradi ([user]).
+  /// Javob: {message, sent_at?, telegram}
+  Future<Map<String, dynamic>> reportForemanSend({int? user, required String from, required String to, required String idemKey}) async {
+    final b = await _send(() => _http.post(_uri('/reports/foreman/send'), headers: {..._headers, 'Idempotency-Key': idemKey}, body: jsonEncode({'from': from, 'to': to, if (user != null) 'user': user})), timeout: const Duration(seconds: 90));
+    return Map<String, dynamic>.from(((b as Map?)?['data'] as Map?) ?? const {});
+  }
+
+  /// Sotuvchi kunlik hisobotini topshiradi. Javob: {message, submitted}
+  Future<Map<String, dynamic>> reportSalesSubmit({required String date, String? note, required String idemKey}) async {
+    final b = await _send(() => _http.post(_uri('/reports/sales/submit'), headers: {..._headers, 'Idempotency-Key': idemKey}, body: jsonEncode({'date': date, if (note != null && note.isNotEmpty) 'note': note})), timeout: const Duration(seconds: 90));
+    return Map<String, dynamic>.from(((b as Map?)?['data'] as Map?) ?? const {});
+  }
+
   /* ---------------- ombor ---------------- */
 
   Future<Paged> stockItems({int page = 1, String? q, bool low = false}) async {
