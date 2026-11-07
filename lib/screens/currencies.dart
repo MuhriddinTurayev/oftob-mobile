@@ -24,7 +24,7 @@ class _CurrenciesScreenState extends State<CurrenciesScreen> {
   Future<void> _toggle(List<Map<String, dynamic>> items, String code, bool on) async {
     final extras = <String>[
       for (final i in items)
-        if (i['enabled'] == true && i['base'] != true && i['code'] != 'USD' && i['code'] != code) '${i['code']}',
+        if (i['enabled'] == true && i['base'] != true && i['code'] != code) '${i['code']}',
       if (on) code,
     ];
     setState(() => _busy = true);
@@ -54,13 +54,20 @@ class _CurrenciesScreenState extends State<CurrenciesScreen> {
         final baseCode = '${base['code']}';
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 40 + NavInset.of(context)),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, NavInset.listBottom(context)),
           children: [
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(color: cs.primaryContainer.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(16)),
               child: Text("Prorab xaridni shu valyutalarda kiritishi mumkin: summa kurs bo'yicha kompaniya valyutasiga o'tadi. Kassa, shartnoma va hisobotlar kompaniya valyutasi va dollarda qoladi.", style: TextStyle(color: cs.onPrimaryContainer)),
             ),
+            const SizedBox(height: 8),
+            // kurs manbai: rasmiy Markaziy bank
+            Row(children: [
+              Icon(Icons.account_balance_rounded, size: 16, color: cs.outline),
+              const SizedBox(width: 6),
+              Expanded(child: Text('${tr('Kurs')}: ${switch ('${d['source'] ?? ''}') { 'cbu.uz' => tr("O'zbekiston Markaziy banki"), 'nbt.tj' => tr('Tojikiston Milliy banki'), 'cbr.ru' => tr('Rossiya Markaziy banki'), _ => tr('Markaziy bank') }} · ${tr('har 6 soatda yangilanadi')}', style: TextStyle(color: cs.outline, fontSize: 12.5))),
+            ]),
             const SizedBox(height: 12),
             if (!canManage) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text("Valyutalarni faqat rahbar yoqadi.", style: TextStyle(color: cs.outline, fontSize: 13))),
             for (final i in items)
@@ -70,8 +77,8 @@ class _CurrenciesScreenState extends State<CurrenciesScreen> {
                   subtitle: i['base'] == true
                       ? const Text('Kompaniya valyutasi')
                       : Text('1 ${i['code']} = ${money(i['rate'] as num?)} $baseCode'),
-                  trailing: i['base'] == true || i['code'] == 'USD'
-                      ? const StatusChip('Doim mavjud', Colors.green)
+                  trailing: i['base'] == true
+                      ? const StatusChip('Asosiy', Colors.green)
                       : Switch(value: i['enabled'] == true, onChanged: canManage && !_busy ? (v) => _toggle(items, '${i['code']}', v) : null),
                 ),
               ),

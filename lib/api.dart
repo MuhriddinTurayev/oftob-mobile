@@ -31,6 +31,9 @@ class ApiException implements Exception {
 /// Oftob CRM ochiq API (`/api/v1`) bilan ishlaydi.
 /// Ma'lumotlar bazasiga to'g'ridan-to'g'ri EMAS — faqat server orqali (kalit bilan).
 class ApiClient {
+  /// 401 kelganda chaqiriladi (Session o'rnatadi): har qanday so'rov — fondagi yangilash ham — bekor qilingan kalitni sezadi
+  static void Function()? onUnauthorized;
+
   /// Server matnlari tili: uz | ru | tg (ilova tili o'zgarganda L.set yangilaydi)
   static String lang = 'uz';
 
@@ -92,6 +95,8 @@ class ApiClient {
       body = null;
     }
     if (r.statusCode >= 200 && r.statusCode < 300) return body;
+    // kalit bekor qilingan (boshqa qurilmadan «seansni yopish» yoki parol almashgan): ilova darhol hisobdan chiqadi
+    if (r.statusCode == 401 && ApiClient.onUnauthorized != null) scheduleMicrotask(ApiClient.onUnauthorized!);
 
     String msg = 'Xato (${r.statusCode})';
     String? code;
@@ -413,6 +418,23 @@ class ApiClient {
   }
 
   /// Kvartira holatini o'zgartirish (bron / sotuv / bo'sh). Faqat o'zgargan maydonlarni yuboring.
+  /* ---------------- lid manbalari ---------------- */
+
+  Future<Map<String, dynamic>> leadSources() async => Map<String, dynamic>.from(((await _getMap('/leads/sources'))['data'] as Map?) ?? const {});
+
+  Future<void> leadSourceTest(String ch) async {
+    await _send(() => _http.post(_uri('/leads/sources/test'), headers: _headers, body: jsonEncode({'ch': ch})));
+  }
+
+  Future<Map<String, dynamic>> leadSourceMeta({String? pageToken, String? appSecret}) async {
+    final b = await _send(() => _http.post(_uri('/leads/sources/meta'), headers: _headers, body: jsonEncode({if (pageToken != null && pageToken.isNotEmpty) 'page_token': pageToken, if (appSecret != null && appSecret.isNotEmpty) 'app_secret': appSecret})), timeout: const Duration(seconds: 40));
+    return Map<String, dynamic>.from(((b as Map?)?['data'] as Map?) ?? const {});
+  }
+
+  /// Bitta xonadon (to'lovlar, grafik, xaridor bilan)
+  Future<Map<String, dynamic>> apartment(String objectId, String apartmentId) async =>
+      Map<String, dynamic>.from(((await _getMap('/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}'))['data'] as Map?) ?? const {});
+
   Future<Map<String, dynamic>> apartmentUpdate(String objectId, String apartmentId, Map<String, dynamic> body) async {
     return _queueable(kind: 'update', method: 'PATCH', path: '/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}', body: body, objectId: objectId, aptId: apartmentId, label: 'Kvartira $apartmentId — o\'zgartirish');
   }
@@ -715,6 +737,7 @@ class ApiClient {
     String? currency,
     num? estimate,
     UploadProgress? onProgress,
+    String? receiptUpload,
   }) async {
     final fields = <String, String>{
       'kind': kind,
@@ -735,7 +758,10 @@ class ApiClient {
     }
     final id = Offline.newId();
     try {
-      final b = await _postSpend(fields, receiptPath, id, onProgress: onProgress);
+      // chek oldindan yuklangan bo'lsa — faylni qayta yubormaymiz (hisobot bir zumda ketadi)
+      final b = receiptUpload != null
+          ? await _postSpend({...fields, 'receipt_upload': receiptUpload}, null, id, onProgress: onProgress)
+          : await _postSpend(fields, receiptPath, id, onProgress: onProgress);
       return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
     } on ApiException catch (e) {
       if (!(e.isNetwork && Offline.enabled)) rethrow;
@@ -766,7 +792,7 @@ class ApiClient {
     final codes = ((q.last.body['codes'] as List?) ?? const []).map((e) => '$e').toSet();
     final items = _list(d['items']);
     for (final i in items) {
-      if (i['base'] != true && i['code'] != 'USD') i['enabled'] = codes.contains('${i['code']}');
+      if (i['base'] != true) i['enabled'] = codes.contains('${i['code']}');
     }
     d['items'] = items;
     return d;
@@ -776,6 +802,17 @@ class ApiClient {
   Future<bool> currenciesSave(List<String> codes) async {
     final r = await _queueGeneric(kind: 'f_cur', method: 'POST', path: '/currencies', body: {'codes': codes}, label: 'Valyutalar — ${codes.isEmpty ? 'qo\'shimcha yo\'q' : codes.join(', ')}');
     return r.queued;
+  }
+
+  /// Chek suratini oldindan yuklaydi (rasm tanlanishi bilan). Qaytadi: yuklama raqami — keyin [fundsSpend] ga `receiptUpload` bilan beriladi.
+  Future<String> fundsReceiptUpload(String path, {UploadProgress? onProgress}) async {
+    final b = await _send(() async {
+      final req = ProgressMultipartRequest('POST', _uri('/funds/receipt-upload'), onProgress: onProgress)
+        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang});
+      req.files.add(await http.MultipartFile.fromPath('receipt', path));
+      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 150)));
+    }, timeout: const Duration(seconds: 160));
+    return '${((b as Map)['data'] as Map)['upload']}';
   }
 
   /// Keyinroq chek qo'shish

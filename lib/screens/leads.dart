@@ -9,6 +9,7 @@ import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../l10n.dart';
+import 'lead_sources.dart';
 
 /// Kanal (manba) ko'rinishi: ikonka, rang, nom.
 ({IconData icon, Color color, String name}) _channel(String? ch) {
@@ -162,8 +163,28 @@ class _LeadsScreenState extends State<LeadsScreen> {
         onRefresh: () => _load(quiet: true),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.only(bottom: 40 + NavInset.of(context)),
+          padding: EdgeInsets.only(bottom: NavInset.listBottom(context)),
           children: [
+            // lidlar qayerdan keladi va qanday ulanadi (rahbar va sotuv menejeri)
+            if (s.me!.role == 'admin' || s.me!.role == 'manager')
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: GlassRow(
+                  margin: EdgeInsets.zero,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LeadSourcesScreen(session: s))),
+                  child: Row(children: [
+                    const IconTile(icon: Icons.hub_rounded, color: Brand.blue, size: 40),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Text('Lid manbalari', style: TextStyle(fontWeight: FontWeight.w800)),
+                        Text('Sayt, Instagram, Facebook, WhatsApp, Telegram — ulash', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12.5)),
+                      ]),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: cs.outline),
+                  ]),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: TextField(

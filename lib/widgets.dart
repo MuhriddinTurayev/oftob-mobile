@@ -104,7 +104,7 @@ class PagedListState extends State<PagedList> {
       child: ListView.builder(
         controller: _scroll,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.only(bottom: 40 + NavInset.of(context)),
+        padding: EdgeInsets.only(bottom: NavInset.listBottom(context)),
         itemCount: (widget.header != null ? 1 : 0) + (_items.isEmpty ? 1 : _items.length) + (_more ? 1 : 0),
         itemBuilder: (context, i) {
           if (widget.header != null) {

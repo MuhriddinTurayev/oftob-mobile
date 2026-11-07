@@ -167,3 +167,45 @@ class _UploadDialog extends StatelessWidget {
     );
   }
 }
+
+/// Joyida (rasm ustida, tugma ichida) ko'rsatiladigan yuklash foizi: [progress] 0..1 silliq o'sadi
+/// (telefon buferi faylni bir zumda «yutib» yuboradi — shuning uchun tezlik taxmini bilan), 1 — server qabul qildi.
+class UploadTracker {
+  final ValueNotifier<double> progress = ValueNotifier(0);
+  int _sent = 0, _total = 0;
+  final _sw = Stopwatch();
+  Timer? _t;
+
+  void start() {
+    _sent = _total = 0;
+    progress.value = 0;
+    _sw
+      ..reset()
+      ..start();
+    _t?.cancel();
+    _t = Timer.periodic(const Duration(milliseconds: 150), (_) {
+      if (_total <= 0) return;
+      final tau = math.max(1.2, _total / (80 * 1024));
+      final byTime = 0.97 * (1 - math.exp(-_sw.elapsedMilliseconds / 1000 / tau));
+      final f = math.min(_sent / _total, byTime).clamp(0.0, 0.97);
+      if ((f - progress.value).abs() >= 0.01) progress.value = f;
+    });
+  }
+
+  void onBytes(int sent, int total) {
+    _sent = sent;
+    _total = total;
+  }
+
+  void finish() {
+    _t?.cancel();
+    progress.value = 1;
+  }
+
+  void stop() => _t?.cancel();
+
+  void dispose() {
+    _t?.cancel();
+    progress.dispose();
+  }
+}

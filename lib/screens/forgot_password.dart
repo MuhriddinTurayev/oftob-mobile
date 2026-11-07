@@ -9,7 +9,7 @@ import '../company.dart';
 import '../session.dart';
 import '../l10n.dart';
 
-/// Parolni tiklash: 6 xonali kod xodimning Telegram'iga yuboriladi (10 daqiqa amal qiladi), kod + yangi parol kiritiladi.
+/// Parolni tiklash: 6 xonali kod xodimning emailiga va Telegram'iga (qaysi biri ulangan bo'lsa) yuboriladi (10 daqiqa amal qiladi), kod + yangi parol kiritiladi.
 /// Muvaffaqiyatli bo'lsa `true` bilan yopiladi — kirish ekrani "yangi parol bilan kiring" deydi.
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key, required this.session, required this.company, this.login = ''});
@@ -95,7 +95,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final code = _code.text.trim();
     final p = _pass.text;
     if (!RegExp(r'^\d{6}$').hasMatch(code)) {
-      setState(() => _error = 'Telegramdagi 6 xonali kodni kiriting.');
+      setState(() => _error = 'Email yoki Telegram\'dagi 6 xonali kodni kiriting.');
       return;
     }
     if (p.length < 8 || !RegExp(r'[A-Za-z]').hasMatch(p) || !RegExp(r'\d').hasMatch(p)) {
@@ -157,7 +157,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 if (!_sent) ...[
                   const SizedBox(height: 10),
-                  Text("Tasdiqlash kodi shu hisobga ulangan Telegram'ga yuboriladi. Telegram ulanmagan bo'lsa — rahbaringizga murojaat qiling, u yangi parol beradi.", style: TextStyle(color: cs.outline, fontSize: 13.5)),
+                  Text("Tasdiqlash kodi hisobingizdagi emailga va (ulangan bo'lsa) Telegram'ga yuboriladi. Ikkalasi ham bo'lmasa — rahbaringizga murojaat qiling, u yangi parol beradi.", style: TextStyle(color: cs.outline, fontSize: 13.5)),
                   const SizedBox(height: 18),
                   FilledButton(onPressed: _busy ? null : _send, child: _spinnerOr('Kod yuborish')),
                 ] else ...[
@@ -165,7 +165,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(color: cs.primaryContainer.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(12)),
-                    child: const Text("Agar hisob Telegram'ga ulangan bo'lsa, 6 xonali kod yuborildi (10 daqiqa amal qiladi). Kod kelmasa — Telegram ulanmagan bo'lishi mumkin: rahbaringizga murojaat qiling."),
+                    child: const Text("Agar hisob topilsa, 6 xonali kod emailingizga va Telegram'ga yuborildi (10 daqiqa amal qiladi). Emailda «Spam» papkasini ham tekshiring. Kod kelmasa — rahbaringizga murojaat qiling."),
                   ),
                   const SizedBox(height: 14),
                   TextField(
@@ -173,7 +173,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     keyboardType: TextInputType.number,
                     maxLength: 6,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: _dec('Telegramdagi kod', Icons.sms_outlined).copyWith(counterText: ''),
+                    decoration: _dec('Tasdiqlash kodi', Icons.sms_outlined).copyWith(counterText: ''),
                   ),
                   const SizedBox(height: 12),
                   TextField(

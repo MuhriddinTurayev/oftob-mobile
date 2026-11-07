@@ -574,6 +574,12 @@ class NavInset extends InheritedWidget {
   /// Panel bor joyda [bar], yo'q joyda 0
   static double of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<NavInset>()?.inset ?? 0;
 
+  /// Ro'yxat oxiridagi bo'sh joy: oxirgi karta pastki panel va suzuvchi AI tugmasidan YUQORIGA chiqa olsin (bosish qulay bo'lsin)
+  static double listBottom(BuildContext context) {
+    final nav = of(context);
+    return nav > 0 ? nav + 96 : 96 + MediaQuery.paddingOf(context).bottom;
+  }
+
   @override
   bool updateShouldNotify(NavInset old) => old.inset != inset;
 }

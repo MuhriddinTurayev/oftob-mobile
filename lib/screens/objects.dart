@@ -37,7 +37,7 @@ class ObjectsScreen extends StatelessWidget {
         }
         return ListView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.fromLTRB(12, 12, 12, NavInset.listBottom(context)),
           itemCount: objects.length,
           itemBuilder: (context, i) {
             final o = objects[i];
@@ -254,6 +254,14 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
 
   bool get _canWrite => widget.session.me!.can('sales:write');
   bool get _canSales => widget.session.me!.can('sales:read');
+
+  /// Sotuvchi uchun: bitimni boshqa xodim rasmiylashtirgan — shartnoma va chekni u yoki buxgalter beradi (sayt qoidasi)
+  bool get _foreign {
+    final a = widget.apt;
+    final me = widget.session.me!;
+    final st = '${a['status']}';
+    return me.role == 'manager' && widget.session.userId > 0 && (st == 'sold' || st == 'booked') && a['via_bot'] != true && (a['seller_id'] as num?)?.toInt() != widget.session.userId;
+  }
 
   @override
   void dispose() {
@@ -523,7 +531,24 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
                 ),
               ),
           ],
-          if (_canWrite && st == 'sold') ...[
+          if (_foreign) ...[
+            const SizedBox(height: 16),
+            GlassRow(
+              margin: EdgeInsets.zero,
+              tint: Colors.orange.withValues(alpha: 0.14),
+              child: Row(children: [
+                Icon(Icons.info_outline_rounded, color: Colors.orange.shade700),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '${tr('Bu bitimni boshqa xodim rasmiylashtirgan')}${'${a['seller'] ?? ''}'.isEmpty ? '' : ' (${a['seller']})'}. ${tr('Shartnoma va chekni u yoki buxgalter beradi.')}',
+                    style: TextStyle(color: Colors.orange.shade800, fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                ),
+              ]),
+            ),
+          ],
+          if (_canWrite && !_foreign && st == 'sold') ...[
             const SizedBox(height: 16),
             Text('Hujjatlar', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
@@ -557,13 +582,13 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
                 leading: CircleAvatar(radius: 16, backgroundColor: Colors.green.withValues(alpha: 0.12), foregroundColor: Colors.green.shade700, child: const Icon(Icons.south_west, size: 16)),
                 title: Text('+${money(p['amount'] as num?)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text('${formatDate('${p['date']}')}${p['method'] != null && '${p['method']}'.isNotEmpty ? ' · ${p['method']}' : ''}'),
-                trailing: _canWrite
+                trailing: _canWrite && !_foreign
                     ? Row(mainAxisSize: MainAxisSize.min, children: [
                         IconButton(tooltip: tr('Chek'), onPressed: () => _doc('receipt', id: '${p['id']}', name: 'Chek-${a['number']}-${p['id']}'), icon: const Icon(Icons.receipt_long_outlined)),
                         IconButton(tooltip: tr('Ulashish'), onPressed: () => _doc('receipt', id: '${p['id']}', name: 'Chek-${a['number']}-${p['id']}', share: true), icon: const Icon(Icons.ios_share, size: 20)),
                       ])
                     : null,
-                onTap: _canWrite ? () => _doc('receipt', id: '${p['id']}', name: 'Chek-${a['number']}-${p['id']}') : null,
+                onTap: _canWrite && !_foreign ? () => _doc('receipt', id: '${p['id']}', name: 'Chek-${a['number']}-${p['id']}') : null,
               ),
           ],
           if (_canWrite) ...[

@@ -131,6 +131,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// Bildirishnomadan tegishli bo'limga o'tish
   void _go(String go) {
+    if (go == 'profile') return _openProfile(); // «boshqa qurilmadan kirildi» → faol seanslar
     final me = s.me!;
     _open(switch (go) {
       'tasks' => 'Vazifalar',
@@ -277,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         );
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
+      padding: EdgeInsets.fromLTRB(16, 4, 16, NavInset.listBottom(context)),
       children: [
         Glass(
           radius: 26,

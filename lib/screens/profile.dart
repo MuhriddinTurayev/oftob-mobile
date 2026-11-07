@@ -28,6 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic> _p = const {};
   List<Map<String, dynamic>> _sessions = const [];
   bool _uploading = false;
+  final _up = UploadTracker(); // rasm ustida foiz
   bool _sessionsLoading = true;
 
   // parol
@@ -46,6 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _cur.dispose();
     _new.dispose();
     _rep.dispose();
+    _up.dispose();
     super.dispose();
   }
 
@@ -88,7 +90,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _uploading = true);
     try {
       final path = x.path;
-      final url = await runUpload(context, title: tr('Rasm yuklanmoqda'), task: (p) => s.api!.profilePhotoUpload(path, onProgress: p));
+      _up.start();
+      final url = await s.api!.profilePhotoUpload(path, onProgress: _up.onBytes);
+      _up.finish();
       s.setPhoto(url);
       HapticFeedback.mediumImpact();
       _snack(tr('Rasm saqlandi'));
@@ -249,7 +253,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   scale: 0.94,
                   child: Stack(clipBehavior: Clip.none, children: [
                     ListenableBuilder(listenable: s, builder: (_, _) => UserAvatar(session: s, name: name, size: 108)),
-                    if (_uploading) const Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(shape: BoxShape.circle, color: Color(0x66000000)), child: Center(child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white))))),
+                    if (_uploading)
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0x80000000)),
+                          child: ValueListenableBuilder<double>(
+                            valueListenable: _up.progress,
+                            builder: (_, p, _) => Stack(alignment: Alignment.center, children: [
+                              Positioned.fill(child: Padding(padding: const EdgeInsets.all(3), child: CircularProgressIndicator(value: p > 0 ? p : null, strokeWidth: 4, color: Colors.white, backgroundColor: Colors.white24))),
+                              if (p > 0) Text('${(p * 100).round()}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+                            ]),
+                          ),
+                        ),
+                      ),
                     Positioned(
                       right: -2,
                       bottom: -2,

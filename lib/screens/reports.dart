@@ -8,6 +8,7 @@ import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../l10n.dart';
+import 'objects.dart';
 
 enum _Kind { foreman, sales }
 
@@ -425,7 +426,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(16, 8, 16, 40 + NavInset.of(context)),
+        padding: EdgeInsets.fromLTRB(16, 8, 16, NavInset.listBottom(context)),
         children: _kind == _Kind.foreman ? _foremanView(d, cs) : _salesView(d, cs),
       ),
     );
@@ -485,12 +486,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   /* ---------------- sotuvchi hisoboti ---------------- */
 
+  /// Bitim qatorini bosganda — xonadon oynasi (to'lovlar, shartnoma, chek)
+  Future<void> _openApt(Map<String, dynamic> x) async {
+    final o = '${x['object_id'] ?? ''}', id = '${x['apartment_id'] ?? ''}';
+    if (o.isEmpty || id.isEmpty) return;
+    try {
+      final apt = await s.api!.apartment(o, id);
+      if (!mounted) return;
+      showApartmentSheet(context, s, o, '${x['object'] ?? ''}', apt, onChanged: _load);
+    } catch (e) {
+      await s.handleError(e);
+      _snack('$e');
+    }
+  }
+
   Widget _deal(Map<String, dynamic> x, {bool late = false}) => _Line(
         'kv. ${x['number']} · ${'${x['buyer']}'.isEmpty ? 'Xaridor' : x['buyer']}',
         '${x['object']}${late ? ' · ${x['late_days']} kun kechikkan' : ''}',
         late ? money(x['overdue'] as num?) : money(x['price'] as num?),
         warn: late,
         sub2: late ? null : 'to\'langan ${money(x['paid'] as num?)} · qoldi ${money(x['left'] as num?)}',
+        onTap: () => _openApt(x),
       ).build(context);
 
   List<Widget> _salesView(Map<String, dynamic> d, ColorScheme cs) {
@@ -608,7 +624,9 @@ class _BlockW extends StatelessWidget {
 
 /// Bitta qator — alohida shaffof karta, oralig'ida bo'sh joy, balandligi bo'lim ichida bir xil.
 class _Line {
-  const _Line(this.title, this.sub, this.value, {this.warn = false, this.sub2});
+  const _Line(this.title, this.sub, this.value, {this.warn = false, this.sub2, this.onTap});
+
+  final VoidCallback? onTap;
 
   final String title;
   final String sub;
@@ -626,6 +644,7 @@ class _Line {
         height: height,
         child: GlassRow(
           margin: EdgeInsets.zero,
+          onTap: onTap,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(children: [
             Expanded(
@@ -637,6 +656,7 @@ class _Line {
             ),
             const SizedBox(width: 12),
             Text(value, style: TextStyle(fontWeight: FontWeight.w800, color: warn ? cs.error : null)),
+            if (onTap != null) Icon(Icons.chevron_right_rounded, color: cs.outline, size: 20),
           ]),
         ),
       ),

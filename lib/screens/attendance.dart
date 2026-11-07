@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../format.dart';
 import '../session.dart';
-import '../motion.dart';
 import '../widgets.dart';
 import '../theme.dart';
 import '../l10n.dart';
@@ -272,9 +271,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
         ]),
       ));
-      final tiles = <Widget>[];
-      for (final w in ws) {
-        tiles.add(_WorkerTile(
+      // ishchilar holati bo'yicha alohida guruhlarda: Ishda, Ketgan, Kelmagan (prorablar bloki kabi)
+      final groups = <(String, Color, List<Map>)>[
+        ('Ishda', Colors.teal, ws.where((w) => w['status'] == 'working' || w['status'] == 'forgot').toList()),
+        ('Ketgan', Colors.blueGrey, ws.where((w) => w['status'] == 'left').toList()),
+        ('Kelmagan', cs.error, ws.where((w) => w['status'] == 'absent').toList()),
+      ];
+      for (final g in groups) {
+        if (g.$3.isEmpty) continue;
+        final tiles = <Widget>[];
+        for (final w in g.$3) {
+          tiles.add(_WorkerTile(
+          flat: true,
           w: w,
           selected: _selected.contains('${site['id']}|${w['id']}'),
           selecting: _selected.isNotEmpty,
@@ -293,16 +301,33 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           onAction: (act) => _mark(act, {'${site['id']}': ['${w['id']}']}),
           live: _isToday,
         ));
-      }
-      for (var k = 0; k < tiles.length; k++) {
-        rows.add(Reveal(index: k.clamp(0, 9), child: tiles[k]));
+        }
+        rows.add(Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: Glass(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(width: 9, height: 9, decoration: BoxDecoration(color: g.$2, shape: BoxShape.circle)),
+                const SizedBox(width: 8),
+                Expanded(child: Text(g.$1, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: g.$2))),
+                Text('${g.$3.length}', style: TextStyle(color: g.$2, fontWeight: FontWeight.w800)),
+              ]),
+              const SizedBox(height: 4),
+              for (var k = 0; k < tiles.length; k++) ...[
+                if (k > 0) Divider(height: 1, color: cs.outline.withValues(alpha: 0.12)),
+                tiles[k],
+              ],
+            ]),
+          ),
+        ));
       }
     }
     return RefreshIndicator(
       onRefresh: () => _load(quiet: true),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.only(bottom: 40 + NavInset.of(context)),
+        padding: EdgeInsets.only(bottom: NavInset.listBottom(context)),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -408,7 +433,10 @@ class _Stat extends StatelessWidget {
 }
 
 class _WorkerTile extends StatelessWidget {
-  const _WorkerTile({required this.w, required this.selected, required this.selecting, required this.canMark, required this.busy, required this.onToggle, required this.onLong, required this.onAction, this.live = false});
+  const _WorkerTile({required this.w, required this.selected, required this.selecting, required this.canMark, required this.busy, required this.onToggle, required this.onLong, required this.onAction, this.live = false, this.flat = false});
+
+  /// Guruh kartasi ichida: alohida shisha fonsiz qator
+  final bool flat;
 
   final Map w;
   final bool selected;
@@ -462,12 +490,18 @@ class _WorkerTile extends StatelessWidget {
       if (times.isNotEmpty) times,
       if (wk.isNotEmpty) wk,
     ].join(' · ');
-    return GlassRow(
-      onTap: selecting ? onToggle : null,
-      onLongPress: onLong,
-      tint: selected ? cs.primaryContainer.withValues(alpha: 0.75) : null,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      child: Row(children: [
+    // qayerda / kim belgiladi: telefon orqali o'zi (obyektda yoki tashqarida) yoki prorab qo'lda
+    final by = '${w['marked_by'] ?? ''}';
+    final (whereIcon, whereText, whereWarn) = st == 'absent'
+        ? (null, '', false)
+        : w['manual'] == true
+            ? (Icons.edit_location_alt_outlined, by.isEmpty ? tr("Qo'lda belgilangan") : '${tr('Belgiladi')}: $by', false)
+            : w['off_site'] == true || w['on_site'] == false
+                ? (Icons.wrong_location_outlined, tr('Obyektdan tashqarida'), true)
+                : w['on_site'] == true
+                    ? (Icons.place_rounded, tr('Obyektda (telefon orqali)'), false)
+                    : (Icons.phone_iphone_rounded, tr('Telefon orqali'), false);
+    final row = Row(children: [
           selected
               ? CircleAvatar(radius: 20, backgroundColor: cs.primary, child: Icon(Icons.check, color: cs.onPrimary))
               : CircleAvatar(radius: 20, backgroundColor: color.withValues(alpha: 0.14), foregroundColor: color, child: Text(name.isEmpty ? '?' : name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w800))),
@@ -476,6 +510,15 @@ class _WorkerTile extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               if (sub.isNotEmpty) Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12.5)),
+              if (whereIcon != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(children: [
+                    Icon(whereIcon, size: 14, color: whereWarn ? Colors.orange.shade700 : cs.primary),
+                    const SizedBox(width: 4),
+                    Expanded(child: Text(whereText, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: whereWarn ? Colors.orange.shade700 : cs.outline, fontSize: 12, fontWeight: FontWeight.w600))),
+                  ]),
+                ),
             ]),
           ),
           const SizedBox(width: 8),
@@ -494,7 +537,29 @@ class _WorkerTile extends StatelessWidget {
               decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
               child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12)),
             ),
-        ]),
+        ]);
+    if (flat) {
+      return Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: selecting ? onToggle : null,
+          onLongPress: onLong,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            decoration: BoxDecoration(color: selected ? cs.primaryContainer.withValues(alpha: 0.6) : Colors.transparent, borderRadius: BorderRadius.circular(14)),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 9),
+            child: row,
+          ),
+        ),
+      );
+    }
+    return GlassRow(
+      onTap: selecting ? onToggle : null,
+      onLongPress: onLong,
+      tint: selected ? cs.primaryContainer.withValues(alpha: 0.75) : null,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      child: row,
     );
   }
 }

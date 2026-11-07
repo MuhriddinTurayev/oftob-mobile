@@ -202,7 +202,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final me = s.me!;
     if (_loading) {
       return ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
+        padding: EdgeInsets.fromLTRB(16, 4, 16, NavInset.listBottom(context)),
         physics: const NeverScrollableScrollPhysics(),
         children: const [
           Skeleton(height: 54, radius: 18),
@@ -240,7 +240,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
+        padding: EdgeInsets.fromLTRB(16, 4, 16, NavInset.listBottom(context)),
         physics: const AlwaysScrollableScrollPhysics(),
         children: _reveal([
           // qidiruv: xizmatlar ro'yxatini filtrlaydi

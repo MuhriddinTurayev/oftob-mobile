@@ -34,6 +34,20 @@ class _LoginScreenState extends State<LoginScreen> {
   Session get s => widget.session;
 
   @override
+  void initState() {
+    super.initState();
+    // boshqa qurilmadan «seansni yopish» bosilgan bo'lsa — nima bo'lganini tushuntiramiz
+    if (s.kicked) {
+      s.kicked = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 6), content: Text(tr("Bu qurilmadagi seans yopildi (boshqa qurilmadan yoki parol o'zgargan). Qaytadan kiring."))));
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _code.dispose();
     super.dispose();

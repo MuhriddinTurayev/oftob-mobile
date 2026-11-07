@@ -17,9 +17,12 @@ class CashScreen extends StatefulWidget {
 }
 
 class _CashScreenState extends State<CashScreen> {
-  Key _key = UniqueKey();
+  final _list = GlobalKey<PagedListState>();
   List<Map<String, dynamic>> _desks = const [];
   String? _deskError;
+  final _page = PageController(viewportFraction: 0.86);
+  int _at = 0; // 0 — hamma kassalar, keyin har bir kassa
+  int? get _deskId => _at == 0 || _at > _desks.length ? null : (_desks[_at - 1]['id'] as num).toInt();
 
   @override
   void initState() {
@@ -27,10 +30,16 @@ class _CashScreenState extends State<CashScreen> {
     _loadDesks();
   }
 
+  @override
+  void dispose() {
+    _page.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadDesks() async {
     try {
       final d = await widget.session.api!.cashDesks();
-      if (mounted) setState(() => _desks = d);
+      if (mounted) setState(() => _desks = d.where((x) => x['is_active'] != false).toList());
     } catch (e) {
       await widget.session.handleError(e);
       if (mounted) setState(() => _deskError = '$e');
@@ -38,18 +47,128 @@ class _CashScreenState extends State<CashScreen> {
   }
 
   Future<void> _refreshAll() async {
-    setState(() => _key = UniqueKey());
-    await _loadDesks();
+    await Future.wait([_loadDesks(), if (_list.currentState != null) _list.currentState!.reload()]);
+  }
+
+  static const _palette = [
+    [Color(0xFF0B7A3B), Color(0xFF14A05A)],
+    [Color(0xFF2F6FDE), Color(0xFF5B8DEF)],
+    [Color(0xFF7B5CE0), Color(0xFF9C84F0)],
+    [Color(0xFFE0457B), Color(0xFFF07A9E)],
+    [Color(0xFF14A39A), Color(0xFF3CC6BC)],
+    [Color(0xFFF27A1A), Color(0xFFF5A04E)],
+  ];
+
+  /// Jami: valyuta bo'yicha yig'indi
+  Map<String, num> get _totals {
+    final m = <String, num>{};
+    for (final d in _desks) {
+      final c = '${d['currency'] ?? ''}';
+      m[c] = (m[c] ?? 0) + ((d['balance'] as num?) ?? 0);
+    }
+    return m;
+  }
+
+  Widget _card({required List<Color> g, required IconData icon, required String title, required String sub, required List<String> amounts, required bool on}) {
+    return AnimatedScale(
+      scale: on ? 1 : 0.94,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: g),
+          boxShadow: on ? [BoxShadow(color: g.first.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 8))] : null,
+        ),
+        child: Stack(children: [
+          Positioned(right: -30, top: -40, child: Container(width: 120, height: 120, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.10)))),
+          Positioned(right: 30, bottom: -50, child: Container(width: 90, height: 90, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.07)))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Icon(icon, color: Colors.white, size: 22),
+              const SizedBox(width: 8),
+              Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15))),
+            ]),
+            const Spacer(),
+            for (final a in amounts.take(2))
+              FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(a, style: TextStyle(color: Colors.white, fontSize: amounts.length > 1 ? 21 : 26, fontWeight: FontWeight.w900, letterSpacing: -0.4))),
+            const SizedBox(height: 4),
+            Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12.5, fontWeight: FontWeight.w600)),
+          ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  IconData _icon(String? kind) => switch (kind) {
+        'bank' || 'card' => Icons.credit_card_rounded,
+        'cash' => Icons.payments_rounded,
+        _ => Icons.account_balance_wallet_rounded,
+      };
+
+  Widget _carousel() {
+    final pages = <Widget>[
+      _card(
+        g: const [Color(0xFF10201A), Color(0xFF2B4A3C)],
+        icon: Icons.account_balance_rounded,
+        title: tr('Hamma kassalar'),
+        sub: '${_desks.length} ${tr('ta kassa')} · ${tr('chapga suring')}',
+        amounts: [for (final e in _totals.entries) '${money(e.value)} ${e.key}'],
+        on: _at == 0,
+      ),
+      for (var i = 0; i < _desks.length; i++)
+        _card(
+          g: _palette[i % _palette.length],
+          icon: _icon('${_desks[i]['kind']}'),
+          title: '${_desks[i]['name']}',
+          sub: tr('Bosing: shu kassa operatsiyalari'),
+          amounts: ['${money(_desks[i]['balance'] as num?)} ${_desks[i]['currency'] ?? ''}'],
+          on: _at == i + 1,
+        ),
+    ];
+    final n = pages.length;
+    return Column(children: [
+      SizedBox(
+        height: 150,
+        child: PageView.builder(
+          controller: _page,
+          itemCount: n,
+          onPageChanged: (i) {
+            setState(() => _at = i);
+            // ro'yxat tanlangan kassa bo'yicha qayta yuklanadi (karusel joyida qoladi)
+            WidgetsBinding.instance.addPostFrameCallback((_) => _list.currentState?.reload());
+          },
+          itemBuilder: (_, i) => pages[i],
+        ),
+      ),
+      const SizedBox(height: 8),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        for (var i = 0; i < n; i++)
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            width: i == _at ? 18 : 7,
+            height: 7,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: i == _at ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outline.withValues(alpha: 0.35)),
+          ),
+      ]),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final deskName = _deskId == null ? null : '${_desks[_at - 1]['name']}';
     return PagedList(
-      key: _key,
+      key: _list,
       session: widget.session,
       emptyText: 'Operatsiyalar yo\'q',
-      fetch: (p) => widget.session.api!.cashOps(page: p),
+      fetch: (p) => widget.session.api!.cashOps(page: p, desk: _deskId),
       header: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -61,33 +180,11 @@ class _CashScreenState extends State<CashScreen> {
             ]),
           ),
           if (_deskError != null) Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(_deskError!, style: TextStyle(color: cs.error))),
-          SizedBox(
-            height: 96,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                for (final d in _desks)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: Glass(
-                      radius: 20,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('${d['name']}', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: cs.outline)),
-                          const SizedBox(height: 4),
-                          Text('${money(d['balance'] as num?)} ${d['currency'] ?? ''}', style: TextStyle(color: cs.primary, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: -0.3)),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+          if (_desks.isNotEmpty) _carousel(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+            child: Text(deskName == null ? tr("So'nggi operatsiyalar") : '${tr("So'nggi operatsiyalar")} · $deskName', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
           ),
-          Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: const Text('So\'nggi operatsiyalar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
         ],
       ),
       itemBuilder: (context, o) {

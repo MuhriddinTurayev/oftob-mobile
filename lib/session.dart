@@ -15,7 +15,19 @@ import 'company.dart';
 ///  * **Platforma** (asosiy) — veb-dasturning o'zi ilova ichida ochiladi, hamma funksiya ishlaydi (login/parol bilan);
 ///  * **API kalit** (tezkor) — faqat asosiy bo'limlar, `/api/v1` orqali, mahalliy ekranlar.
 class Session extends ChangeNotifier {
-  Session({FlutterSecureStorage? storage}) : _storage = storage ?? const FlutterSecureStorage();
+  Session({FlutterSecureStorage? storage}) : _storage = storage ?? const FlutterSecureStorage() {
+    ApiClient.onUnauthorized = () {
+      if (api != null && !_signingOut) {
+        kicked = true;
+        signOut();
+      }
+    };
+  }
+
+  bool _signingOut = false;
+
+  /// Seans boshqa qurilmadan yopilgani uchun chiqarildi — kirish ekranida tushuntiriladi
+  bool kicked = false;
 
   /// Sinov uchun: `flutter run --dart-define=OFTOB_SERVER=http://10.0.2.2:8099` (emulyatordan kompyuterdagi serverga)
   static const defaultServer = String.fromEnvironment('OFTOB_SERVER', defaultValue: 'https://oftob.5-189-163-130.sslip.io');
@@ -153,6 +165,16 @@ class Session extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    if (_signingOut) return;
+    _signingOut = true;
+    try {
+      await _signOut();
+    } finally {
+      _signingOut = false;
+    }
+  }
+
+  Future<void> _signOut() async {
     final a = api;
     api = null;
     me = null;

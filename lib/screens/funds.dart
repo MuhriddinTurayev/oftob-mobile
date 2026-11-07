@@ -110,7 +110,7 @@ class _FundsScreenState extends State<FundsScreen> {
     final pend = Offline.ops.where((o) => o.kind == 'spend' || o.kind == 'request').toList();
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: EdgeInsets.fromLTRB(16, 8, 16, 40 + NavInset.of(context)),
+      padding: EdgeInsets.fromLTRB(16, 8, 16, NavInset.listBottom(context)),
       children: [
         HeroGlass(
           padding: const EdgeInsets.all(20),
@@ -403,7 +403,7 @@ class _FundsScreenState extends State<FundsScreen> {
     final manage = d['can_manage'] == true;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: EdgeInsets.fromLTRB(16, 8, 16, 40 + NavInset.of(context)),
+      padding: EdgeInsets.fromLTRB(16, 8, 16, NavInset.listBottom(context)),
       children: [
         HeroGlass(
           padding: const EdgeInsets.all(20),
@@ -552,6 +552,14 @@ class _OpSheet extends StatefulWidget {
 
 class _OpSheetState extends State<_OpSheet> {
   bool _busy = false;
+  final _up = UploadTracker();
+  bool _adding = false; // chek yuklanmoqda (tugma ichida foiz)
+
+  @override
+  void dispose() {
+    _up.dispose();
+    super.dispose();
+  }
 
   Map<String, dynamic> get o => widget.op;
 
@@ -644,13 +652,23 @@ class _OpSheetState extends State<_OpSheet> {
                   : () async {
                       final f = await pickReceipt(context);
                       if (f == null) return;
+                      setState(() => _adding = true);
+                      _up.start();
                       await _run(() async {
-                        await runUpload(context, title: tr('Chek yuklanmoqda'), task: (p) => api.fundsAddReceipt(o['id'] as int, f.path, onProgress: p));
+                        try {
+                          await api.fundsAddReceipt(o['id'] as int, f.path, onProgress: _up.onBytes);
+                          _up.finish();
+                        } finally {
+                          _up.stop();
+                          if (mounted) setState(() => _adding = false);
+                        }
                         return null;
                       });
                     },
-              icon: const Icon(Icons.add_a_photo),
-              label: const Text('Chek qo\'shish'),
+              icon: _adding ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.4)) : const Icon(Icons.add_a_photo),
+              label: _adding
+                  ? ValueListenableBuilder<double>(valueListenable: _up.progress, builder: (_, p, _) => Text('${tr('Chek yuklanmoqda')}… ${(p * 100).round()}%'))
+                  : const Text('Chek qo\'shish'),
             ),
           if (canManage && st != 'rejected') ...[
             FilledButton.icon(
@@ -748,6 +766,59 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   String? _formErr; // xato sababi yuborish tugmasi ustida doimiy ko'rinadi
   DateTime _date = DateTime.now();
 
+  // chek surati tanlanishi bilan serverga yuklanadi; tugagach «yuborish» tugmasi faollashadi
+  final _up = UploadTracker();
+  String? _upId; // serverdagi yuklama raqami
+  bool _uploading = false;
+  bool _upOffline = false; // internet yo'q: rasm telefonda saqlanadi, hisobot bilan keyin ketadi
+  String? _upErr;
+  int _upGen = 0; // eski yuklama javobi yangi rasmni bosib ketmasin
+
+  @override
+  void dispose() {
+    _up.dispose();
+    super.dispose();
+  }
+
+  Future<void> _setPhoto(XFile? f) async {
+    final gen = ++_upGen;
+    setState(() {
+      _photo = f;
+      _upId = null;
+      _upErr = null;
+      _upOffline = false;
+      _uploading = f != null;
+      _formErr = null;
+    });
+    if (f == null) {
+      _up.stop();
+      return;
+    }
+    _up.start();
+    try {
+      final id = await widget.session.api!.fundsReceiptUpload(f.path, onProgress: _up.onBytes);
+      if (!mounted || gen != _upGen) return;
+      _up.finish();
+      HapticFeedback.lightImpact();
+      setState(() {
+        _upId = id;
+        _uploading = false;
+      });
+    } catch (e) {
+      if (!mounted || gen != _upGen) return;
+      _up.stop();
+      final net = e is ApiException && e.isNetwork;
+      setState(() {
+        _uploading = false;
+        _upOffline = net && Offline.enabled; // internet yo'q — hisobot bilan birga keyin yuboriladi
+        _upErr = _upOffline ? null : (e is ApiException ? e.message : '$e');
+      });
+    }
+  }
+
+  /// Chek tayyormi: yuklangan, yoki internet yo'q (telefonda saqlanadi), yoki chek kerak emas
+  bool get _receiptReady => _noReceipt || (_photo != null && (_upId != null || _upOffline));
+
   @override
   void initState() {
     super.initState();
@@ -789,6 +860,10 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       err = 'Materiallar uchun ombor tanlang';
     } else if (hasLines && named.any((l) => (num.tryParse(l.qty.text.replaceAll(',', '.')) ?? 0) <= 0)) {
       err = 'Har bir material uchun miqdorni yozing';
+    } else if (_photo != null && !_noReceipt && _uploading) {
+      err = 'Chek hali yuklanmoqda — biroz kuting';
+    } else if (_photo != null && !_noReceipt && !_receiptReady) {
+      err = 'Chek yuklanmadi — qayta urinib ko\'ring';
     } else if (_photo == null && !_noReceipt) {
       err = 'Chek suratini qo\'shing yoki "Chek yo\'q" ni belgilang';
     }
@@ -803,8 +878,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       _formErr = null;
     });
     try {
-      final withPhoto = !_noReceipt && _photo != null;
-      final res = await runUpload(context, title: withPhoto ? tr('Chek yuklanmoqda') : tr('Hisobot yuborilmoqda'), task: (progress) => s.api!.fundsSpend(
+      final res = await s.api!.fundsSpend(
         kind: _kindV,
         object: _object!,
         date: _iso,
@@ -819,8 +893,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         noReceipt: _noReceipt,
         currency: _curCode == '${widget.data['base_currency'] ?? ''}' ? null : _curCode,
         estimate: _estimate(hasLines, amount),
-        onProgress: progress,
-      ));
+        receiptUpload: _noReceipt ? null : _upId,
+      );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       final queued = res['queued'] == true;
@@ -942,21 +1016,27 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           Text('Chek surati', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           if (_photo != null && !_noReceipt)
-            Stack(children: [
-              ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.file(File(_photo!.path), height: 200, width: double.infinity, fit: BoxFit.cover)),
-              Positioned(
-                right: 6,
-                top: 6,
-                child: IconButton.filled(onPressed: () => setState(() => _photo = null), icon: const Icon(Icons.close)),
-              ),
-            ])
+            _ReceiptPreview(
+              file: _photo!,
+              tracker: _up,
+              uploading: _uploading,
+              done: _upId != null,
+              offline: _upOffline,
+              error: _upErr,
+              onRemove: () => _setPhoto(null),
+              onRetry: () => _setPhoto(_photo),
+              onReplace: () async {
+                final f = await pickReceipt(context);
+                if (f != null) _setPhoto(f);
+              },
+            )
           else
             OutlinedButton.icon(
               onPressed: _noReceipt
                   ? null
                   : () async {
                       final f = await pickReceipt(context);
-                      if (f != null) setState(() => _photo = f);
+                      if (f != null) _setPhoto(f);
                     },
               icon: const Icon(Icons.photo_camera),
               label: const Text('Chekni suratga olish'),
@@ -990,10 +1070,20 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               ),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
-            onPressed: _busy ? null : _submit,
-            child: _busy ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)) : const Text('Rahbar va buxgalterga yuborish'),
-          ),
+              child: ValueListenableBuilder<double>(
+                valueListenable: _up.progress,
+                builder: (context, p, _) {
+                  final waiting = !_noReceipt && _photo != null && _uploading;
+                  return FilledButton(
+                    onPressed: (_busy || waiting || (!_noReceipt && _photo != null && !_receiptReady)) ? null : _submit,
+                    child: _busy
+                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
+                        : waiting
+                            ? Text('${tr('Chek yuklanmoqda')}… ${(p * 100).round()}%')
+                            : const Text('Rahbar va buxgalterga yuborish'),
+                  );
+                },
+              ),
             ),
           ]),
         ),
@@ -1032,4 +1122,113 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       ),
     );
   }
+}
+
+
+/// Chek surati: tanlangach yumshoq chiqadi, ustida yuklanish foizi; tugagach «Yuklandi» belgisi.
+class _ReceiptPreview extends StatelessWidget {
+  const _ReceiptPreview({required this.file, required this.tracker, required this.uploading, required this.done, required this.offline, required this.error, required this.onRemove, required this.onRetry, required this.onReplace});
+
+  final XFile file;
+  final UploadTracker tracker;
+  final bool uploading;
+  final bool done;
+  final bool offline;
+  final String? error;
+  final VoidCallback onRemove;
+  final VoidCallback onRetry;
+  final VoidCallback onReplace;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: 190,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(fit: StackFit.expand, children: [
+          Image.file(
+            File(file.path),
+            fit: BoxFit.cover,
+            cacheWidth: 900,
+            frameBuilder: (context, child, frame, sync) => AnimatedOpacity(opacity: frame == null ? 0 : 1, duration: const Duration(milliseconds: 300), child: child),
+          ),
+          // yuklanayotganda: qora parda va o'rtada foiz
+          AnimatedOpacity(
+            opacity: uploading || error != null ? 1 : 0,
+            duration: const Duration(milliseconds: 300),
+            child: IgnorePointer(
+              ignoring: !(uploading || error != null),
+              child: ColoredBox(
+                color: const Color(0x8C000000),
+                child: Center(
+                  child: error != null
+                      ? Column(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.cloud_off_rounded, color: Colors.white, size: 30),
+                          const SizedBox(height: 6),
+                          Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(error!, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12.5))),
+                          const SizedBox(height: 8),
+                          FilledButton.tonalIcon(onPressed: onRetry, icon: const Icon(Icons.refresh_rounded, size: 18), label: const Text('Qayta urinish')),
+                        ])
+                      : ValueListenableBuilder<double>(
+                          valueListenable: tracker.progress,
+                          builder: (context, p, _) => TweenAnimationBuilder<double>(
+                            tween: Tween(end: p),
+                            duration: const Duration(milliseconds: 260),
+                            builder: (context, v, _) => Column(mainAxisSize: MainAxisSize.min, children: [
+                              SizedBox(
+                                width: 70,
+                                height: 70,
+                                child: Stack(alignment: Alignment.center, children: [
+                                  SizedBox.expand(child: CircularProgressIndicator(value: v, strokeWidth: 6, strokeCap: StrokeCap.round, color: Colors.white, backgroundColor: Colors.white24)),
+                                  Text('${(v * 100).round()}%', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+                                ]),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text('Chek yuklanmoqda', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                            ]),
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ),
+          // holat belgisi: yuklandi / internet yo'q
+          Positioned(
+            left: 10,
+            bottom: 10,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              transitionBuilder: (c, a) => ScaleTransition(scale: a, child: FadeTransition(opacity: a, child: c)),
+              child: done
+                  ? _badge(Icons.check_circle_rounded, 'Yuklandi', Colors.green.shade600, key: 'ok')
+                  : offline
+                      ? _badge(Icons.cloud_off_rounded, "Internet yo'q — telefonda saqlanadi", Colors.orange.shade700, key: 'off')
+                      : const SizedBox.shrink(key: ValueKey('none')),
+            ),
+          ),
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Row(children: [
+              IconButton.filledTonal(onPressed: uploading ? null : onReplace, icon: const Icon(Icons.photo_camera_rounded), tooltip: tr('Boshqa rasm')),
+              const SizedBox(width: 6),
+              IconButton.filled(onPressed: onRemove, icon: const Icon(Icons.close), style: IconButton.styleFrom(backgroundColor: cs.error)),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _badge(IconData i, String t, Color c, {required String key}) => Container(
+        key: ValueKey(key),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(20)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(i, color: Colors.white, size: 16),
+          const SizedBox(width: 6),
+          Text(t, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12.5)),
+        ]),
+      );
 }
