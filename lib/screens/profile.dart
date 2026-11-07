@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../upload.dart';
 import '../api.dart';
 import '../avatar.dart';
 import '../format.dart';
@@ -86,7 +87,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (x == null) return;
     setState(() => _uploading = true);
     try {
-      final url = await s.api!.profilePhotoUpload(x.path);
+      final path = x.path;
+      final url = await runUpload(context, title: tr('Rasm yuklanmoqda'), task: (p) => s.api!.profilePhotoUpload(path, onProgress: p));
       s.setPhoto(url);
       HapticFeedback.mediumImpact();
       _snack(tr('Rasm saqlandi'));

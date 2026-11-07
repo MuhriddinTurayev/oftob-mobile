@@ -6,6 +6,7 @@ import 'dart:isolate';
 import 'package:http/http.dart' as http;
 
 import 'offline.dart';
+import 'upload.dart';
 
 /// Server xatosi: matni foydalanuvchiga ko'rsatiladi.
 /// Katta JSON alohida oqimda o'qiladi (yopilma faqat baytlarni ushlaydi — boshqa obyektlar oqimga o'tmaydi).
@@ -279,14 +280,14 @@ class ApiClient {
     return sendQueued(op.method, op.path, op.body, op.id);
   }
 
-  Future<dynamic> _postSpend(Map<String, String> fields, String? receiptPath, String idemKey) {
+  Future<dynamic> _postSpend(Map<String, String> fields, String? receiptPath, String idemKey, {UploadProgress? onProgress}) {
     return _send(() async {
-      final req = http.MultipartRequest('POST', _uri('/funds/spend'))
+      final req = ProgressMultipartRequest('POST', _uri('/funds/spend'), onProgress: onProgress)
         ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang, 'Idempotency-Key': idemKey})
         ..fields.addAll(fields);
       if (receiptPath != null && await File(receiptPath).exists()) req.files.add(await http.MultipartFile.fromPath('receipt', receiptPath));
-      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
-    }, timeout: const Duration(seconds: 100));
+      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 150)));
+    }, timeout: const Duration(seconds: 160));
   }
 
   /// Offline'da ishlash uchun obyektning BARCHA kvartiralarini telefonga yuklaydi
@@ -434,12 +435,22 @@ class ApiClient {
 
   /// Shartnoma (kind='contract') yoki to'lov cheki (kind='receipt', id=to'lov raqami) PDF baytlari.
   /// Bir marta ochilgan hujjat telefonda saqlanadi: internet bo'lmasa saqlangan nusxa ochiladi.
-  Future<List<int>> downloadDocument(String objectId, String apartmentId, String kind, {String? id}) async {
+  Future<List<int>> downloadDocument(String objectId, String apartmentId, String kind, {String? id, UploadProgress? onProgress}) async {
     final path = '/objects/${Uri.encodeComponent(objectId)}/apartments/${Uri.encodeComponent(apartmentId)}/documents/$kind${id != null ? '/${Uri.encodeComponent(id)}' : ''}';
     final ckey = 'doc:$path';
     final http.Response r;
     try {
-      r = await _http.get(_uri(path), headers: {'Authorization': 'Bearer $apiKey', 'Accept': 'application/pdf, application/json', 'Accept-Language': ApiClient.lang}).timeout(Offline.online.value ? const Duration(seconds: 90) : const Duration(seconds: 8));
+      final req = http.Request('GET', _uri(path))..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/pdf, application/json', 'Accept-Language': ApiClient.lang});
+      final res = await _http.send(req).timeout(Offline.online.value ? const Duration(seconds: 30) : const Duration(seconds: 8));
+      // qabul qilinayotgan baytlar sanaladi — ekranda foiz ko'rinadi
+      final total = res.contentLength ?? 0;
+      final buf = <int>[];
+      onProgress?.call(0, total);
+      await for (final chunk in res.stream.timeout(const Duration(seconds: 60))) {
+        buf.addAll(chunk);
+        onProgress?.call(buf.length, total);
+      }
+      r = http.Response.bytes(buf, res.statusCode, headers: res.headers);
     } catch (_) {
       Offline.markOnline(false);
       final c = await Offline.getBytes(ckey);
@@ -703,6 +714,7 @@ class ApiClient {
     bool noReceipt = false,
     String? currency,
     num? estimate,
+    UploadProgress? onProgress,
   }) async {
     final fields = <String, String>{
       'kind': kind,
@@ -723,7 +735,7 @@ class ApiClient {
     }
     final id = Offline.newId();
     try {
-      final b = await _postSpend(fields, receiptPath, id);
+      final b = await _postSpend(fields, receiptPath, id, onProgress: onProgress);
       return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
     } on ApiException catch (e) {
       if (!(e.isNetwork && Offline.enabled)) rethrow;
@@ -767,13 +779,13 @@ class ApiClient {
   }
 
   /// Keyinroq chek qo'shish
-  Future<void> fundsAddReceipt(int op, String path) async {
+  Future<void> fundsAddReceipt(int op, String path, {UploadProgress? onProgress}) async {
     await _send(() async {
-      final req = http.MultipartRequest('POST', _uri('/funds/$op/receipt'))
+      final req = ProgressMultipartRequest('POST', _uri('/funds/$op/receipt'), onProgress: onProgress)
         ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang});
       req.files.add(await http.MultipartFile.fromPath('receipt', path));
-      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
-    });
+      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 150)));
+    }, timeout: const Duration(seconds: 160));
   }
 
   /* ---------------- hisobotlar ---------------- */
@@ -922,9 +934,9 @@ class ApiClient {
   Future<Map<String, dynamic>> profile() async => Map<String, dynamic>.from(((await _getMap('/profile'))['data'] as Map?) ?? const {});
 
   /// Rasm yuklash (galereya/kamera); qaytadi: yangi rasm manzili
-  Future<String?> profilePhotoUpload(String path) async {
+  Future<String?> profilePhotoUpload(String path, {UploadProgress? onProgress}) async {
     final b = await _send(() async {
-      final req = http.MultipartRequest('POST', _uri('/profile/photo'))..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang});
+      final req = ProgressMultipartRequest('POST', _uri('/profile/photo'), onProgress: onProgress)..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang});
       req.files.add(await http.MultipartFile.fromPath('avatar', path));
       return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 90)));
     }, timeout: const Duration(seconds: 100));

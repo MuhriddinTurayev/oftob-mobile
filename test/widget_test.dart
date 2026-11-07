@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oftob_mobile/motion.dart';
+import 'package:oftob_mobile/l10n.dart' as l10n;
+import 'package:oftob_mobile/upload.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:oftob_mobile/api.dart';
@@ -112,5 +115,48 @@ void main() {
     expect(find.text('bir'), findsNothing); // eskisi yashirin (Offstage)
     await tester.pumpWidget(app(0));
     expect(find.text('bir'), findsOneWidget);
+  });
+
+  testWidgets('til almashsa ochiq sahifadagi const matn ham tarjima bo\'ladi', (tester) async {
+    await tester.pumpWidget(ValueListenableBuilder<String>(
+      valueListenable: l10n.L.notifier,
+      builder: (_, lang, _) => l10n.LangScope(code: lang, child: const MaterialApp(home: Scaffold(body: l10n.Text('Hisobdan chiqish')))),
+    ));
+    expect(find.text('Hisobdan chiqish'), findsOneWidget);
+    unawaited(l10n.L.set('ru')); // til darhol qo'llanadi; xotiraga yozish testda kutilmaydi
+    await tester.pump();
+    expect(find.text('Выйти из аккаунта'), findsOneWidget);
+    unawaited(l10n.L.set('uz'));
+    await tester.pump();
+    expect(find.text('Hisobdan chiqish'), findsOneWidget);
+  });
+
+  testWidgets('yuklash oynasi foiz ko\'rsatadi va tugagach yopiladi', (tester) async {
+    late BuildContext ctx;
+    await tester.pumpWidget(MaterialApp(home: Builder(builder: (c) {
+      ctx = c;
+      return const SizedBox();
+    })));
+    UploadProgress? cb;
+    final done = Completer<String>();
+    final f = runUpload<String>(ctx, title: 'Chek yuklanmoqda', task: (p) {
+      cb = p;
+      return done.future;
+    });
+    await tester.pump();
+    expect(find.text('Chek yuklanmoqda'), findsOneWidget);
+    cb!(50000, 100000);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.textContaining('%'), findsOneWidget);
+    expect(find.textContaining('KB'), findsOneWidget);
+    done.complete('ok');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Yuklandi'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(await f, 'ok');
+    expect(find.text('Yuklandi'), findsNothing);
   });
 }

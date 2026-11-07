@@ -6,6 +6,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'upload.dart';
 import 'session.dart';
 import 'l10n.dart';
 
@@ -23,16 +24,13 @@ Future<void> openDocument(
   bool share = false,
 }) async {
   final messenger = ScaffoldMessenger.of(context);
-  messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(const SnackBar(content: Text('Hujjat yuklanmoqda…'), duration: Duration(seconds: 30)));
+  messenger.hideCurrentSnackBar();
   try {
-    final bytes = await session.api!.downloadDocument(objectId, apartmentId, kind, id: id);
+    final bytes = await runUpload(context, title: tr('Hujjat yuklanmoqda'), download: true, task: (p) => session.api!.downloadDocument(objectId, apartmentId, kind, id: id, onProgress: p));
     final dir = await getTemporaryDirectory();
     final safe = fileName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
     final file = File('${dir.path}/$safe.pdf');
     await file.writeAsBytes(bytes, flush: true);
-    messenger.hideCurrentSnackBar();
     if (share) {
       await SharePlus.instance.share(ShareParams(files: [XFile(file.path, mimeType: 'application/pdf')], text: fileName));
       return;

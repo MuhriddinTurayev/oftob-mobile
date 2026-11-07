@@ -9,6 +9,7 @@ import '../api.dart';
 import '../format.dart';
 import '../offline.dart';
 import '../session.dart';
+import '../upload.dart';
 import '../widgets.dart';
 import '../theme.dart';
 import '../motion.dart';
@@ -34,7 +35,7 @@ Future<XFile?> pickReceipt(BuildContext context) async {
   );
   if (src == null) return null;
   try {
-    return await ImagePicker().pickImage(source: src, maxWidth: 2000, imageQuality: 82);
+    return await ImagePicker().pickImage(source: src, maxWidth: 1700, imageQuality: 78);
   } catch (e) {
     if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Suratni ochib bo\'lmadi. Ilovaga kamera/galereya ruxsatini bering.')));
     return null;
@@ -644,7 +645,7 @@ class _OpSheetState extends State<_OpSheet> {
                       final f = await pickReceipt(context);
                       if (f == null) return;
                       await _run(() async {
-                        await api.fundsAddReceipt(o['id'] as int, f.path);
+                        await runUpload(context, title: tr('Chek yuklanmoqda'), task: (p) => api.fundsAddReceipt(o['id'] as int, f.path, onProgress: p));
                         return null;
                       });
                     },
@@ -802,7 +803,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       _formErr = null;
     });
     try {
-      final res = await s.api!.fundsSpend(
+      final withPhoto = !_noReceipt && _photo != null;
+      final res = await runUpload(context, title: withPhoto ? tr('Chek yuklanmoqda') : tr('Hisobot yuborilmoqda'), task: (progress) => s.api!.fundsSpend(
         kind: _kindV,
         object: _object!,
         date: _iso,
@@ -817,7 +819,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         noReceipt: _noReceipt,
         currency: _curCode == '${widget.data['base_currency'] ?? ''}' ? null : _curCode,
         estimate: _estimate(hasLines, amount),
-      );
+        onProgress: progress,
+      ));
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       final queued = res['queued'] == true;

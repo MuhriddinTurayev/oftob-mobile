@@ -825,7 +825,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
     final child = m.pending
         ? const _TypingDots()
         : Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            SelectableText(m.text, style: TextStyle(fontSize: 14.5, height: 1.35, color: m.error ? cs.error : (me ? Colors.white : cs.onSurface))),
+            SelectableText(m.error ? tr(m.text) : m.text, style: TextStyle(fontSize: 14.5, height: 1.35, color: m.error ? cs.error : (me ? Colors.white : cs.onSurface))),
             if (m.confirm != null)
               Padding(
                 padding: const EdgeInsets.only(top: 10),

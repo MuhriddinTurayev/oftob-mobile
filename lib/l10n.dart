@@ -87,6 +87,18 @@ m.Locale materialLocale(String c, bool Function(m.Locale) supported) {
   return m.Locale(c);
 }
 
+/// Joriy til daraxt bo'ylab: til o'zgarsa unga bog'langan hamma [Text] (hatto `const Text(...)` ham, ochiq turgan sahifalarda ham) qayta chiziladi.
+class LangScope extends m.InheritedWidget {
+  const LangScope({super.key, required this.code, required super.child});
+
+  final String code;
+
+  static void watch(m.BuildContext context) => context.dependOnInheritedWidgetOfExactType<LangScope>();
+
+  @override
+  bool updateShouldNotify(LangScope old) => old.code != code;
+}
+
 /// Flutter'ning `Text` o'rniga: matnni joriy tilga o'giradi. Qolgan hamma parametrlar o'sha-o'sha.
 class Text extends m.StatelessWidget {
   const Text(
@@ -111,5 +123,8 @@ class Text extends m.StatelessWidget {
   final String? semanticsLabel;
 
   @override
-  m.Widget build(m.BuildContext context) => m.Text(tr(data), style: style, textAlign: textAlign, overflow: overflow, maxLines: maxLines, softWrap: softWrap, textScaler: textScaler, semanticsLabel: semanticsLabel);
+  m.Widget build(m.BuildContext context) {
+    LangScope.watch(context); // til almashsa — const matn ham yangilanadi
+    return m.Text(tr(data), style: style, textAlign: textAlign, overflow: overflow, maxLines: maxLines, softWrap: softWrap, textScaler: textScaler, semanticsLabel: semanticsLabel);
+  }
 }

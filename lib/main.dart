@@ -74,7 +74,9 @@ class _OftobAppState extends State<OftobApp> {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<String>(
       valueListenable: L.notifier,
-      builder: (context, lang, _) => ValueListenableBuilder<ThemeMode>(
+      builder: (context, lang, _) => LangScope(
+        code: lang,
+        child: ValueListenableBuilder<ThemeMode>(
         valueListenable: ThemeController.mode,
         builder: (context, tm, _) => MaterialApp(
         title: 'Oftob Building',
@@ -117,6 +119,7 @@ class _OftobAppState extends State<OftobApp> {
                   ),
                 ),
         ),
+      ),
       ),
       ),
     );
