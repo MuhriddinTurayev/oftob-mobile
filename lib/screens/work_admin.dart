@@ -5,10 +5,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../format.dart';
 import '../l10n.dart';
-import '../location.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'map_picker.dart';
 
 /* ============================================================================================
  * Ish vaqti va joylashuv (rahbar, buxgalter, prorab — o'z obyekti) va maosh tafsiloti:
@@ -147,83 +147,12 @@ class _WorkScreenState extends State<WorkScreen> {
 
   Future<void> _setSite(Map<String, dynamic> o) async {
     final site = o['site'] is Map ? Map<String, dynamic>.from(o['site'] as Map) : null;
-    double radius = ((site?['radius'] as num?) ?? 150).toDouble().clamp(30, 1000);
-    Fix? fix;
-    String? err;
-    bool busy = false;
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) {
-          Future<void> locate() async {
-            set(() {
-              busy = true;
-              err = null;
-            });
-            final r = await currentFix();
-            set(() {
-              busy = false;
-              fix = r.fix;
-              err = r.error;
-            });
-          }
-
-          final cs = Theme.of(c).colorScheme;
-          return Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.viewInsetsOf(c).bottom),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('${o['name']}', style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 4),
-              Text("Obyektda turib «Shu yerni belgilash» ni bosing — telefon joylashuvi obyekt nuqtasi bo'ladi.", style: TextStyle(color: cs.outline, fontSize: 13)),
-              const SizedBox(height: 14),
-              GlassRow(
-                margin: EdgeInsets.zero,
-                onTap: busy ? null : locate,
-                child: Row(children: [
-                  IconTile(icon: fix != null ? Icons.check_circle_rounded : Icons.my_location_rounded, color: fix != null ? Colors.green : Brand.blue, size: 42),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: busy
-                        ? const LinearProgressIndicator()
-                        : Text(
-                            fix != null
-                                ? '${fix!.lat.toStringAsFixed(6)}, ${fix!.lng.toStringAsFixed(6)}\n${tr('aniqlik')} ±${fix!.acc.round()} m'
-                                : tr('Shu yerni belgilash'),
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                  ),
-                ]),
-              ),
-              if (err != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(err!, style: TextStyle(color: cs.error, fontWeight: FontWeight.w600))),
-              if (fix != null && fix!.acc > 60)
-                Padding(padding: const EdgeInsets.only(top: 6), child: Text(tr("Aniqlik past — ochiq joyga chiqib qayta bosing."), style: TextStyle(color: Colors.orange.shade800, fontSize: 12.5))),
-              const SizedBox(height: 14),
-              Text('${tr('Radius')}: ${radius.round()} m', style: const TextStyle(fontWeight: FontWeight.w800)),
-              Slider(value: radius, min: 30, max: 1000, divisions: 97, label: '${radius.round()} m', onChanged: (v) => set(() => radius = v)),
-              Text("Shu radius ichida bo'lsa «Keldim» qabul qilinadi.", style: TextStyle(color: cs.outline, fontSize: 12)),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: fix == null && site == null ? null : () => Navigator.pop(c, true),
-                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-                  icon: const Icon(Icons.save_rounded),
-                  label: const Text('Saqlash'),
-                ),
-              ),
-            ]),
-          );
-        },
-      ),
-    );
-    if (ok != true || !mounted) return;
-    final lat = fix?.lat ?? (site?['lat'] as num?)?.toDouble();
-    final lng = fix?.lng ?? (site?['lng'] as num?)?.toDouble();
-    if (lat == null || lng == null) return;
+    final picked = await Navigator.of(context).push<PickedSite>(MaterialPageRoute(
+      builder: (_) => MapPickerScreen(title: '${o['name']}', lat: (site?['lat'] as num?)?.toDouble(), lng: (site?['lng'] as num?)?.toDouble(), radius: ((site?['radius'] as num?) ?? 150).toInt()),
+    ));
+    if (picked == null || !mounted) return;
     try {
-      await s.api!.aSend('POST', '/work/sites/${o['id']}', {'lat': lat, 'lng': lng, 'radius': radius.round()});
+      await s.api!.aSend('POST', '/work/sites/${o['id']}', {'lat': picked.lat, 'lng': picked.lng, 'radius': picked.radius});
       HapticFeedback.mediumImpact();
       if (mounted) _snack(context, tr('Obyekt joylashuvi saqlandi'));
       _reload();

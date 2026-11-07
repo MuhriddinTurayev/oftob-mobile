@@ -115,7 +115,7 @@ class _ShiftCardState extends State<ShiftCard> {
     HapticFeedback.mediumImpact();
     Fix? fix;
     if (act != 'reopen') {
-      final r = await currentFix();
+      final r = await currentFix(real: act == 'start');
       fix = r.fix;
       if (fix == null && act == 'start') {
         // «Keldim» faqat obyektda: joylashuvsiz qabul qilinmaydi
@@ -147,7 +147,7 @@ class _ShiftCardState extends State<ShiftCard> {
       }
     }
     try {
-      final d = await s.api!.shiftAct(act, lat: fix?.lat, lng: fix?.lng, acc: fix?.acc);
+      final d = await s.api!.shiftAct(act, lat: fix?.lat, lng: fix?.lng, acc: fix?.acc, mocked: fix?.mocked ?? false);
       if (!mounted) return;
       final queued = d['queued'] == true;
       setState(() {

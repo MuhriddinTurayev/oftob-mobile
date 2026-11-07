@@ -757,9 +757,9 @@ class ApiClient {
   Future<Map<String, dynamic>> shift() async => _shiftWithQueue(Map<String, dynamic>.from(((await _getMap('/shift'))['data'] as Map?) ?? const {}));
 
   /// act: start | end | reopen. Koordinatalar bo'lsa yuboriladi (lokatsiyasiz ham belgilash mumkin).
-  Future<Map<String, dynamic>> shiftAct(String act, {double? lat, double? lng, double? acc}) async {
+  Future<Map<String, dynamic>> shiftAct(String act, {double? lat, double? lng, double? acc, bool mocked = false}) async {
     // bosilgan HAQIQIY vaqt yuboriladi: offline'da keyin sinxronlansa ham server shu vaqtni yozadi
-    final body = <String, dynamic>{if (lat != null && lng != null) 'lat': lat, if (lat != null && lng != null) 'lng': lng, if (acc != null) 'acc': acc, 'at': DateTime.now().toUtc().toIso8601String()};
+    final body = <String, dynamic>{if (lat != null && lng != null) 'lat': lat, if (lat != null && lng != null) 'lng': lng, if (acc != null) 'acc': acc, if (mocked) 'mocked': true, 'at': DateTime.now().toUtc().toIso8601String()};
     final r = await _queueGeneric(kind: 'shift', method: 'POST', path: '/shift/$act', body: body, refId: act, label: 'Smena — ${act == 'start' ? 'ishga keldim' : (act == 'end' ? 'ketdim' : 'qaytdim')}');
     if (!r.queued) return r.data;
     Map<String, dynamic> base = const {};
