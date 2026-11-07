@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart' hide Text;
 
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
 import '../theme.dart';
 import '../l10n.dart';
+import 'checkin_map.dart';
 import 'tg_link.dart';
 
 /// Davomat: kim ishga keldi, kim ishda, kim ketdi, kim kelmadi — obyektlar bo'yicha.
@@ -102,9 +102,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   List<Map<String, dynamic>> get _office => ((_data?['office'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 
-  Future<void> _openMap(num lat, num lng) =>
-      launchUrl(Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng'), mode: LaunchMode.externalApplication);
-
   /// «Men ishga keldim» bosgan prorablar va ofis xodimlari: kelgan/ketgan vaqt va joylashuv (xaritada ochiladi).
   Widget _officeBlock(ColorScheme cs) {
     final came = _office.where((o) => o['status'] != 'none').length;
@@ -138,7 +135,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final until = st == 'working' ? DateTime.now() : shiftMoment(o, 'out');
     final worked = (st == 'none' || since == null || until == null) ? '' : durationText(until.difference(since));
     final times = st == 'none' ? '' : '${o['in'] ?? ''}${o['out'] != null ? ' – ${o['out']}' : ''}${st == 'working' ? ' · ${tr('dan beri')}' : ''}${worked.isEmpty ? '' : ' · $worked'}';
-    final where = st == 'none' ? '' : (lat == null ? 'joylashuvsiz' : (dist == null ? 'joylashuv bor' : (dist <= 300 ? 'obyektda' : 'obyektdan ${distLabel(dist)}')));
+    final where = st == 'none'
+        ? ''
+        : (lat == null ? tr('joylashuvsiz') : (dist == null ? tr('joylashuv bor') : (dist <= 300 ? '${tr('obyektda')} · ${distLabel(dist)}' : tr('Obyektdan :d uzoqda').replaceAll(':d', distLabel(dist)))));
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(children: [
@@ -150,7 +149,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             Text([if ('${o['role']}'.isNotEmpty) '${o['role']}', if (times.isNotEmpty) times, if (where.isNotEmpty) where].join(' · '), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: (lat == null && st != 'none') ? Colors.orange.shade800 : cs.outline, fontSize: 12.5)),
           ]),
         ),
-        if (lat != null && lng != null) IconButton(tooltip: tr('Xaritada ochish'), visualDensity: VisualDensity.compact, onPressed: () => _openMap(lat, lng), icon: Icon(Icons.map_outlined, color: cs.primary)),
+        if (lat != null && lng != null)
+          IconButton(
+            tooltip: tr('Xaritada ochish'),
+            visualDensity: VisualDensity.compact,
+            onPressed: () => showCheckinMap(context,
+                name: '${o['name']}', points: [CheckPoint.from(o, 'in', tr('Keldi')), CheckPoint.from(o, 'out', tr('Ketdi'))].whereType<CheckPoint>().toList()),
+            icon: Icon(Icons.map_outlined, color: cs.primary),
+          ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
@@ -301,6 +307,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               : null,
           onAction: (act) => _mark(act, {'${site['id']}': ['${w['id']}']}),
           live: _isToday,
+          site: site['site'] as Map?,
           // ishchini bosish — Telegram-botga ulash kodi
           onInfo: w['tg_code'] != null
               ? () => showTelegramLink(context, s,
@@ -440,7 +447,10 @@ class _Stat extends StatelessWidget {
 }
 
 class _WorkerTile extends StatelessWidget {
-  const _WorkerTile({required this.w, required this.selected, required this.selecting, required this.canMark, required this.busy, required this.onToggle, required this.onLong, required this.onAction, this.live = false, this.flat = false, this.onInfo});
+  const _WorkerTile({required this.w, required this.selected, required this.selecting, required this.canMark, required this.busy, required this.onToggle, required this.onLong, required this.onAction, this.live = false, this.flat = false, this.onInfo, this.site});
+
+  /// Obyekt joylashuvi (xaritada doira): {lat, lng, radius}
+  final Map? site;
 
   /// Bosilganda (tanlash rejimi bo'lmasa): Telegram-botga ulash kodi
   final VoidCallback? onInfo;
@@ -502,15 +512,21 @@ class _WorkerTile extends StatelessWidget {
     ].join(' · ');
     // qayerda / kim belgiladi: telefon orqali o'zi (obyektda yoki tashqarida) yoki prorab qo'lda
     final by = '${w['marked_by'] ?? ''}';
+    // «Keldim»/«Ketdim» bosilgan joy (Telegram-bot, shaxsiy havola yoki ilova) — bosilsa xaritada ko'rinadi
+    final pts = [CheckPoint.from(w, 'in', tr('Keldi')), CheckPoint.from(w, 'out', tr('Ketdi'))].whereType<CheckPoint>().toList();
+    final dist = w['in_dist'] as num?;
+    final far = dist == null ? '' : ' · ${distLabel(dist)}';
     final (whereIcon, whereText, whereWarn) = st == 'absent'
         ? (null, '', false)
         : w['manual'] == true
             ? (Icons.edit_location_alt_outlined, by.isEmpty ? tr("Qo'lda belgilangan") : '${tr('Belgiladi')}: $by', false)
             : w['off_site'] == true || w['on_site'] == false
-                ? (Icons.wrong_location_outlined, tr('Obyektdan tashqarida'), true)
+                ? (Icons.wrong_location_outlined, dist == null ? tr('Obyektdan tashqarida') : tr('Obyektdan :d uzoqda').replaceAll(':d', distLabel(dist)), true)
                 : w['on_site'] == true
-                    ? (Icons.place_rounded, tr('Obyektda (telefon orqali)'), false)
-                    : (Icons.phone_iphone_rounded, tr('Telefon orqali'), false);
+                    ? (Icons.place_rounded, '${tr('Obyektda (telefon orqali)')}$far', false)
+                    : pts.isNotEmpty
+                        ? (Icons.place_outlined, '${tr('Joylashuv bor')}$far', false)
+                        : (Icons.phone_iphone_rounded, tr('Telefon orqali'), false);
     final row = Row(children: [
           selected
               ? CircleAvatar(radius: 20, backgroundColor: cs.primary, child: Icon(Icons.check, color: cs.onPrimary))
@@ -521,13 +537,23 @@ class _WorkerTile extends StatelessWidget {
               Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               if (sub.isNotEmpty) Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12.5)),
               if (whereIcon != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Row(children: [
-                    Icon(whereIcon, size: 14, color: whereWarn ? Colors.orange.shade700 : cs.primary),
-                    const SizedBox(width: 4),
-                    Expanded(child: Text(whereText, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: whereWarn ? Colors.orange.shade700 : cs.outline, fontSize: 12, fontWeight: FontWeight.w600))),
-                  ]),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: pts.isEmpty || selecting ? null : () => showCheckinMap(context, name: name, points: pts, site: site),
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 2, bottom: 2),
+                    child: Row(children: [
+                      Icon(whereIcon, size: 14, color: whereWarn ? Colors.orange.shade700 : cs.primary),
+                      const SizedBox(width: 4),
+                      Flexible(child: Text(whereText, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: whereWarn ? Colors.orange.shade700 : cs.outline, fontSize: 12, fontWeight: FontWeight.w600))),
+                      if (pts.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Icon(Icons.map_rounded, size: 15, color: cs.primary),
+                        const SizedBox(width: 2),
+                        Text(tr('xaritada'), style: TextStyle(color: cs.primary, fontSize: 12, fontWeight: FontWeight.w700)),
+                      ],
+                    ]),
+                  ),
                 ),
             ]),
           ),

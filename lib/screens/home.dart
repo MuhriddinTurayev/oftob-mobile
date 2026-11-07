@@ -220,6 +220,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     "To'lov so'rovlari": Brand.blue,
   };
 
+  /// «Yana» ro'yxati guruhlarga bo'linadi (bittasini bosganda ochiladi); guruhga kirmaganlar pastda alohida turadi
+  static const _groups = <(String, IconData, Color, List<String>)>[
+    ('Pul va moliya', Icons.account_balance_wallet_rounded, Brand.green, ['Kassa', 'Prorab puli', "To'lov so'rovlari", 'Valyutalar', 'Kontragentlar', 'Hisobotlar']),
+    ('Xodimlar va ish vaqti', Icons.groups_rounded, Brand.teal, ['Davomat', 'Xodimlar', 'Vazifalar', 'Ish vaqti va joylashuv', 'KPI va ushlab qolish']),
+    ('Sotuv va mijozlar', Icons.key_rounded, Brand.orange, ['Sotuv', 'Lidlar', "Bo'lib to'lash foizlari"]),
+    ('Obyektlar va ombor', Icons.apartment_rounded, Brand.blue, ['Obyektlar', 'Ombor']),
+    ('Kompaniya sozlamalari', Icons.tune_rounded, Brand.purple, ['Jamoa va rollar', "Sun'iy intellekt", "Tarif va to'lov"]),
+  ];
+
+  /// Hozir ochiq guruh («Yana» da bir vaqtda bittasi ochiq)
+  String? _openGroup;
+
   /// Bosh ekrandagi «Xizmatlar» tugmalari: rol ruxsat bergan hamma bo'limlar (asosiy tablar ham, «Yana» dagilar ham)
   List<DashSection> get _sections => [
         for (final t in [..._primary.skip(1), ..._more]) DashSection(t.label, t.icon, _colors[t.label] ?? Brand.green),
@@ -375,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 6),
-        for (final t in _more) row(t.icon, _colors[t.label] ?? Brand.green, t.label, onTap: () => _push(t)),
+        ..._moreGroups(cs, row),
         ListenableBuilder(
           listenable: Listenable.merge([Offline.pending, Offline.failed]),
           builder: (context, _) {
@@ -392,6 +404,93 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ],
     );
+  }
+
+  /// «Yana» bo'limlari guruhlab: guruh sarlavhasini bosish — ochiladi/yopiladi (boshqasi yopiladi).
+  /// Bitta bo'limli guruh — to'g'ridan-to'g'ri qator; hech bir guruhga kirmagan bo'lim (masalan, «Yordam») — pastda alohida.
+  List<Widget> _moreGroups(ColorScheme cs, Widget Function(IconData, Color, String, {String? sub, Widget? trailing, VoidCallback? onTap, Color? titleColor}) row) {
+    final more = _more;
+    final byLabel = {for (final t in more) t.label: t};
+    final used = <String>{};
+    final out = <Widget>[];
+    for (final (title, icon, color, labels) in _groups) {
+      final items = [for (final l in labels) if (byLabel[l] != null) byLabel[l]!];
+      used.addAll(items.map((e) => e.label));
+      if (items.isEmpty) continue;
+      if (items.length == 1) {
+        final t = items.first;
+        out.add(row(t.icon, _colors[t.label] ?? color, t.label, onTap: () => _push(t)));
+        continue;
+      }
+      final open = _openGroup == title;
+      out.add(Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Glass(
+          padding: EdgeInsets.zero,
+          child: Column(children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(22),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _openGroup = open ? null : title);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(children: [
+                  IconTile(icon: icon, color: color, size: 40),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                      Text(items.map((e) => tr(e.label)).join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12)),
+                    ]),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                    child: Text('${items.length}', style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12)),
+                  ),
+                  const SizedBox(width: 4),
+                  AnimatedRotation(turns: open ? 0.25 : 0, duration: const Duration(milliseconds: 200), child: Icon(Icons.chevron_right, color: cs.outline)),
+                ]),
+              ),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: !open
+                  ? const SizedBox(width: double.infinity)
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                      child: Column(children: [
+                        Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
+                        for (final t in items)
+                          InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => _push(t),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                              child: Row(children: [
+                                IconTile(icon: t.icon, color: _colors[t.label] ?? color, size: 34),
+                                const SizedBox(width: 12),
+                                Expanded(child: Text(t.label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5))),
+                                Icon(Icons.chevron_right, color: cs.outline, size: 20),
+                              ]),
+                            ),
+                          ),
+                      ]),
+                    ),
+            ),
+          ]),
+        ),
+      ));
+    }
+    for (final t in more) {
+      if (!used.contains(t.label)) out.add(row(t.icon, _colors[t.label] ?? Brand.green, t.label, onTap: () => _push(t)));
+    }
+    return out;
   }
 
   String get _greeting {

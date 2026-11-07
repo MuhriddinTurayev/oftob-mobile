@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart' hide Text;
 
 
+import '../api.dart';
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
 import '../theme.dart';
 import '../l10n.dart';
+import 'cash_form.dart';
 
 class CashScreen extends StatefulWidget {
   const CashScreen({super.key, required this.session});
@@ -20,6 +22,7 @@ class _CashScreenState extends State<CashScreen> {
   final _list = GlobalKey<PagedListState>();
   List<Map<String, dynamic>> _desks = const [];
   String? _deskError;
+  CashFormData? _form; // kirim/chiqim qo'shish uchun: kassalar, moddalar, ruxsat
   final _page = PageController(viewportFraction: 0.86);
   int _at = 0; // 0 — hamma kassalar, keyin har bir kassa
   int? get _deskId => _at == 0 || _at > _desks.length ? null : (_desks[_at - 1]['id'] as num).toInt();
@@ -28,6 +31,38 @@ class _CashScreenState extends State<CashScreen> {
   void initState() {
     super.initState();
     _loadDesks();
+    _loadForm();
+  }
+
+  Future<void> _loadForm() async {
+    try {
+      final f = await CashFormData.load(widget.session);
+      if (mounted) setState(() => _form = f);
+    } catch (_) {/* ruxsat yo'q yoki oflayn — qo'shish tugmasi chiqmaydi */}
+  }
+
+  Future<void> _add() async {
+    final f = _form;
+    if (f == null) return;
+    if (await showCashOpForm(context, widget.session, f, deskId: _deskId)) await _refreshAll();
+  }
+
+  /// Operatsiyani bosish: tuzatish (oddiy kirim/chiqim) yoki o'chirish (o'tkazma va boshqalar)
+  Future<void> _open(Map<String, dynamic> o) async {
+    final f = _form;
+    if (o['can_edit'] == true && f != null) {
+      if (await showCashOpForm(context, widget.session, f, op: o)) await _refreshAll();
+    } else if (o['can_delete'] == true) {
+      if (!await confirmCashDelete(context, o) || !mounted) return;
+      try {
+        await widget.session.api!.aSend('DELETE', '/cash/operations/${o['id']}');
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr("O'chirildi"))));
+        await _refreshAll();
+      } catch (e) {
+        await widget.session.handleError(e);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : '$e')));
+      }
+    }
   }
 
   @override
@@ -47,7 +82,7 @@ class _CashScreenState extends State<CashScreen> {
   }
 
   Future<void> _refreshAll() async {
-    await Future.wait([_loadDesks(), if (_list.currentState != null) _list.currentState!.reload()]);
+    await Future.wait([_loadDesks(), _loadForm(), if (_list.currentState != null) _list.currentState!.reload()]);
   }
 
   static const _palette = [
@@ -172,6 +207,13 @@ class _CashScreenState extends State<CashScreen> {
           padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
           child: Row(children: [
             Expanded(child: const Text('Kassalar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
+            if (_form?.canAdd == true)
+              FilledButton.icon(
+                onPressed: _add,
+                style: FilledButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 14)),
+                icon: const Icon(Icons.add_rounded, size: 20),
+                label: const Text('Kirim / chiqim'),
+              ),
             IconButton(onPressed: _refreshAll, icon: const Icon(Icons.refresh)),
           ]),
         ),
@@ -195,9 +237,13 @@ class _CashScreenState extends State<CashScreen> {
         final color = income ? Colors.green : Colors.red;
         final title = '${o['category'] ?? (income ? 'Kirim' : 'Chiqim')}';
         final note = '${o['note'] ?? ''}'.trim();
+        final tappable = (o['can_edit'] == true && _form != null) || o['can_delete'] == true;
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Glass(
+          child: GestureDetector(
+            onTap: tappable ? () => _open(o) : null,
+            behavior: HitTestBehavior.opaque,
+            child: Glass(
             radius: 18,
             blur: false,
             shadow: false,
@@ -208,12 +254,16 @@ class _CashScreenState extends State<CashScreen> {
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
-                  Text([formatDate('${o['date']}'), if (note.isNotEmpty) note].join(' · '), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12)),
+                  Text([formatDate('${o['date']}'), if (_deskId == null && o['desk'] != null) '${o['desk']}', if (note.isNotEmpty) note].join(' · '), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12)),
                 ]),
               ),
               const SizedBox(width: 8),
-              Text('${income ? '+' : '−'}${money(o['amount'] as num?)} ${o['currency'] ?? ''}', style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 13.5)),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text('${income ? '+' : '−'}${money(o['amount'] as num?)} ${o['currency'] ?? ''}', style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 13.5)),
+                if (tappable) Padding(padding: const EdgeInsets.only(top: 2), child: Icon(o['can_edit'] == true ? Icons.edit_rounded : Icons.delete_outline_rounded, size: 15, color: cs.outline)),
+              ]),
             ]),
+          ),
           ),
         );
       },
