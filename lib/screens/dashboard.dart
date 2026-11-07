@@ -329,22 +329,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 /// Obyektlar: bitta bo'lsa — butun qator, ikkita bo'lsa — yarim-yarim, ko'p bo'lsa — yonga surib ko'riladi
-class _ObjectCards extends StatelessWidget {
+/// Qurilish obyektlari: bank kartasi kabi karusel (surib o'tiladi, pastda nuqtalar). Bitta obyekt bo'lsa — to'liq kenglikda.
+class _ObjectCards extends StatefulWidget {
   const _ObjectCards(this.objs, {this.onTap});
 
   final List<Map<String, dynamic>> objs;
   final VoidCallback? onTap;
 
   @override
+  State<_ObjectCards> createState() => _ObjectCardsState();
+}
+
+class _ObjectCardsState extends State<_ObjectCards> {
+  final _page = PageController(viewportFraction: 0.9);
+  int _at = 0;
+
+  @override
+  void dispose() {
+    _page.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, bc) {
-      final n = objs.length;
-      final w0 = bc.maxWidth;
-      final cw = n == 1 ? w0 : (n == 2 ? (w0 - 10) / 2 : w0 * 0.74);
-      final card = [for (final o in objs) SizedBox(width: cw, child: _ObjectCard(o, onTap: onTap))];
-      if (n <= 2) return Row(children: [for (var i = 0; i < card.length; i++) ...[if (i > 0) const SizedBox(width: 10), card[i]]]);
-      return SizedBox(height: 108, child: ListView.separated(scrollDirection: Axis.horizontal, clipBehavior: Clip.none, itemCount: n, separatorBuilder: (_, _) => const SizedBox(width: 10), itemBuilder: (_, i) => card[i]));
-    });
+    final objs = widget.objs;
+    final n = objs.length;
+    if (n == 1) return SizedBox(height: 112, child: _ObjectCard(objs.first, onTap: widget.onTap));
+    final cs = Theme.of(context).colorScheme;
+    return Column(children: [
+      SizedBox(
+        height: 112,
+        child: PageView.builder(
+          controller: _page,
+          clipBehavior: Clip.none,
+          padEnds: false,
+          itemCount: n,
+          onPageChanged: (i) => setState(() => _at = i),
+          itemBuilder: (_, i) => Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: AnimatedScale(
+              scale: i == _at ? 1 : 0.95,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              child: _ObjectCard(objs[i], onTap: widget.onTap),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 8),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        for (var i = 0; i < n; i++)
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            width: i == _at ? 18 : 7,
+            height: 7,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(4), color: i == _at ? cs.primary : cs.outline.withValues(alpha: 0.35)),
+          ),
+      ]),
+    ]);
   }
 }
 

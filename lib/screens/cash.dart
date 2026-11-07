@@ -164,29 +164,32 @@ class _CashScreenState extends State<CashScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final deskName = _deskId == null ? null : '${_desks[_at - 1]['name']}';
-    return PagedList(
+    // karusel ro'yxatdan TASHQARIDA: ro'yxat qayta yuklanganda u qayta qurilmaydi va boshiga qaytib ketmaydi
+    final head = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+          child: Row(children: [
+            Expanded(child: const Text('Kassalar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
+            IconButton(onPressed: _refreshAll, icon: const Icon(Icons.refresh)),
+          ]),
+        ),
+        if (_deskError != null) Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(_deskError!, style: TextStyle(color: cs.error))),
+        if (_desks.isNotEmpty) _carousel(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+          child: Text(deskName == null ? tr("So'nggi operatsiyalar") : '${tr("So'nggi operatsiyalar")} · $deskName', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+        ),
+      ],
+    );
+    return Column(children: [
+      head,
+      Expanded(child: PagedList(
       key: _list,
       session: widget.session,
-      emptyText: 'Operatsiyalar yo\'q',
+      emptyText: "Operatsiyalar yo'q",
       fetch: (p) => widget.session.api!.cashOps(page: p, desk: _deskId),
-      header: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
-            child: Row(children: [
-              Expanded(child: const Text('Kassalar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
-              IconButton(onPressed: _refreshAll, icon: const Icon(Icons.refresh)),
-            ]),
-          ),
-          if (_deskError != null) Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(_deskError!, style: TextStyle(color: cs.error))),
-          if (_desks.isNotEmpty) _carousel(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-            child: Text(deskName == null ? tr("So'nggi operatsiyalar") : '${tr("So'nggi operatsiyalar")} · $deskName', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-          ),
-        ],
-      ),
       itemBuilder: (context, o) {
         final income = o['type'] == 'in';
         final color = income ? Colors.green : Colors.red;
@@ -214,6 +217,7 @@ class _CashScreenState extends State<CashScreen> {
           ),
         );
       },
-    );
+    )),
+    ]);
   }
 }

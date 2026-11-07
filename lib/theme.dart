@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/scheduler.dart' show Ticker, TickerProvider, TickerCallback;
+import 'package:flutter/rendering.dart' show RenderProxyBox;
 import 'package:flutter/services.dart';
 
 import 'l10n.dart';
@@ -95,6 +96,9 @@ class GlassBackdrop extends StatelessWidget {
 
   static final Map<String, ui.Image> _cache = {};
 
+  /// Oxirgi chizilgan fon rasmi (tun/kun) — «xira shisha» panellar o'z ostidagi fon bo'lagini shundan oladi
+  static final Map<bool, ui.Image> latest = {};
+
   static List<Color> _base(bool dark) => dark ? const [Color(0xFF0A1410), Color(0xFF0C1822), Color(0xFF0B1711)] : const [Color(0xFFD6EFE2), Color(0xFFE6EEFB), Color(0xFFF4F7E8)];
 
   /// (markaz, rang, radius, shaffoflik)
@@ -119,7 +123,10 @@ class GlassBackdrop extends StatelessWidget {
     final w = (size.width / 2).ceil(), h = (size.height / 2).ceil();
     final key = '$dark:$w:$h';
     final hit = _cache[key];
-    if (hit != null) return hit;
+    if (hit != null) {
+      latest[dark] = hit;
+      return hit;
+    }
     try {
       final rec = ui.PictureRecorder();
       _paint(Canvas(rec), Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()), dark);
@@ -127,6 +134,7 @@ class GlassBackdrop extends StatelessWidget {
       final img = pic.toImageSync(w, h);
       pic.dispose();
       if (_cache.length >= 6) _cache.remove(_cache.keys.first); // eski o'lchamlar (burilish va h.k.)
+      latest[dark] = img;
       return _cache[key] = img;
     } catch (_) {
       return null;
@@ -298,15 +306,8 @@ class GlassNavBar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
         child: SizedBox(
           height: 66,
-          child: Glass(
+          child: FrostPanel(
             radius: 33,
-            blur: false,
-            shadow: true,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: context.isDark ? const [Color(0xF2182621), Color(0xF0101A16)] : const [Color(0xF5FFFFFF), Color(0xE8F3F8F5)],
-            ),
             padding: const EdgeInsets.all(6),
             child: LayoutBuilder(
               builder: (context, bc) {
@@ -618,5 +619,98 @@ class GlassFab extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+
+/// «Xira shisha» panel (pastki menyu): ostidagi fonning silliq rangli bo'lagi + yarim shaffof qatlam + yupqa chegara.
+/// Haqiqiy BackdropFilter iPhone'da har kadrda butun ekranni qayta ishlaydi (qotish va qizish) — bu esa bitta tayyor rasmni
+/// chizadi, ko'rinishi esa xira shishaga o'xshaydi: fon ranglari ko'rinadi, ortidagi matn esa xalaqit bermaydi.
+class FrostPanel extends StatelessWidget {
+  const FrostPanel({super.key, required this.radius, this.padding = EdgeInsets.zero, required this.child});
+
+  final double radius;
+  final EdgeInsets padding;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => _FrostBox(radius: radius, dark: context.isDark, screen: MediaQuery.sizeOf(context), child: Padding(padding: padding, child: child));
+}
+
+class _FrostBox extends SingleChildRenderObjectWidget {
+  const _FrostBox({required this.radius, required this.dark, required this.screen, required super.child});
+
+  final double radius;
+  final bool dark;
+  final Size screen;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderFrost(radius, dark, screen);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderFrost r) {
+    r
+      ..radius = radius
+      ..dark = dark
+      ..screen = screen;
+  }
+}
+
+class _RenderFrost extends RenderProxyBox {
+  _RenderFrost(this._radius, this._dark, this._screen);
+
+  double _radius;
+  bool _dark;
+  Size _screen;
+
+  set radius(double v) {
+    if (v == _radius) return;
+    _radius = v;
+    markNeedsPaint();
+  }
+
+  set dark(bool v) {
+    if (v == _dark) return;
+    _dark = v;
+    markNeedsPaint();
+  }
+
+  set screen(Size v) {
+    if (v == _screen) return;
+    _screen = v;
+    markNeedsPaint();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final c = context.canvas;
+    final rect = offset & size;
+    final rr = RRect.fromRectAndRadius(rect, Radius.circular(_radius));
+    // soya
+    c.drawRRect(rr.shift(const Offset(0, 6)), Paint()
+      ..color = (_dark ? Colors.black : const Color(0xFF1B4332)).withValues(alpha: _dark ? 0.35 : 0.10)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12));
+    c.save();
+    c.clipRRect(rr);
+    final img = GlassBackdrop.latest[_dark];
+    if (img != null) {
+      // ekrandagi o'z joyidagi fon bo'lagi
+      final g = localToGlobal(Offset.zero);
+      final dst = Rect.fromLTWH(offset.dx - g.dx, offset.dy - g.dy, _screen.width, _screen.height);
+      c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), dst, Paint()..filterQuality = FilterQuality.medium);
+    }
+    // xira qatlam: tunda to'q, kunduzi oq — matn va ikonkalar aniq o'qiladi
+    c.drawRect(rect, Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: _dark ? const [Color(0xB8141E1A), Color(0xC70E1613)] : const [Color(0xB3FFFFFF), Color(0x9EFFFFFF)],
+      ).createShader(rect));
+    c.restore();
+    c.drawRRect(rr.deflate(0.55), Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..color = _dark ? Colors.white.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.9));
+    super.paint(context, offset);
   }
 }
