@@ -710,6 +710,18 @@ class ApiClient {
   }
 
   /// Xaridorlar to'lovlari (sana oralig'i YYYY-MM-DD; sahifalanmaydi). meta: total, sum.
+  /// Qarzdorlar — server hisoblaydi (sayt bilan bir xil: jadval summasi foiz bilan − to'langan, sotilgan va bron). null — eski server
+  Future<({List<Map<String, dynamic>> items, num total, num overdue})?> salesDebtors({String? object}) async {
+    try {
+      final m = await _getMap('/sales/debtors', {if (object != null) 'object': object});
+      final meta = Map<String, dynamic>.from((m['meta'] as Map?) ?? const {});
+      return (items: _list(m['data']), total: (meta['total'] as num?) ?? 0, overdue: (meta['overdue'] as num?) ?? 0);
+    } on ApiException catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+
   Future<({List<Map<String, dynamic>> items, num sum})> salesPayments({String? from, String? to, String? object}) async {
     final m = await _getMap('/sales/payments', {'from': from, 'to': to, 'object': object});
     final meta = (m['meta'] as Map?) ?? const {};
@@ -738,6 +750,53 @@ class ApiClient {
   /* ---------------- kassa ---------------- */
 
   Future<List<Map<String, dynamic>>> cashDesks() async => _list((await _getMap('/cash/desks'))['data']);
+
+  /// Kassalar + jami (saytdagidek: dollar kurs bo'yicha kompaniya valyutasiga o'tkazilgan bitta summa).
+  /// {desks: [...], total: {amount, currency, usd_rate, by_currency}?} — eski serverda total bo'lmaydi.
+  Future<Map<String, dynamic>> cashSummary() async {
+    final m = await _getMap('/cash/desks');
+    return {'desks': _list(m['data']), 'total': m['total'] is Map ? Map<String, dynamic>.from(m['total'] as Map) : null};
+  }
+
+  /* ---------------- ish jurnali / fotohisobotlar ---------------- */
+
+  Future<Paged> journal({int page = 1, String? object}) async {
+    final m = await _getMap('/journal', {'page': page, 'per_page': 20, 'object': object});
+    return Paged(_list(m['data']), PageMeta.from(m['meta']));
+  }
+
+  /// Fotohisobot yuborish: obyekt, izoh, suratlar (1..10), qavat
+  Future<Map<String, dynamic>> journalAdd({required String object, String? text, int? floor, required List<String> photos, UploadProgress? onProgress}) async {
+    final b = await _send(() async {
+      final req = ProgressMultipartRequest('POST', _uri('/journal'), onProgress: onProgress)
+        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang})
+        ..fields.addAll({'project_id': object, if (text != null && text.trim().isNotEmpty) 'text': text.trim(), if (floor != null) 'floor': '$floor'});
+      for (final p in photos) {
+        req.files.add(await http.MultipartFile.fromPath('photos[]', p));
+      }
+      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 300)));
+    }, timeout: const Duration(seconds: 310));
+    return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
+  }
+
+  Future<void> journalDelete(int id) async => aSend('DELETE', '/journal/$id');
+
+  /// Jurnal surati (offline'da oldin ko'rilgani)
+  Future<List<int>?> journalBytes(int id, int i) async {
+    final key = 'jl:$id:$i';
+    try {
+      final r = await _http.get(_uri('/journal/$id/photo/$i'), headers: {'Authorization': 'Bearer $apiKey', 'Accept': 'image/*'}).timeout(Offline.online.value ? const Duration(seconds: 60) : const Duration(seconds: 8));
+      Offline.markOnline(true);
+      if (r.statusCode == 200 && r.bodyBytes.isNotEmpty) {
+        unawaited(Offline.putBytes(key, r.bodyBytes));
+        return r.bodyBytes;
+      }
+      return null;
+    } catch (_) {
+      Offline.markOnline(false);
+      return Offline.getBytes(key);
+    }
+  }
 
   Future<Paged> cashOps({int page = 1, int? desk}) async {
     final m = await _getMap('/cash/operations', {'page': page, 'per_page': 30, 'desk': desk});
@@ -914,6 +973,7 @@ class ApiClient {
     num? estimate,
     UploadProgress? onProgress,
     String? receiptUpload,
+    List<String> photoUploads = const [], // mahsulot suratlari (oldindan yuklangan)
   }) async {
     final fields = <String, String>{
       'kind': kind,
@@ -927,6 +987,9 @@ class ApiClient {
       if (warehouse != null && lines.isNotEmpty) 'warehouse_id': '$warehouse',
       if (noReceipt) 'no_receipt': '1',
     };
+    for (var i = 0; i < photoUploads.length; i++) {
+      fields['photo_uploads[$i]'] = photoUploads[i];
+    }
     for (var i = 0; i < lines.length; i++) {
       lines[i].forEach((k, v) {
         if (v != null && '$v'.isNotEmpty) fields['lines[$i][$k]'] = '$v';
@@ -989,6 +1052,36 @@ class ApiClient {
       return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 150)));
     }, timeout: const Duration(seconds: 160));
     return '${((b as Map)['data'] as Map)['upload']}';
+  }
+
+  /// Mahsulot suratlarini keyinroq qo'shish (hisobot tekshirilmaguncha). Qaytadi: jami suratlar soni
+  Future<int> fundsAddPhotos(int op, List<String> paths, {UploadProgress? onProgress}) async {
+    final b = await _send(() async {
+      final req = ProgressMultipartRequest('POST', _uri('/funds/$op/photos'), onProgress: onProgress)
+        ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang});
+      for (final p in paths) {
+        req.files.add(await http.MultipartFile.fromPath('photos[]', p));
+      }
+      return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 240)));
+    }, timeout: const Duration(seconds: 250));
+    return ((((b as Map)['data'] as Map?)?['photos']) as num?)?.toInt() ?? 0;
+  }
+
+  /// Mahsulot surati (i — tartib raqami); offline'da oldin ko'rilgani
+  Future<List<int>?> goodsBytes(int op, int i) async {
+    final key = 'gd:$op:$i';
+    try {
+      final r = await _http.get(_uri('/funds/photo/$op/$i'), headers: {'Authorization': 'Bearer $apiKey', 'Accept': 'image/*'}).timeout(Offline.online.value ? const Duration(seconds: 60) : const Duration(seconds: 8));
+      Offline.markOnline(true);
+      if (r.statusCode == 200 && r.bodyBytes.isNotEmpty) {
+        unawaited(Offline.putBytes(key, r.bodyBytes));
+        return r.bodyBytes;
+      }
+      return null;
+    } catch (_) {
+      Offline.markOnline(false);
+      return Offline.getBytes(key);
+    }
   }
 
   /// Keyinroq chek qo'shish

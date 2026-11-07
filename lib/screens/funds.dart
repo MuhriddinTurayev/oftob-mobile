@@ -42,6 +42,109 @@ Future<XFile?> pickReceipt(BuildContext context) async {
   }
 }
 
+/// Mahsulot suratlari: kameradan bitta yoki galereyadan bir nechta (ko'pi bilan [max])
+Future<List<XFile>> pickGoods(BuildContext context, {int max = 8}) async {
+  if (max <= 0) return const [];
+  final src = await showModalBottomSheet<ImageSource>(
+    context: context,
+    showDragHandle: true,
+    builder: (ctx) => SafeArea(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(leading: const Icon(Icons.photo_camera), title: const Text('Kamera bilan suratga olish'), onTap: () => Navigator.pop(ctx, ImageSource.camera)),
+        ListTile(leading: const Icon(Icons.photo_library), title: const Text('Galereyadan tanlash'), onTap: () => Navigator.pop(ctx, ImageSource.gallery)),
+        const SizedBox(height: 8),
+      ]),
+    ),
+  );
+  if (src == null) return const [];
+  try {
+    if (src == ImageSource.camera) {
+      final f = await ImagePicker().pickImage(source: src, maxWidth: 1700, imageQuality: 78);
+      return f == null ? const [] : [f];
+    }
+    final l = await ImagePicker().pickMultiImage(maxWidth: 1700, imageQuality: 78);
+    return l.take(max).toList();
+  } catch (e) {
+    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Suratni ochib bo\'lmadi. Ilovaga kamera/galereya ruxsatini bering.')));
+    return const [];
+  }
+}
+
+/// Formadagi bitta mahsulot surati: tanlanishi bilan serverga yuklanadi
+class _GoodsPic {
+  _GoodsPic(this.file);
+  final XFile file;
+  String? upId;
+  bool uploading = true;
+  String? error;
+}
+
+/// Hisobotdagi mahsulot suratlari (serverdan): kichik rasmlar qatori, bosilsa katta ko'rinadi
+class GoodsStrip extends StatelessWidget {
+  const GoodsStrip({super.key, required this.api, required this.op, required this.count});
+  final ApiClient api;
+  final int op;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 92,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: count,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) => GestureDetector(
+          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => _GoodsView(api: api, op: op, count: count, start: i))),
+          child: ClipRRect(borderRadius: BorderRadius.circular(12), child: SizedBox(width: 92, height: 92, child: _GoodsPicNet(api: api, op: op, i: i, fit: BoxFit.cover))),
+        ),
+      ),
+    );
+  }
+}
+
+class _GoodsPicNet extends StatelessWidget {
+  const _GoodsPicNet({required this.api, required this.op, required this.i, this.fit});
+  final ApiClient api;
+  final int op;
+  final int i;
+  final BoxFit? fit;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<int>?>(
+      future: api.goodsBytes(op, i),
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) return const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)));
+        final b = snap.data;
+        if (b == null) return Container(color: Colors.black12, child: const Icon(Icons.broken_image_outlined, color: Colors.grey));
+        return Image.memory(Uint8List.fromList(b), fit: fit ?? BoxFit.contain, width: double.infinity, height: double.infinity);
+      },
+    );
+  }
+}
+
+class _GoodsView extends StatelessWidget {
+  const _GoodsView({required this.api, required this.op, required this.count, required this.start});
+  final ApiClient api;
+  final int op;
+  final int count;
+  final int start;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, title: const Text('Mahsulot surati')),
+      body: PageView.builder(
+        controller: PageController(initialPage: start),
+        itemCount: count,
+        itemBuilder: (_, i) => InteractiveViewer(maxScale: 6, child: Center(child: _GoodsPicNet(api: api, op: op, i: i))),
+      ),
+    );
+  }
+}
+
 /// Prorab puli: prorab uchun — o'z balansi, pul so'rash, xarid hisoboti (chek bilan); rahbar/buxgalter uchun — barcha prorablar.
 class FundsScreen extends StatefulWidget {
   const FundsScreen({super.key, required this.session});
@@ -307,6 +410,7 @@ class _FundsScreenState extends State<FundsScreen> {
                       const SizedBox(width: 6),
                       if (o['pending'] == true) ...[const StatusChip('Yuborilmagan', Colors.orange), const SizedBox(width: 6)],
                       if (o['has_receipt'] == true) StatusChip('Chek bor', Colors.blueGrey) else StatusChip("Chek yo'q", Colors.deepOrange),
+                      if (((o['photos'] as num?) ?? 0) > 0) StatusChip('${tr('Mahsulot surati')}: ${o['photos']}', Colors.teal),
                     ]),
                   ),
                 ),
@@ -563,6 +667,29 @@ class _OpSheetState extends State<_OpSheet> {
 
   Map<String, dynamic> get o => widget.op;
 
+  // mahsulot suratlari soni (keyin qo'shilsa — shu oynada yangilanadi)
+  late int _photos = (o['photos'] as num?)?.toInt() ?? 0;
+  bool _addingGoods = false;
+
+  Future<void> _addGoods() async {
+    final files = await pickGoods(context, max: 8 - _photos);
+    if (files.isEmpty || !mounted) return;
+    setState(() => _addingGoods = true);
+    try {
+      final n = await widget.session.api!.fundsAddPhotos(o['id'] as int, [for (final f in files) f.path]);
+      HapticFeedback.mediumImpact();
+      if (!mounted) return;
+      setState(() => _photos = n);
+      o['photos'] = n;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Mahsulot surati qo\'shildi — rahbar va buxgalter ko\'radi'))));
+    } catch (e) {
+      await widget.session.handleError(e);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : '$e')));
+    } finally {
+      if (mounted) setState(() => _addingGoods = false);
+    }
+  }
+
   Future<void> _run(Future<Object?> Function() fn) async {
     setState(() => _busy = true);
     try {
@@ -643,6 +770,12 @@ class _OpSheetState extends State<_OpSheet> {
               )
             else
               Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)), child: const Text('Chek surati yo\'q')),
+            if (_photos > 0) ...[
+              const SizedBox(height: 14),
+              Text('${tr('Mahsulot suratlari')} · $_photos', style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              GoodsStrip(key: ValueKey('gs$_photos'), api: api, op: o['id'] as int, count: _photos),
+            ],
           ],
           const SizedBox(height: 16),
           if (mine && o['has_receipt'] != true)
@@ -670,6 +803,16 @@ class _OpSheetState extends State<_OpSheet> {
                   ? ValueListenableBuilder<double>(valueListenable: _up.progress, builder: (_, p, _) => Text('${tr('Chek yuklanmoqda')}… ${(p * 100).round()}%'))
                   : const Text('Chek qo\'shish'),
             ),
+          if (mine && _photos < 8) ...[
+            if (o['has_receipt'] != true) const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _busy || _addingGoods ? null : _addGoods,
+              icon: _addingGoods ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.4)) : const Icon(Icons.add_photo_alternate_outlined),
+              label: Text(_addingGoods ? '${tr('Yuklanmoqda')}…' : tr('Mahsulot suratini qo\'shish')),
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+            ),
+            const SizedBox(height: 8),
+          ],
           if (canManage && st != 'rejected') ...[
             FilledButton.icon(
               onPressed: _busy ? null : () => _run(() => api.fundsAct('f_check', '/funds/${o['id']}/check', {'checked': st != 'checked'}, label: st == 'checked' ? 'Tekshiruv belgisini olish #${o['id']}' : 'Tekshirildi #${o['id']}', refId: '${o['id']}')),
@@ -774,6 +917,44 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   String? _upErr;
   int _upGen = 0; // eski yuklama javobi yangi rasmni bosib ketmasin
 
+  // mahsulot suratlari (olib kelingan narsa): har biri tanlanishi bilan yuklanadi
+  final _goods = <_GoodsPic>[];
+  bool get _goodsBusy => _goods.any((g) => g.uploading);
+
+  Future<void> _addGoodsPics() async {
+    final files = await pickGoods(context, max: 8 - _goods.length);
+    if (files.isEmpty || !mounted) return;
+    final add = [for (final f in files) _GoodsPic(f)];
+    setState(() {
+      _goods.addAll(add);
+      _formErr = null;
+    });
+    for (final g in add) {
+      _uploadGoods(g);
+    }
+  }
+
+  Future<void> _uploadGoods(_GoodsPic g) async {
+    setState(() {
+      g.uploading = true;
+      g.error = null;
+    });
+    try {
+      final id = await widget.session.api!.fundsReceiptUpload(g.file.path);
+      if (!mounted) return;
+      setState(() {
+        g.upId = id;
+        g.uploading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        g.uploading = false;
+        g.error = e is ApiException && e.isNetwork ? tr("Internet yo'q — hisobotdan keyin qo'shing") : (e is ApiException ? e.message : '$e');
+      });
+    }
+  }
+
   @override
   void dispose() {
     _up.dispose();
@@ -866,6 +1047,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       err = 'Chek yuklanmadi — qayta urinib ko\'ring';
     } else if (_photo == null && !_noReceipt) {
       err = 'Chek suratini qo\'shing yoki "Chek yo\'q" ni belgilang';
+    } else if (_goodsBusy) {
+      err = 'Mahsulot suratlari hali yuklanmoqda — biroz kuting';
     }
     if (err != null) {
       HapticFeedback.heavyImpact();
@@ -894,6 +1077,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         currency: _curCode == '${widget.data['base_currency'] ?? ''}' ? null : _curCode,
         estimate: _estimate(hasLines, amount),
         receiptUpload: _noReceipt ? null : _upId,
+        photoUploads: [for (final g in _goods) if (g.upId != null) g.upId!],
       );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
@@ -1048,6 +1232,62 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             value: _noReceipt,
             onChanged: (v) => setState(() => _noReceipt = v),
           ),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(child: Text('Mahsulot suratlari', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
+            Text('${_goods.length}/8', style: TextStyle(color: cs.outline, fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: 4),
+          Text('Olib kelgan narsangizni suratga oling — rahbar chek bilan birga ko\'radi (ixtiyoriy).', style: TextStyle(color: cs.outline, fontSize: 13)),
+          const SizedBox(height: 8),
+          if (_goods.isNotEmpty)
+            SizedBox(
+              height: 96,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _goods.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final g = _goods[i];
+                  return Stack(children: [
+                    ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(File(g.file.path), width: 96, height: 96, fit: BoxFit.cover)),
+                    if (g.uploading)
+                      Positioned.fill(child: Container(decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(12)), child: const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))))),
+                    if (g.error != null)
+                      Positioned.fill(
+                        child: GestureDetector(
+                          onTap: () => _uploadGoods(g),
+                          child: Container(
+                            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
+                            child: const Icon(Icons.refresh_rounded, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    if (g.upId != null) const Positioned(left: 4, bottom: 4, child: Icon(Icons.check_circle, color: Colors.lightGreenAccent, size: 20)),
+                    Positioned(
+                      right: 2,
+                      top: 2,
+                      child: GestureDetector(
+                        onTap: () => setState(() => _goods.removeAt(i)),
+                        child: Container(decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle), padding: const EdgeInsets.all(3), child: const Icon(Icons.close, color: Colors.white, size: 16)),
+                      ),
+                    ),
+                  ]);
+                },
+              ),
+            ),
+          if (_goods.any((g) => g.error != null))
+            Padding(padding: const EdgeInsets.only(top: 6), child: Text(_goods.firstWhere((g) => g.error != null).error!, style: TextStyle(color: cs.error, fontSize: 12.5))),
+          if (_goods.length < 8)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: OutlinedButton.icon(
+                onPressed: _addGoodsPics,
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+                label: const Text('Mahsulotni suratga olish'),
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+              ),
+            ),
         ],
       ),
       bottomNavigationBar: SafeArea(

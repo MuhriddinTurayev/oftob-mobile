@@ -236,7 +236,9 @@ class Offline {
         if (a['status'] == 'free') a['buyer'] = null;
     }
     a['payments'] = payments;
-    a['debt'] = (a['status'] == 'sold' || a['status'] == 'booked') ? max<num>(0, n(a['price']) - n(a['paid'])) : 0;
+    // qarz — saytdagidek: to'lanishi kerak (foiz bilan jadval summasi, bo'lmasa narx) − to'langan
+    final owed = n(a['owed']) > 0 ? n(a['owed']) : n(a['price']);
+    a['debt'] = (a['status'] == 'sold' || a['status'] == 'booked') ? max<num>(0, owed - n(a['paid'])) : 0;
     a['pending'] = true;
     all[i] = a;
     await saveApartments(op.objectId, all);

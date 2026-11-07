@@ -31,6 +31,8 @@ class _SalesScreenState extends State<SalesScreen> {
   List<Map<String, dynamic>> _pays = const [];
   num _sum = 0;
   List<Map<String, dynamic>> _debtors = const [];
+  num? _debtTotal; // server jami (sayt bilan bir xil)
+  num _debtOverdue = 0;
   Map<String, String> _objectNames = {};
   bool _debtorsLoaded = false;
 
@@ -57,6 +59,16 @@ class _SalesScreenState extends State<SalesScreen> {
         _pays = r.items;
         _sum = r.sum;
       } else {
+        final srv = await s.api!.salesDebtors();
+        if (srv != null) {
+          _debtors = [for (final x in srv.items) {...x, 'id': x['apartment_id'], '_object': '${x['object'] ?? _objectNames['${x['object_id']}'] ?? ''}'}];
+          _debtTotal = srv.total;
+          _debtOverdue = srv.overdue;
+          _debtorsLoaded = true;
+          if (mounted) setState(() => _loading = false);
+          return;
+        }
+        _debtTotal = null;
         final out = <Map<String, dynamic>>[];
         for (final o in objs) {
           var page = 1;
@@ -184,8 +196,28 @@ class _SalesScreenState extends State<SalesScreen> {
     );
   }
 
+  /// To'lanishi kerak: jadval summasi (foiz bilan), bo'lmasa narx
+  num _owed(Map a) {
+    final o = (a['owed'] as num?) ?? (a['price'] as num?) ?? 0;
+    return o <= 0 ? 1 : o;
+  }
+
+  /// Qarzdor qatori: to'liq kvartira ma'lumoti serverdan olinadi, keyin kartochka ochiladi
+  Future<void> _openDebtor(Map<String, dynamic> a) async {
+    var full = a;
+    if (_debtTotal != null) {
+      try {
+        full = await s.api!.apartment('${a['object_id']}', '${a['apartment_id'] ?? a['id']}');
+      } catch (e) {
+        await s.handleError(e);
+      }
+    }
+    if (!mounted) return;
+    showApartmentSheet(context, s, '${a['object_id']}', '${a['_object']}', full, onChanged: _load);
+  }
+
   Widget _debtorsView(ColorScheme cs) {
-    final total = _debtors.fold<num>(0, (a, b) => a + ((b['debt'] as num?) ?? 0));
+    final total = _debtTotal ?? _debtors.fold<num>(0, (a, b) => a + ((b['debt'] as num?) ?? 0));
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
@@ -201,12 +233,17 @@ class _SalesScreenState extends State<SalesScreen> {
                 Text('Xaridorlarning umumiy qarzi · ${_debtors.length} ta kvartira', style: TextStyle(color: cs.onErrorContainer.withValues(alpha: 0.8), fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 6),
                 FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text('${money(total)} so\'m', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: cs.onErrorContainer))),
+                if (_debtTotal != null && _debtOverdue > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text('${tr("shundan muddati o'tgan")}: ${money(_debtOverdue)} so\'m', style: TextStyle(color: cs.error, fontWeight: FontWeight.w700, fontSize: 13)),
+                  ),
               ]),
             ),
           ),
           if (_debtors.isEmpty) const Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Qarzdor yo\'q'))),
           for (final a in _debtors)
-            GlassRow(onTap: () => showApartmentSheet(context, s, '${a['object_id']}', '${a['_object']}', a, onChanged: _load), child: Row(children: [
+            GlassRow(onTap: () => _openDebtor(a), child: Row(children: [
                   Container(
                     width: 46,
                     height: 46,
@@ -220,7 +257,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       Text('${(a['buyer'] as Map?)?['name'] ?? 'Xaridor'}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
                       Text('${a['_object']} · ${roomsLabel(a['rooms'])}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12.5)),
                       const SizedBox(height: 4),
-                      ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(value: (((a['paid'] as num?) ?? 0) / (((a['price'] as num?) ?? 1) == 0 ? 1 : (a['price'] as num))).clamp(0, 1).toDouble(), minHeight: 4)),
+                      ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(value: (((a['paid'] as num?) ?? 0) / _owed(a)).clamp(0, 1).toDouble(), minHeight: 4)),
                     ]),
                   ),
                   const SizedBox(width: 12),

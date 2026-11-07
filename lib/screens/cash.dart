@@ -21,6 +21,7 @@ class CashScreen extends StatefulWidget {
 class _CashScreenState extends State<CashScreen> {
   final _list = GlobalKey<PagedListState>();
   List<Map<String, dynamic>> _desks = const [];
+  Map<String, dynamic>? _total; // server jami: saytdagi «Barcha kassalarda jami» bilan bir xil (dollar kurs bo'yicha)
   String? _deskError;
   CashFormData? _form; // kirim/chiqim qo'shish uchun: kassalar, moddalar, ruxsat
   final _page = PageController(viewportFraction: 0.86);
@@ -73,8 +74,14 @@ class _CashScreenState extends State<CashScreen> {
 
   Future<void> _loadDesks() async {
     try {
-      final d = await widget.session.api!.cashDesks();
-      if (mounted) setState(() => _desks = d.where((x) => x['is_active'] != false).toList());
+      final sm = await widget.session.api!.cashSummary();
+      final d = (sm['desks'] as List).cast<Map<String, dynamic>>();
+      if (mounted) {
+        setState(() {
+          _desks = d.where((x) => x['is_active'] != false).toList();
+          _total = sm['total'] as Map<String, dynamic>?;
+        });
+      }
     } catch (e) {
       await widget.session.handleError(e);
       if (mounted) setState(() => _deskError = '$e');
@@ -104,7 +111,7 @@ class _CashScreenState extends State<CashScreen> {
     return m;
   }
 
-  Widget _card({required List<Color> g, required IconData icon, required String title, required String sub, required List<String> amounts, required bool on}) {
+  Widget _card({required List<Color> g, required IconData icon, required String title, required String sub, required List<String> amounts, required bool on, String? note}) {
     return AnimatedScale(
       scale: on ? 1 : 0.94,
       duration: const Duration(milliseconds: 220),
@@ -131,6 +138,7 @@ class _CashScreenState extends State<CashScreen> {
             const Spacer(),
             for (final a in amounts.take(2))
               FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(a, style: TextStyle(color: Colors.white, fontSize: amounts.length > 1 ? 21 : 26, fontWeight: FontWeight.w900, letterSpacing: -0.4))),
+            if (note != null) Text(note, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withValues(alpha: 0.92), fontSize: 12.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12.5, fontWeight: FontWeight.w600)),
           ]),
@@ -151,9 +159,15 @@ class _CashScreenState extends State<CashScreen> {
       _card(
         g: const [Color(0xFF10201A), Color(0xFF2B4A3C)],
         icon: Icons.account_balance_rounded,
-        title: tr('Hamma kassalar'),
+        title: _total != null ? tr('Barcha kassalarda jami') : tr('Hamma kassalar'),
         sub: '${_desks.length} ${tr('ta kassa')} · ${tr('chapga suring')}',
-        amounts: [for (final e in _totals.entries) '${money(e.value)} ${e.key}'],
+        // jami — server hisoblaydi (saytdagidek): boshqa valyutalar kurs bo'yicha o'tkaziladi; pastda «shundan … USD · 1 USD = …»
+        amounts: _total != null
+            ? ['${money(_total!['amount'] as num?)} ${_total!['currency'] ?? ''}']
+            : [for (final e in _totals.entries) '${money(e.value)} ${e.key}'],
+        note: _total == null || _totals.length < 2
+            ? null
+            : '${tr('shundan')} ${[for (final e in _totals.entries) if (e.key != '${_total!['currency']}') '${money(e.value)} ${e.key}'].join(', ')} · 1 USD = ${moneyRate((_total!['usd_rate'] as num?) ?? 0)}',
         on: _at == 0,
       ),
       for (var i = 0; i < _desks.length; i++)

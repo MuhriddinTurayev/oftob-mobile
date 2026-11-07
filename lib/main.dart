@@ -1,3 +1,4 @@
+import 'keyboard.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart' hide Text;
@@ -85,7 +86,7 @@ class _OftobAppState extends State<OftobApp> {
         title: 'Oftob Building',
         navigatorKey: _navKey,
         scaffoldMessengerKey: _msgKey,
-        navigatorObservers: [ModalWatcher()],
+        navigatorObservers: [ModalWatcher(), KeyboardRouteObserver()],
         debugShowCheckedModeBanner: false,
         theme: AppTheme.build(Brightness.light),
         darkTheme: AppTheme.build(Brightness.dark),
@@ -103,10 +104,13 @@ class _OftobAppState extends State<OftobApp> {
             if (_wasIn && !session.signedIn && !session.platformIn) WidgetsBinding.instance.addPostFrameCallback((_) => _msgKey.currentState?.clearSnackBars());
             _wasIn = session.signedIn || session.platformIn;
             final ai = _splashDone ? _assistant() : null;
-            return Stack(children: [
-              child ?? const SizedBox.shrink(),
-              if (ai != null) AiBubble(controller: ai, navigatorKey: _navKey),
-            ]);
+            // klaviatura: bo'sh joyga bosish yoki «Tayyor» bilan yopiladi (iPhone raqam klaviaturasida yopish tugmasi yo'q)
+            return KeyboardDismiss(
+              child: Stack(children: [
+                child ?? const SizedBox.shrink(),
+                if (ai != null) AiBubble(controller: ai, navigatorKey: _navKey),
+              ]),
+            );
           },
         ),
         home: AnimatedSwitcher(

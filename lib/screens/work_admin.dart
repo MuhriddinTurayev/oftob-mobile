@@ -288,6 +288,8 @@ class _PayrollScreenState extends State<PayrollScreen> {
               Expanded(child: Center(child: Text(formatMonth(_month), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)))),
               IconButton(onPressed: () => setState(() => _month = DateTime(_month.year, _month.month + 1)), icon: const Icon(Icons.chevron_right_rounded)),
             ]),
+            if (objs.length > 1)
+              Padding(padding: const EdgeInsets.only(left: 4, bottom: 6), child: Text(tr("Hamma obyektlar bo'yicha jami"), style: TextStyle(color: cs.outline, fontWeight: FontWeight.w700, fontSize: 12.5))),
             HeroGlass(
               child: Row(children: [
                 Expanded(child: _stat(context, 'Hisoblangan', '${money(tot('sum'))} $cur', context.ink)),
@@ -296,7 +298,10 @@ class _PayrollScreenState extends State<PayrollScreen> {
               ]),
             ),
             for (final o in objs) ...[
-              _title(context, '${o['name']}'),
+              // obyekt jami — saytdagi «KPI» sahifasidagi bitta obyekt raqamlari bilan bir xil
+              _title(context, objs.length > 1 && _maps(o['staff']).isNotEmpty
+                  ? '${o['name']} · ${money(_maps(o['staff']).fold<num>(0, (b, x) => b + ((x['sum'] as num?) ?? 0)))} $cur'
+                  : '${o['name']}'),
               if (_maps(o['staff']).isEmpty) Padding(padding: const EdgeInsets.all(12), child: Text(tr("Xodim yo'q"), style: TextStyle(color: cs.outline))),
               for (final x in _maps(o['staff']))
                 Padding(

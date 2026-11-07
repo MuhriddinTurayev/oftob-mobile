@@ -145,8 +145,10 @@ class _CrewScreenState extends State<CrewScreen> {
   Widget _body(ColorScheme cs) {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null && _data == null) return ErrorView(message: _error!, onRetry: _load);
-    final sum = Map<String, dynamic>.from((_data?['summary'] as Map?) ?? const {});
     final objs = _objects.where((o) => _object == null || o['id'] == _object).toList();
+    // jami: obyekt tanlangan bo'lsa — faqat shu obyekt (saytdagidek), aks holda hamma obyektlar
+    final sel = _object == null ? null : objs.where((o) => o['summary'] is Map).firstOrNull;
+    final sum = Map<String, dynamic>.from(((sel?['summary'] ?? _data?['summary']) as Map?) ?? const {});
     final tiles = <Widget>[];
     for (final o in objs) {
       final workers = ((o['workers'] as List?) ?? const []).whereType<Map>().where((w) {

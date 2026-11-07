@@ -14,6 +14,13 @@ String money(num? v) {
   return '${neg ? '-' : ''}$b';
 }
 
+/// Valyuta kursi: 11987.16 → "11 987,16" (saytdagidek, kasr qismi bilan)
+String moneyRate(num v) {
+  final whole = v.truncate();
+  final frac = ((v - whole).abs() * 100).round();
+  return frac == 0 ? money(whole) : '${money(whole)},${frac.toString().padLeft(2, '0')}';
+}
+
 /// Kvartira maydoni: 54.5 → "54,5"
 String area(num? v) {
   if (v == null) return '—';

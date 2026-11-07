@@ -186,6 +186,8 @@ class _ApartmentsScreenState extends State<ApartmentsScreen> {
                 final st = '${a['status']}';
                 final price = (a['price'] as num?) ?? 0;
                 final paid = (a['paid'] as num?) ?? 0;
+                // to'lanishi kerak: bo'lib to'lash foiz bilan bo'lsa — jadval summasi (sayt bilan bir xil)
+                final owed = (((a['owed'] as num?) ?? 0) > 0 ? a['owed'] as num : price);
                 return GlassRow(onTap: () => showApartmentSheet(context, widget.session, _objectId, '${widget.object['name']}', a, onChanged: _reload), child: Row(children: [
                       Container(
                         width: 46,
@@ -201,7 +203,7 @@ class _ApartmentsScreenState extends State<ApartmentsScreen> {
                           Text(buyer != null && '${buyer['name']}'.isNotEmpty ? '${buyer['name']}' : aptStatus(st), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 13)),
                           if (st != 'free' && price > 0) ...[
                             const SizedBox(height: 4),
-                            ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(value: (paid / price).clamp(0, 1).toDouble(), minHeight: 4)),
+                            ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(value: (paid / owed).clamp(0, 1).toDouble(), minHeight: 4)),
                           ],
                         ]),
                       ),
@@ -458,6 +460,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
     final price = (a['price'] as num?) ?? 0;
     final paid = (a['paid'] as num?) ?? 0;
     final debt = (a['debt'] as num?) ?? 0;
+    final owed = (((a['owed'] as num?) ?? 0) > 0 ? a['owed'] as num : price); // foiz bilan jami (sayt bilan bir xil)
     final payments = ((a['payments'] as List?) ?? const []).whereType<Map>().toList().reversed.toList();
     final phone = '${buyer?['phone'] ?? ''}'.trim();
     return DraggableScrollableSheet(
@@ -486,7 +489,12 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
               if (a['price_per_m2'] != null) Text('1 m² — ${money(a['price_per_m2'] as num?)} so\'m', style: TextStyle(color: cs.onPrimaryContainer.withValues(alpha: 0.7), fontSize: 13)),
               if (_canSales && st != 'free' && price > 0) ...[
                 const SizedBox(height: 12),
-                ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: (paid / price).clamp(0, 1).toDouble(), minHeight: 8)),
+                if (owed > price + 0.5)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text('${tr("Bo'lib to'lash foizi bilan jami")}: ${money(owed)} so\'m', style: TextStyle(color: cs.onPrimaryContainer.withValues(alpha: 0.8), fontWeight: FontWeight.w700, fontSize: 13)),
+                  ),
+                ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: (paid / owed).clamp(0, 1).toDouble(), minHeight: 8)),
                 const SizedBox(height: 8),
                 Row(children: [
                   Expanded(child: Text('To\'langan ${money(paid)}', style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.w700, fontSize: 13))),

@@ -48,6 +48,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _error;
 
   Map<String, num> _cash = {}; // valyuta → jami qoldiq
+  Map<String, dynamic>? _cashTotal; // server hisoblagan jami (saytdagi «Barcha kassalarda jami» bilan bir xil)
   int _desks = 0;
   int _apts = 0, _sold = 0, _booked = 0, _free = 0;
   int _open = 0, _overdue = 0;
@@ -121,7 +122,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     await Future.wait([
       part(me.can('cash:read'), () async {
-        final d = await api.cashDesks();
+        final sm = await api.cashSummary();
+        final d = (sm['desks'] as List).cast<Map<String, dynamic>>();
+        _cashTotal = sm['total'] as Map<String, dynamic>?;
         final m = <String, num>{};
         var n = 0;
         for (final x in d) {
@@ -267,9 +270,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             if (me.can('shift:write')) ...[ShiftCard(session: s), const SizedBox(height: 14)],
             if (me.can('cash:read')) ...[
               _CashCard(
-                total: _cash[cur],
-                currency: cur,
-                others: {for (final e in _cash.entries) if (e.key != cur) e.key: e.value},
+                total: _cashTotal != null ? _cashTotal!['amount'] as num? : _cash[cur],
+                currency: _cashTotal != null ? '${_cashTotal!['currency']}' : cur,
+                others: {for (final e in _cash.entries) if (e.key != (_cashTotal != null ? '${_cashTotal!['currency']}' : cur)) e.key: e.value},
+                rate: _cashTotal?['usd_rate'] as num?,
                 desks: _desks,
                 onTap: () => widget.onOpen?.call('Kassa'),
               ),
@@ -509,7 +513,10 @@ class _ServiceTile extends StatelessWidget {
 }
 
 class _CashCard extends StatelessWidget {
-  const _CashCard({required this.total, required this.currency, required this.others, required this.desks, this.onTap});
+  const _CashCard({required this.total, required this.currency, required this.others, required this.desks, this.onTap, this.rate});
+
+  /// Berilsa: jami summa kurs bo'yicha o'tkazilgan (others — «shundan …» qatori)
+  final num? rate;
 
   final num? total;
   final String currency;
@@ -549,7 +556,11 @@ class _CashCard extends StatelessWidget {
         ),
         if (others.isNotEmpty) ...[
           const SizedBox(height: 6),
-          Text(others.entries.map((e) => '${money(e.value)} ${e.key}').join('  ·  '), style: TextStyle(color: cs.outline, fontSize: 12.5)),
+          Text(
+              rate != null
+                  ? '${tr('shundan')} ${others.entries.map((e) => '${money(e.value)} ${e.key}').join(', ')}  ·  1 USD = ${moneyRate(rate!)} ${tr(currency == 'UZS' ? "so'm" : currency)}'
+                  : others.entries.map((e) => '${money(e.value)} ${e.key}').join('  ·  '),
+              style: TextStyle(color: cs.outline, fontSize: 12.5)),
         ],
       ]),
     );
@@ -663,7 +674,7 @@ class _OpRow extends StatelessWidget {
       leading: IconTile(icon: inc ? Icons.south_west_rounded : Icons.north_east_rounded, color: c, size: 38),
       title: Text('${o['category'] ?? (inc ? 'Kirim' : 'Chiqim')}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
       subtitle: Text('${formatDate('${o['date'] ?? ''}')}${(o['note'] ?? '').toString().isEmpty ? '' : ' · ${o['note']}'}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
-      trailing: Text('${inc ? '+' : '−'}${money(amount)}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: c)),
+      trailing: Text('${inc ? '+' : '−'}${money(amount)}${o['currency'] != null && '${o['currency']}' != 'UZS' ? ' ${o['currency']}' : ''}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: c)),
     );
   }
 }

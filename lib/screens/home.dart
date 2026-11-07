@@ -34,6 +34,7 @@ import '../assistant.dart';
 import '../avatar.dart';
 import '../motion.dart';
 import 'profile.dart';
+import 'journal.dart';
 
 class _Tab {
   const _Tab(this.label, this.icon, this.activeIcon, this.builder);
@@ -149,6 +150,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       'support' => 'Yordam',
       'billing' => "Tarif va to'lov",
       'ai' => "Sun'iy intellekt",
+      'journal' => 'Fotohisobotlar',
       _ => '',
     });
   }
@@ -183,6 +185,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (me.can('tasks:read')) _Tab('Vazifalar', Icons.checklist, Icons.checklist, (x) => TasksScreen(session: x)),
       if (me.can('parties:read')) _Tab('Kontragentlar', Icons.contacts_outlined, Icons.contacts, (x) => PartiesScreen(session: x)),
       if (me.can('payments:read')) _Tab("To'lov so'rovlari", Icons.request_quote_outlined, Icons.request_quote, (x) => PaymentRequestsScreen(session: x)),
+      if (me.can('journal:read')) _Tab('Fotohisobotlar', Icons.photo_library_outlined, Icons.photo_library, (x) => JournalScreen(session: x)),
       if (me.can('stock:read')) _Tab('Ombor', Icons.inventory_2_outlined, Icons.inventory_2, (x) => StockScreen(session: x)),
       if (me.can('objects:read') && !primary.contains('Obyektlar')) _Tab('Obyektlar', Icons.apartment_outlined, Icons.apartment, (x) => ObjectsScreen(session: x)),
       if (me.can('cash:read') && !primary.contains('Kassa')) _Tab('Kassa', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, (x) => CashScreen(session: x)),
@@ -205,6 +208,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     'Lidlar': Brand.pink,
     'Vazifalar': Brand.purple,
     'Ombor': Brand.amber,
+    'Fotohisobotlar': Brand.teal,
     'Davomat': Brand.teal,
     'Xodimlar': Brand.blue,
     'Pul': Brand.green,
@@ -225,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     ('Pul va moliya', Icons.account_balance_wallet_rounded, Brand.green, ['Kassa', 'Prorab puli', "To'lov so'rovlari", 'Valyutalar', 'Kontragentlar', 'Hisobotlar']),
     ('Xodimlar va ish vaqti', Icons.groups_rounded, Brand.teal, ['Davomat', 'Xodimlar', 'Vazifalar', 'Ish vaqti va joylashuv', 'KPI va ushlab qolish']),
     ('Sotuv va mijozlar', Icons.key_rounded, Brand.orange, ['Sotuv', 'Lidlar', "Bo'lib to'lash foizlari"]),
-    ('Obyektlar va ombor', Icons.apartment_rounded, Brand.blue, ['Obyektlar', 'Ombor']),
+    ('Obyektlar va ombor', Icons.apartment_rounded, Brand.blue, ['Obyektlar', 'Fotohisobotlar', 'Ombor']),
     ('Kompaniya sozlamalari', Icons.tune_rounded, Brand.purple, ['Jamoa va rollar', "Sun'iy intellekt", "Tarif va to'lov"]),
   ];
 
