@@ -47,3 +47,30 @@ Future<void> openDocument(
       ..showSnackBar(SnackBar(content: Text('$e')));
   }
 }
+
+/// Istalgan hisobot PDF'i (API yo'li): yuklab, ochadi yoki ulashadi — direktor va buxgalter hisobotlarni shu bilan oladi
+Future<void> openPdf(BuildContext context, Session session, {required String path, required String fileName, bool share = false}) async {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.hideCurrentSnackBar();
+  try {
+    final bytes = await runUpload(context, title: tr('Hujjat yuklanmoqda'), download: true, task: (p) => session.api!.downloadPdf(path, onProgress: p));
+    final dir = await getTemporaryDirectory();
+    final safe = fileName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    final file = File('${dir.path}/$safe.pdf');
+    await file.writeAsBytes(bytes, flush: true);
+    final x = XFile(file.path, mimeType: 'application/pdf');
+    if (share) {
+      await SharePlus.instance.share(ShareParams(files: [x], text: fileName));
+      return;
+    }
+    final res = await OpenFilex.open(file.path, type: 'application/pdf');
+    if (res.type != ResultType.done) {
+      await SharePlus.instance.share(ShareParams(files: [x], text: fileName));
+    }
+  } catch (e) {
+    await session.handleError(e);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('$e')));
+  }
+}

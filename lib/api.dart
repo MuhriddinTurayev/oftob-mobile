@@ -442,6 +442,57 @@ class ApiClient {
   /// Muddatli to'lov stavkalari, bron sharti (zadatok, kun), stavka/narxni kim o'zgartira olishi
   Future<Map<String, dynamic>> salesTerms() async => Map<String, dynamic>.from(((await _getMap('/sales/terms'))['data'] as Map?) ?? const {});
 
+  /// Bo'lib to'lash foizlari va bron sharti (rahbar, buxgalter). Qaytadi: yangilangan shartlar
+  Future<Map<String, dynamic>> salesTermsSave({required List<Map<String, num>> rates, num? bookingAmount, int? bookingDays}) async {
+    final b = await _send(() => _http.post(_uri('/sales/terms'), headers: _headers, body: jsonEncode({'rates': rates, 'booking': {'amount': bookingAmount ?? 0, 'days': bookingDays ?? 3}})));
+    return Map<String, dynamic>.from(((b as Map?)?['data'] as Map?) ?? const {});
+  }
+
+  /* ---------------- kompaniya hisobotlari ---------------- */
+
+  /// Lenta: kompaniya kunlik hisobotlari, prorab va sotuvchi hisobotlari (har birida `pdf` yo'li)
+  Future<Map<String, dynamic>> reportFeed({String? type}) async => Map<String, dynamic>.from(((await _getMap('/reports/feed', {'t': type}))['data'] as Map?) ?? const {});
+
+  Future<void> reportCompanyRun() async {
+    await _send(() => _http.post(_uri('/reports/company/run'), headers: _headers, body: '{}'), timeout: const Duration(seconds: 90));
+  }
+
+  /// Buxgalter → direktor. Javob: {message, sent_at, telegram}
+  Future<Map<String, dynamic>> reportForward(String path, {required String idemKey}) async {
+    final b = await _send(() => _http.post(_uri(path), headers: {..._headers, 'Idempotency-Key': idemKey}, body: '{}'), timeout: const Duration(seconds: 90));
+    return Map<String, dynamic>.from(((b as Map?)?['data'] as Map?) ?? const {});
+  }
+
+  /// Istalgan PDF (API yo'li so'rov qatori bilan): baytlar; yuklanish foizi [onProgress] ga
+  Future<List<int>> downloadPdf(String pathWithQuery, {UploadProgress? onProgress}) async {
+    final i = pathWithQuery.indexOf('?');
+    final path = i < 0 ? pathWithQuery : pathWithQuery.substring(0, i);
+    final q = i < 0 ? <String, dynamic>{} : Uri.splitQueryString(pathWithQuery.substring(i + 1));
+    final http.Response r;
+    try {
+      final req = http.Request('GET', _uri(path, q))..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/pdf, application/json', 'Accept-Language': ApiClient.lang});
+      final res = await _http.send(req).timeout(const Duration(seconds: 60));
+      final total = res.contentLength ?? 0;
+      final buf = <int>[];
+      onProgress?.call(0, total);
+      await for (final c in res.stream.timeout(const Duration(seconds: 90))) {
+        buf.addAll(c);
+        onProgress?.call(buf.length, total);
+      }
+      r = http.Response.bytes(buf, res.statusCode, headers: res.headers);
+    } catch (_) {
+      Offline.markOnline(false);
+      throw ApiException("Serverga ulanib bo'lmadi. Internet va manzilni tekshiring.", code: 'network');
+    }
+    if (r.statusCode == 200 && r.bodyBytes.length > 4 && String.fromCharCodes(r.bodyBytes.take(4)) == '%PDF') return r.bodyBytes;
+    if (r.statusCode == 401) {
+      if (ApiClient.onUnauthorized != null) scheduleMicrotask(ApiClient.onUnauthorized!);
+      throw ApiException('Kirish muddati tugagan.', status: 401);
+    }
+    if (r.statusCode == 403) throw ApiException("Bu hujjatni ochishga ruxsat yo'q.");
+    throw ApiException("Hujjatni olib bo'lmadi (${r.statusCode}).");
+  }
+
   /// Sotish yoki bron — saytdagi «Продать / Забронировать» ning o'zi (boshlang'ich to'lov kassaga, grafik, shartnoma).
   Future<Map<String, dynamic>> apartmentDeal(String objectId, String apartmentId, Map<String, dynamic> body) async {
     return _queueable(

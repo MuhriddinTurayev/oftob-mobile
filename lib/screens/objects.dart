@@ -593,14 +593,19 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
           ],
           if (_canWrite) ...[
             const Divider(height: 36),
-            if (st == 'free') ...[
+            if (st == 'free' && a['can_sell'] == false)
+              // obyekt hali sotuvga qo'yilmagan yoki narxi yo'q: sotish tugmasi yo'q, sababi aniq yoziladi (sayt qoidasi)
+              GlassRow(
+                margin: const EdgeInsets.only(bottom: 12),
+                tint: Colors.orange.withValues(alpha: 0.14),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Icon(Icons.lock_clock_rounded, color: Colors.orange.shade700),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text('${a['sale_block'] ?? tr("Bu xonadonni hozircha sotib bo'lmaydi")}', style: TextStyle(color: Colors.orange.shade800, fontWeight: FontWeight.w700, fontSize: 13))),
+                ]),
+              ),
+            if (st == 'free' && a['can_sell'] != false) ...[
               FilledButton.icon(onPressed: _busy ? null : _openDeal, icon: const Icon(Icons.key), label: const Text('Sotish / bron qilish')),
-              const SizedBox(height: 20),
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(child: TextField(controller: _price, keyboardType: TextInputType.number, inputFormatters: const [ThousandsFormatter()], decoration: InputDecoration(labelText: tr('Narx (so\'m)'), border: OutlineInputBorder()))),
-                const SizedBox(width: 12),
-                SizedBox(height: 56, child: FilledButton.tonal(onPressed: _busy ? null : _savePrice, child: const Text('Saqlash'))),
-              ]),
             ] else if (st == 'booked') ...[
               FilledButton(onPressed: _busy ? null : _openDeal, child: const Text('Sotishga o\'tkazish')),
               const SizedBox(height: 10),
@@ -611,6 +616,14 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
                 style: OutlinedButton.styleFrom(foregroundColor: cs.error),
                 child: const Text('Bo\'shatish'),
               ),
+            if (st == 'free') ...[
+              const SizedBox(height: 20),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: TextField(controller: _price, keyboardType: TextInputType.number, inputFormatters: const [ThousandsFormatter()], decoration: InputDecoration(labelText: tr('Narx (so\'m)'), border: OutlineInputBorder()))),
+                const SizedBox(width: 12),
+                SizedBox(height: 56, child: FilledButton.tonal(onPressed: _busy ? null : _savePrice, child: const Text('Saqlash'))),
+              ]),
+            ],
           ],
         ],
       ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
 import '../api.dart';
+import '../documents.dart';
 import '../format.dart';
 import '../session.dart';
 import '../theme.dart';
@@ -10,7 +11,7 @@ import '../widgets.dart';
 import '../l10n.dart';
 import 'objects.dart';
 
-enum _Kind { foreman, sales }
+enum _Kind { foreman, sales, company }
 
 enum _Period { today, week, month, custom }
 
@@ -81,6 +82,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
         _kind = _Kind.sales;
       }
       if (_sellers.isNotEmpty) _sellerId = (_sellers.first['id'] as num).toInt();
+      // rahbar, direktor, buxgalter, kassir: kompaniya hisobotlari lentasi (PDF, direktorga yuborish)
+      if (_boss) _kind = _Kind.company;
       if (_kind == null) {
         setState(() => _loading = false);
         return;
@@ -104,7 +107,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
     });
     final (from, to) = _dates;
     try {
-      final d = _kind == _Kind.foreman ? await s.api!.reportForeman(user: _foremanId, from: from, to: to) : await s.api!.reportSales(user: _sellerId, from: from, to: to);
+      final d = _kind == _Kind.company
+          ? await s.api!.reportFeed()
+          : _kind == _Kind.foreman
+              ? await s.api!.reportForeman(user: _foremanId, from: from, to: to)
+              : await s.api!.reportSales(user: _sellerId, from: from, to: to);
       if (!mounted) return;
       setState(() {
         _data = d;
@@ -131,6 +138,133 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   bool _busy = false;
+
+  bool get _boss => const ['admin', 'viewer', 'accountant', 'cashier'].contains(s.me?.role);
+
+  /// Ko'rilayotgan prorab/sotuvchi hisobotining PDF yo'li (davr bilan)
+  String get _pdfPath {
+    final (from, to) = _dates;
+    return _kind == _Kind.foreman ? '/reports/foreman/pdf?user=${_foremanId ?? ''}&from=$from&to=$to' : '/reports/sales/pdf?user=${_sellerId ?? ''}&from=$from&to=$to';
+  }
+
+  Widget _pdfBar(String name) {
+    final (from, to) = _dates;
+    final file = '${name.isEmpty ? 'Hisobot' : name}-$from${from == to ? '' : '_$to'}';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(children: [
+        Expanded(
+          child: FilledButton.tonalIcon(
+            onPressed: () => openPdf(context, s, path: _pdfPath, fileName: file),
+            icon: const Icon(Icons.picture_as_pdf_rounded, size: 20),
+            label: const Text('PDF yuklab olish'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton.filledTonal(tooltip: tr('Ulashish'), onPressed: () => openPdf(context, s, path: _pdfPath, fileName: file, share: true), icon: const Icon(Icons.ios_share_rounded)),
+      ]),
+    );
+  }
+
+  /// Buxgalter → direktor: umumiy kompaniya hisoboti
+  Future<void> _forwardCompany(Map<String, dynamic> x) async {
+    if (_busy) return;
+    final ok = await _confirm(tr('Direktorga yuborish'), '${tr('Umumiy hisobot')} · ${formatDate('${x['date']}')}', tr('Yuborish'));
+    if (!ok) return;
+    setState(() => _busy = true);
+    try {
+      final r = await s.api!.reportForward('${x['forward']}', idemKey: 'cr-${DateTime.now().microsecondsSinceEpoch}');
+      HapticFeedback.mediumImpact();
+      _snack('${r['message'] ?? tr('Yuborildi')}');
+      await _load();
+    } catch (e) {
+      await s.handleError(e);
+      _snack(e is ApiException ? e.message : '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _runCompany() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await s.api!.reportCompanyRun();
+      _snack(tr('Bugungi hisobot yangilandi'));
+      await _load();
+    } catch (e) {
+      await s.handleError(e);
+      _snack(e is ApiException ? e.message : '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  List<Widget> _companyView(Map<String, dynamic> d, ColorScheme cs) {
+    final items = _list(d['items']);
+    final canFwd = d['can_forward'] == true;
+    final out = <Widget>[];
+    if (d['can_run'] == true) {
+      out.add(Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: OutlinedButton.icon(onPressed: _busy ? null : _runCompany, icon: const Icon(Icons.refresh_rounded), label: const Text('Bugungi hisobotni yangilash')),
+      ));
+    }
+    if (items.isEmpty) out.add(const Padding(padding: EdgeInsets.all(40), child: Center(child: Text("Oxirgi 30 kunda hisobot yo'q"))));
+    for (final x in items) {
+      final kind = '${x['kind']}';
+      final (icon, color) = switch (kind) {
+        'company' => (Icons.domain_rounded, Brand.blue),
+        'foreman' => (Icons.engineering_rounded, Brand.orange),
+        _ => (Icons.key_rounded, Brand.purple),
+      };
+      final who = '${x['who'] ?? ''}';
+      final file = '${who.isEmpty ? 'Kompaniya' : who}-${x['date']}';
+      final sent = '${x['sent_at'] ?? ''}';
+      out.add(Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: GlassRow(
+          margin: EdgeInsets.zero,
+          padding: const EdgeInsets.all(14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              IconTile(icon: icon, color: color, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(who.isEmpty ? '${x['title']}' : '${x['title']} · $who', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Text(formatDate('${x['date']}'), style: TextStyle(color: cs.outline, fontSize: 12.5)),
+                ]),
+              ),
+            ]),
+            const SizedBox(height: 8),
+            Text('${x['text'] ?? ''}', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: context.inkSoft)),
+            if (kind == 'company' && sent.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(children: [
+                  Icon(Icons.check_circle_rounded, size: 16, color: Colors.green.shade600),
+                  const SizedBox(width: 4),
+                  Text('${tr('Direktorga yuborilgan')}: ${formatDateTime(sent)}', style: TextStyle(color: Colors.green.shade600, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                ]),
+              ),
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              FilledButton.tonalIcon(onPressed: () => openPdf(context, s, path: '${x['pdf']}', fileName: file), icon: const Icon(Icons.picture_as_pdf_rounded, size: 18), label: const Text('PDF')),
+              OutlinedButton.icon(onPressed: () => openPdf(context, s, path: '${x['pdf']}', fileName: file, share: true), icon: const Icon(Icons.ios_share_rounded, size: 18), label: const Text('Ulashish')),
+              if (kind == 'company' && canFwd && x['forward'] != null)
+                FilledButton.icon(
+                  onPressed: _busy ? null : () => _forwardCompany(x),
+                  icon: const Icon(Icons.send_rounded, size: 18),
+                  label: Text(sent.isEmpty ? tr('Direktorga yuborish') : tr('Qayta yuborish')),
+                ),
+            ]),
+          ]),
+        ),
+      ));
+    }
+    return out;
+  }
 
   void _snack(String m) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m), duration: const Duration(seconds: 5)));
@@ -344,14 +478,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final people = _kind == _Kind.foreman ? _foremen : _sellers;
     final selected = _kind == _Kind.foreman ? _foremanId : _sellerId;
     return Column(children: [
-      if (_foremen.isNotEmpty && _sellers.isNotEmpty)
+      if ([_foremen.isNotEmpty, _sellers.isNotEmpty, _boss].where((x) => x).length > 1)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: SizedBox(
             width: double.infinity,
             child: SegmentedButton<_Kind>(
               showSelectedIcon: false,
-              segments: const [ButtonSegment(value: _Kind.foreman, label: Text('Prorab')), ButtonSegment(value: _Kind.sales, label: Text('Sotuvchi'))],
+              segments: [
+                if (_boss) const ButtonSegment(value: _Kind.company, label: Text('Hammasi')),
+                if (_foremen.isNotEmpty) const ButtonSegment(value: _Kind.foreman, label: Text('Prorab')),
+                if (_sellers.isNotEmpty) const ButtonSegment(value: _Kind.sales, label: Text('Sotuvchi')),
+              ],
               selected: {_kind!},
               onSelectionChanged: (v) {
                 setState(() {
@@ -363,7 +501,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
         ),
-      if (people.length > 1)
+      if (_kind != _Kind.company && people.length > 1)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: DropdownButtonFormField<int>(
@@ -384,6 +522,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             },
           ),
         ),
+      if (_kind != _Kind.company)
       SizedBox(
         height: 44,
         child: ListView(
@@ -427,7 +566,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(16, 8, 16, NavInset.listBottom(context)),
-        children: _kind == _Kind.foreman ? _foremanView(d, cs) : _salesView(d, cs),
+        children: _kind == _Kind.company ? _companyView(d, cs) : (_kind == _Kind.foreman ? _foremanView(d, cs) : _salesView(d, cs)),
       ),
     );
   }
@@ -445,6 +584,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final noReceipt = (d['no_receipt'] as num?)?.toInt() ?? 0;
     return [
       ..._actionCard(d, cs, sales: false),
+      _pdfBar('${(d['foreman'] as Map?)?['name'] ?? ''}'),
       _Hero(title: '${(d['foreman'] as Map?)?['name'] ?? ''}', sub: '${formatDate('${d['from']}')} – ${formatDate('${d['to']}')}', rows: [
         _Pair('Boshida', m['opening']),
         _Pair('Berilgan', m['received'], color: Colors.green.shade700),
@@ -519,6 +659,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final shifts = _list(d['shifts']);
     return [
       ..._actionCard(d, cs, sales: true),
+      _pdfBar('${(d['seller'] as Map?)?['name'] ?? ''}'),
       _Hero(title: '${(d['seller'] as Map?)?['name'] ?? ''}', sub: '${formatDate('${d['from']}')} – ${formatDate('${d['to']}')}', rows: [
         _Pair('Davr ichida tushum', k['collectedPeriod'], color: Colors.green.shade700, bold: true),
         _Pair('Sotilgan (${k['soldN'] ?? 0} ta)', k['soldSum']),

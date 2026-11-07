@@ -143,3 +143,11 @@ class ThousandsFormatter extends TextInputFormatter {
     return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: pos.clamp(0, text.length)));
   }
 }
+
+/// ISO vaqt → «07.11.2026 14:20» (telefon vaqt zonasida)
+String formatDateTime(String? iso) {
+  final d = DateTime.tryParse(iso ?? '')?.toLocal();
+  if (d == null) return iso ?? '';
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${two(d.day)}.${two(d.month)}.${d.year} ${two(d.hour)}:${two(d.minute)}';
+}

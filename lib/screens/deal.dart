@@ -1,3 +1,4 @@
+import 'rates.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Text;
@@ -212,8 +213,21 @@ class _DealScreenState extends State<DealScreen> {
             const SizedBox(height: 8),
             Wrap(spacing: 8, runSpacing: 4, children: [
               ChoiceChip(label: const Text('To\'liq to\'lov'), selected: _months == 0, onSelected: (_) => _pickMonths(0)),
-              for (final r in _rates) ChoiceChip(label: Text('${r['months']} oy'), selected: _months == _n(r['months']).toInt(), onSelected: (_) => _pickMonths(_n(r['months']).toInt())),
+              for (final r in _rates) ChoiceChip(label: Text('${r['months']} ${tr('oy')} · ${_n(r['rate'])}%'), selected: _months == _n(r['months']).toInt(), onSelected: (_) => _pickMonths(_n(r['months']).toInt())),
             ]),
+            // foizlar jadvali: rahbar va buxgalter shu yerdan o'zgartiradi
+            if (_canRate)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    await openRates(context, widget.session);
+                    if (mounted) _load();
+                  },
+                  icon: const Icon(Icons.percent_rounded, size: 18),
+                  label: const Text("Foizlarni o'zgartirish"),
+                ),
+              ),
             const SizedBox(height: 14),
             TextField(
               controller: _down,

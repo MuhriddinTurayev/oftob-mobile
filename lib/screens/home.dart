@@ -1,3 +1,4 @@
+import 'rates.dart';
 import 'package:flutter/material.dart' hide Text;
 
 import 'package:flutter/services.dart';
@@ -168,6 +169,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (me.can('funds:read') && !primary.contains('Pul')) _Tab('Prorab puli', Icons.payments_outlined, Icons.payments, (x) => FundsScreen(session: x)),
       if (me.can('reports:read')) _Tab('Hisobotlar', Icons.description_outlined, Icons.description, (x) => ReportsScreen(session: x)),
       if (me.can('sales:read')) _Tab('Sotuv', Icons.key_outlined, Icons.key, (x) => SalesScreen(session: x)),
+      if (me.can('sales:read')) _Tab("Bo'lib to'lash foizlari", Icons.percent_rounded, Icons.percent_rounded, (x) => RatesScreen(session: x)),
       if (me.can('crew:read') && !primary.contains('Xodimlar')) _Tab('Xodimlar', Icons.groups_outlined, Icons.groups, (x) => CrewScreen(session: x)),
       if (me.can('tasks:read')) _Tab('Vazifalar', Icons.checklist, Icons.checklist, (x) => TasksScreen(session: x)),
       if (me.can('parties:read')) _Tab('Kontragentlar', Icons.contacts_outlined, Icons.contacts, (x) => PartiesScreen(session: x)),
