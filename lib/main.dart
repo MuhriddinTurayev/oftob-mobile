@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'screens/home.dart';
+import 'platform/platform_home.dart';
 import 'screens/login.dart';
 import 'session.dart';
 import 'l10n.dart';
@@ -99,8 +100,8 @@ class _OftobAppState extends State<OftobApp> {
           listenable: session,
           builder: (context, _) {
             // hisobdan chiqilganda oldingi foydalanuvchining pastki xabarlari ekranda qolmasin
-            if (_wasIn && !session.signedIn) WidgetsBinding.instance.addPostFrameCallback((_) => _msgKey.currentState?.clearSnackBars());
-            _wasIn = session.signedIn;
+            if (_wasIn && !session.signedIn && !session.platformIn) WidgetsBinding.instance.addPostFrameCallback((_) => _msgKey.currentState?.clearSnackBars());
+            _wasIn = session.signedIn || session.platformIn;
             final ai = _splashDone ? _assistant() : null;
             return Stack(children: [
               child ?? const SizedBox.shrink(),
@@ -121,7 +122,7 @@ class _OftobAppState extends State<OftobApp> {
                   key: ValueKey('app-$lang'), // til almashganda butun ekran yangi tilda qayta quriladi
                   child: ListenableBuilder(
                     listenable: session,
-                    builder: (context, _) => session.signedIn ? HomeScreen(session: session) : LoginScreen(session: session),
+                    builder: (context, _) => session.platformIn ? PlatformHome(session: session) : session.signedIn ? HomeScreen(session: session) : LoginScreen(session: session),
                   ),
                 ),
         ),

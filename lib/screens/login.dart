@@ -6,6 +6,7 @@ import '../api.dart';
 import '../company.dart';
 import '../session.dart';
 import 'staff_login.dart';
+import '../platform/platform_home.dart';
 import '../l10n.dart';
 import '../widgets.dart';
 
@@ -211,7 +212,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(color: cs.outline, fontSize: 12),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PlatformLoginScreen(session: widget.session))),
+                      icon: Icon(Icons.admin_panel_settings_outlined, size: 18, color: cs.outline),
+                      label: Text('Platforma administratori kirishi', style: TextStyle(color: cs.outline, fontSize: 13, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
                   Text(_version, textAlign: TextAlign.center, style: TextStyle(color: cs.outline.withValues(alpha: 0.7), fontSize: 11)),
                 ],
               ),

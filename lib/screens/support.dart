@@ -47,7 +47,7 @@ class _SupportScreenState extends State<SupportScreen> {
 
   Future<void> _load({bool quiet = false}) async {
     try {
-      final d = await s.api!.supportIndex();
+      final d = await s.anyApi!.supportIndex();
       if (mounted) {
         setState(() {
           _d = d;
@@ -95,7 +95,7 @@ class _SupportScreenState extends State<SupportScreen> {
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 14, 4, 8),
-            child: Text('Xodimlar murojaatlari', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+            child: Text(s.platformIn ? 'Kompaniyalar murojaatlari' : 'Xodimlar murojaatlari', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
           ),
           if (inbox.isEmpty)
             Padding(padding: const EdgeInsets.all(28), child: Center(child: Text("Hozircha murojaat yo'q", style: TextStyle(color: cs.outline)))),
@@ -217,7 +217,7 @@ class _SupportChatState extends State<SupportChat> {
       return;
     }
     try {
-      final r = await s.api!.supportMessages(_id!, after: _last);
+      final r = await s.anyApi!.supportMessages(_id!, after: _last);
       final list = ((r['items'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
       if (!mounted) return;
       if (list.isNotEmpty || first) {
@@ -257,7 +257,7 @@ class _SupportChatState extends State<SupportChat> {
       _toBottom();
     }
     try {
-      final r = await s.api!.supportSend(body: body, threadId: _id, imagePath: imagePath, onProgress: imagePath == null ? null : _up.onBytes);
+      final r = await s.anyApi!.supportSend(body: body, threadId: _id, imagePath: imagePath, onProgress: imagePath == null ? null : _up.onBytes);
       _up.finish();
       final m = Map<String, dynamic>.from((r['message'] as Map?) ?? const {});
       _id ??= (((r['thread'] as Map?)?['id']) as num?)?.toInt();
@@ -357,29 +357,58 @@ class _Bubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final me = m['mine'] == true;
-    return Align(
-      alignment: me ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
-        margin: const EdgeInsets.only(bottom: 8),
+    final hasImg = m['image'] == true;
+    final text = '${m['body'] ?? ''}';
+    final time = formatDateTime('${m['at'] ?? ''}');
+    final maxW = MediaQuery.sizeOf(context).width * 0.78;
+    final children = <Widget>[];
+    if (!me && hasImg && text.isEmpty) {
+      children.add(Padding(padding: const EdgeInsets.only(left: 4, bottom: 3), child: Text('${m['author'] ?? ''}', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: cs.primary))));
+    }
+    // rasm — ramkasiz, o'zi yumaloq burchakli; matn bo'lmasa vaqt rasm ustida
+    if (hasImg) {
+      children.add(Stack(children: [
+        _ChatImage(session: session, id: (m['id'] as num).toInt()),
+        if (text.isEmpty)
+          Positioned(
+            right: 8,
+            bottom: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(10)),
+              child: Text(time, style: const TextStyle(fontSize: 10.5, color: Colors.white)),
+            ),
+          ),
+      ]));
+    }
+    if (text.isNotEmpty) {
+      if (hasImg) children.add(const SizedBox(height: 4));
+      children.add(Container(
         padding: const EdgeInsets.fromLTRB(13, 9, 13, 7),
         decoration: BoxDecoration(
           color: me ? cs.primary : (context.isDark ? const Color(0xCC24302B) : Colors.white.withValues(alpha: 0.85)),
           borderRadius: BorderRadius.only(topLeft: const Radius.circular(18), topRight: const Radius.circular(18), bottomLeft: Radius.circular(me ? 18 : 4), bottomRight: Radius.circular(me ? 4 : 18)),
         ),
-        child: IntrinsicWidth(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (!me) Text('${m['author'] ?? ''}', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: cs.primary)),
-          if (m['image'] == true) _ChatImage(session: session, id: (m['id'] as num).toInt()),
-          if ('${m['body'] ?? ''}'.isNotEmpty)
-          SelectableText('${m['body'] ?? ''}', style: TextStyle(color: me ? Colors.white : context.ink, fontSize: 14.5, height: 1.3)),
-          const SizedBox(height: 2),
-          Align(alignment: Alignment.bottomRight, child: Text(formatDateTime('${m['at'] ?? ''}'), style: TextStyle(fontSize: 10.5, color: me ? Colors.white70 : cs.outline))),
-        ])),
+        child: IntrinsicWidth(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (!me) Text('${m['author'] ?? ''}', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: cs.primary)),
+            SelectableText(text, style: TextStyle(color: me ? Colors.white : context.ink, fontSize: 14.5, height: 1.3)),
+            const SizedBox(height: 2),
+            Align(alignment: Alignment.bottomRight, child: Text(time, style: TextStyle(fontSize: 10.5, color: me ? Colors.white70 : cs.outline))),
+          ]),
+        ),
+      ));
+    }
+    return Align(
+      alignment: me ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: BoxConstraints(maxWidth: maxW),
+        margin: const EdgeInsets.only(bottom: 8),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: me ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: children),
       ),
     );
   }
 }
-
 
 /// Chatdagi rasm: kichik ko'rinishda, bosilsa — to'liq ekranda (kattalashtirib ko'rish mumkin)
 class _ChatImage extends StatelessWidget {
@@ -390,7 +419,7 @@ class _ChatImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final api = session.api!;
+    final api = session.anyApi!;
     final url = api.supportFileUrl(id);
     final img = Image.network(
       url,
@@ -401,7 +430,7 @@ class _ChatImage extends StatelessWidget {
       errorBuilder: (c, e, st) => const SizedBox(height: 80, child: Center(child: Icon(Icons.broken_image_outlined))),
     );
     return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 4),
+      padding: EdgeInsets.zero,
       child: GestureDetector(
         onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
           builder: (_) => Scaffold(
@@ -410,7 +439,7 @@ class _ChatImage extends StatelessWidget {
             body: Center(child: InteractiveViewer(maxScale: 5, child: Image.network(url, headers: api.authHeaders))),
           ),
         )),
-        child: ClipRRect(borderRadius: BorderRadius.circular(12), child: ConstrainedBox(constraints: const BoxConstraints(maxHeight: 260, minWidth: 140), child: img)),
+        child: ClipRRect(borderRadius: BorderRadius.circular(16), child: ConstrainedBox(constraints: const BoxConstraints(maxHeight: 280, maxWidth: 260, minWidth: 140), child: img)),
       ),
     );
   }

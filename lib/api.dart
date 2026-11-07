@@ -45,6 +45,9 @@ class ApiClient {
   final String apiKey;
   final http.Client _http;
 
+  /// '' — kompaniya xodimi; '/platform' — platforma administratori (yordam, bildirishnomalar shu yo'l ostida)
+  String scope = '';
+
   static String normalizeUrl(String raw) {
     var s = raw.trim();
     if (s.isEmpty) return s;
@@ -420,19 +423,19 @@ class ApiClient {
   /// Kvartira holatini o'zgartirish (bron / sotuv / bo'sh). Faqat o'zgargan maydonlarni yuboring.
   /* ---------------- yordam (support) ---------------- */
 
-  Future<Map<String, dynamic>> supportIndex() async => Map<String, dynamic>.from(((await _getMap('/support'))['data'] as Map?) ?? const {});
+  Future<Map<String, dynamic>> supportIndex() async => Map<String, dynamic>.from(((await _getMap('$scope/support'))['data'] as Map?) ?? const {});
 
   Future<Map<String, dynamic>> supportMessages(int thread, {int after = 0}) async =>
-      Map<String, dynamic>.from(((await _getMap('/support/$thread/messages', {'after': after > 0 ? after : null}))['data'] as Map?) ?? const {});
+      Map<String, dynamic>.from(((await _getMap('$scope/support/$thread/messages', {'after': after > 0 ? after : null}))['data'] as Map?) ?? const {});
 
   /// Matn va/yoki rasm (skrinshot, foto). Rasm bo'lsa — multipart, yuklanish foizi [onProgress] ga
   Future<Map<String, dynamic>> supportSend({required String body, int? threadId, String? imagePath, UploadProgress? onProgress}) async {
     final dynamic b;
     if (imagePath == null) {
-      b = await _send(() => _http.post(_uri('/support/send'), headers: _headers, body: jsonEncode({'body': body, if (threadId != null) 'thread_id': threadId})));
+      b = await _send(() => _http.post(_uri('$scope/support/send'), headers: _headers, body: jsonEncode({'body': body, if (threadId != null) 'thread_id': threadId})));
     } else {
       b = await _send(() async {
-        final req = ProgressMultipartRequest('POST', _uri('/support/send'), onProgress: onProgress)
+        final req = ProgressMultipartRequest('POST', _uri('$scope/support/send'), onProgress: onProgress)
           ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang})
           ..fields.addAll({if (body.isNotEmpty) 'body': body, if (threadId != null) 'thread_id': '$threadId'});
         req.files.add(await http.MultipartFile.fromPath('image', imagePath));
@@ -443,7 +446,40 @@ class ApiClient {
   }
 
   /// Chatdagi rasm manzili (Image.network uchun [authHeaders] bilan)
-  String supportFileUrl(int messageId) => _uri('/support/file/$messageId').toString();
+  String supportFileUrl(int messageId) => _uri('$scope/support/file/$messageId').toString();
+
+  /* ---------------- platforma administratori ---------------- */
+
+  /// Platforma egasi kirishi (login va parol). Qaytadi: shaxsiy kalit (ofp_…)
+  static Future<String> platformLogin(String serverUrl, {required String email, required String password, String device = 'telefon'}) async {
+    final c = ApiClient(serverUrl: serverUrl, apiKey: '');
+    try {
+      final b = await c._send(() => c._http.post(c._uri('/platform/login'),
+          headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Accept-Language': ApiClient.lang},
+          body: jsonEncode({'email': email, 'password': password, 'device': device})));
+      return '${((b as Map)['data'] as Map)['token']}';
+    } on ApiException catch (e) {
+      if (e.status == 404 || e.status == 405) throw ApiException('Server hali yangilanmagan: platforma kirishi topilmadi.', status: e.status);
+      rethrow;
+    } finally {
+      c.close();
+    }
+  }
+
+  /// Platforma API: GET → `data` (Map yoki List)
+  Future<dynamic> pGet(String path, [Map<String, dynamic>? q]) async => (await _getMap('/platform$path', q))['data'];
+
+  /// Platforma API: POST / PUT / DELETE → `data`
+  Future<dynamic> pSend(String method, String path, [Map<String, dynamic>? body]) async {
+    final uri = _uri('/platform$path');
+    final enc = jsonEncode(body ?? const {});
+    final b = await _send(() => switch (method) {
+          'PUT' => _http.put(uri, headers: _headers, body: enc),
+          'DELETE' => _http.delete(uri, headers: _headers),
+          _ => _http.post(uri, headers: _headers, body: enc),
+        }, timeout: const Duration(seconds: 40));
+    return b is Map ? b['data'] : null;
+  }
 
   /* ---------------- lid manbalari ---------------- */
 
@@ -701,7 +737,7 @@ class ApiClient {
   }
 
   /// So'nggi 14 kunlik voqealar lentasi (vazifa, pul, hisobot, lid) — rolga qarab
-  Future<List<Map<String, dynamic>>> notifications() async => _list((await _getMap('/notifications'))['data']);
+  Future<List<Map<String, dynamic>>> notifications() async => _list((await _getMap('$scope/notifications'))['data']);
 
   /* ---------------- prorab puli va chek ---------------- */
 

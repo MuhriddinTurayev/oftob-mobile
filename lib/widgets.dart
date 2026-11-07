@@ -152,9 +152,12 @@ class ErrorView extends StatelessWidget {
 
 /// Bir martalik yuklanadigan ma'lumot (ro'yxat emas) uchun.
 class FutureBody<T> extends StatefulWidget {
-  const FutureBody({super.key, required this.session, required this.load, required this.builder});
+  const FutureBody({super.key, required this.session, required this.load, required this.builder, this.refresh});
 
   final Session session;
+
+  /// Signal kelganda ma'lumot jim yangilanadi (eski ro'yxat ekranda qoladi, aylanuvchi belgi chiqmaydi)
+  final Listenable? refresh;
   final Future<T> Function() load;
   final Widget Function(BuildContext context, T data, Future<void> Function() reload) builder;
 
@@ -170,7 +173,27 @@ class _FutureBodyState<T> extends State<FutureBody<T>> {
   @override
   void initState() {
     super.initState();
+    widget.refresh?.addListener(_quiet);
     _reload();
+  }
+
+  @override
+  void didUpdateWidget(covariant FutureBody<T> old) {
+    super.didUpdateWidget(old);
+    if (old.refresh != widget.refresh) {
+      old.refresh?.removeListener(_quiet);
+      widget.refresh?.addListener(_quiet);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.refresh?.removeListener(_quiet);
+    super.dispose();
+  }
+
+  void _quiet() {
+    if (mounted) _reload();
   }
 
   Future<void> _reload() async {

@@ -17,7 +17,7 @@ import 'company.dart';
 class Session extends ChangeNotifier {
   Session({FlutterSecureStorage? storage}) : _storage = storage ?? const FlutterSecureStorage() {
     ApiClient.onUnauthorized = () {
-      if (api != null && !_signingOut) {
+      if ((api != null || papi != null) && !_signingOut) {
         kicked = true;
         signOut();
       }
@@ -53,6 +53,32 @@ class Session extends ChangeNotifier {
 
   bool get signedIn => api != null && me != null;
 
+  // platforma administratori (kompaniyasiz) — alohida kalit va bo'limlar
+  ApiClient? papi;
+  Map<String, dynamic>? pme;
+
+  bool get platformIn => papi != null && pme != null;
+
+  /// Joriy kirgan foydalanuvchining API'si (xodim yoki platforma administratori)
+  ApiClient? get anyApi => api ?? papi;
+
+  Future<void> _platformConnect(String url, String key) async {
+    final c = ApiClient(serverUrl: url, apiKey: key)..scope = '/platform';
+    final me = Map<String, dynamic>.from((await c.pGet('/me') as Map?) ?? const {});
+    papi?.close();
+    papi = c;
+    pme = me;
+    Offline.disable();   // platforma ma'lumotlari telefonda saqlanmaydi
+  }
+
+  /// Platforma egasi kirishi: login + parol
+  Future<void> platformSignIn({required String email, required String password}) async {
+    final key = await ApiClient.platformLogin(serverUrl, email: email, password: password, device: defaultTargetPlatform == TargetPlatform.iOS ? 'iPhone' : 'Android');
+    await _platformConnect(serverUrl, key);
+    await _storage.write(key: 'pkey', value: key);
+    notifyListeners();
+  }
+
   /// Ilova ochilganda oxirgi rejim tiklanadi.
   Future<void> restore() async {
     try {
@@ -76,6 +102,14 @@ class Session extends ChangeNotifier {
         if (mode == 'web') await _storage.delete(key: 'mode');
         userName = await _storage.read(key: 'uname') ?? '';
         userId = int.tryParse(await _storage.read(key: 'uid') ?? '') ?? 0;
+        final pkey = await _storage.read(key: 'pkey');
+        if (pkey != null && pkey.isNotEmpty) {
+          try {
+            await _platformConnect(url, pkey);
+          } on ApiException catch (e) {
+            if (e.unauthorized) await _storage.delete(key: 'pkey');
+          }
+        }
         final key = await _storage.read(key: 'key');
         if (userId > 0 && slug.isNotEmpty) await Offline.init('${slug}_$userId'); // internet bo'lmasa ham oxirgi saqlangan ma'lumot bilan kiradi
         if (key != null && key.isNotEmpty) await _connect(url, key, persist: false);
@@ -175,6 +209,22 @@ class Session extends ChangeNotifier {
   }
 
   Future<void> _signOut() async {
+    // platforma administratori
+    final p = papi;
+    if (p != null) {
+      papi = null;
+      pme = null;
+      await _storage.delete(key: 'pkey');
+      try {
+        await WebViewCookieManager().clearCookies();
+      } catch (_) {}
+      notifyListeners();
+      try {
+        await p.pSend('POST', '/logout');
+      } catch (_) {}
+      p.close();
+      if (api == null) return;
+    }
     final a = api;
     api = null;
     me = null;

@@ -62,7 +62,7 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> refresh() async {
-    final api = session.api;
+    final api = session.anyApi;
     if (api == null || _busy || _disposed) return;
     _busy = true;
     try {
