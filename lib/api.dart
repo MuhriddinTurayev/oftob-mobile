@@ -425,10 +425,25 @@ class ApiClient {
   Future<Map<String, dynamic>> supportMessages(int thread, {int after = 0}) async =>
       Map<String, dynamic>.from(((await _getMap('/support/$thread/messages', {'after': after > 0 ? after : null}))['data'] as Map?) ?? const {});
 
-  Future<Map<String, dynamic>> supportSend({required String body, int? threadId}) async {
-    final b = await _send(() => _http.post(_uri('/support/send'), headers: _headers, body: jsonEncode({'body': body, if (threadId != null) 'thread_id': threadId})));
+  /// Matn va/yoki rasm (skrinshot, foto). Rasm bo'lsa — multipart, yuklanish foizi [onProgress] ga
+  Future<Map<String, dynamic>> supportSend({required String body, int? threadId, String? imagePath, UploadProgress? onProgress}) async {
+    final dynamic b;
+    if (imagePath == null) {
+      b = await _send(() => _http.post(_uri('/support/send'), headers: _headers, body: jsonEncode({'body': body, if (threadId != null) 'thread_id': threadId})));
+    } else {
+      b = await _send(() async {
+        final req = ProgressMultipartRequest('POST', _uri('/support/send'), onProgress: onProgress)
+          ..headers.addAll({'Authorization': 'Bearer $apiKey', 'Accept': 'application/json', 'Accept-Language': ApiClient.lang})
+          ..fields.addAll({if (body.isNotEmpty) 'body': body, if (threadId != null) 'thread_id': '$threadId'});
+        req.files.add(await http.MultipartFile.fromPath('image', imagePath));
+        return http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 150)));
+      }, timeout: const Duration(seconds: 160));
+    }
     return Map<String, dynamic>.from(((b as Map?)?['data'] as Map?) ?? const {});
   }
+
+  /// Chatdagi rasm manzili (Image.network uchun [authHeaders] bilan)
+  String supportFileUrl(int messageId) => _uri('/support/file/$messageId').toString();
 
   /* ---------------- lid manbalari ---------------- */
 

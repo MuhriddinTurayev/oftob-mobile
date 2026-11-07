@@ -3,7 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
+import 'dart:io';
+
 import '../api.dart';
+import '../upload.dart';
+import 'funds.dart' show pickReceipt;
 import '../format.dart';
 import '../session.dart';
 import '../theme.dart';
@@ -179,6 +183,8 @@ class _SupportChatState extends State<SupportChat> {
   int _last = 0;
   bool _loading = true, _sending = false;
   Timer? _t;
+  final _up = UploadTracker();
+  String? _pending; // yuborilayotgan rasm (telefondagi yo'li) — ustida foiz
 
   Session get s => widget.session;
 
@@ -193,6 +199,7 @@ class _SupportChatState extends State<SupportChat> {
   @override
   void dispose() {
     _t?.cancel();
+    _up.dispose();
     _input.dispose();
     _scroll.dispose();
     super.dispose();
@@ -230,12 +237,28 @@ class _SupportChatState extends State<SupportChat> {
     }
   }
 
-  Future<void> _send() async {
+  /// Rasm (skrinshot yoki foto): tanlanishi bilan yuboriladi, matn maydonidagi yozuv ham birga ketadi
+  Future<void> _attach() async {
+    if (_sending) return;
+    final f = await pickReceipt(context);
+    if (f == null || !mounted) return;
+    await _send(imagePath: f.path);
+  }
+
+  Future<void> _send({String? imagePath}) async {
     final body = _input.text.trim();
-    if (body.isEmpty || _sending) return;
-    setState(() => _sending = true);
+    if ((body.isEmpty && imagePath == null) || _sending) return;
+    setState(() {
+      _sending = true;
+      _pending = imagePath;
+    });
+    if (imagePath != null) {
+      _up.start();
+      _toBottom();
+    }
     try {
-      final r = await s.api!.supportSend(body: body, threadId: _id);
+      final r = await s.api!.supportSend(body: body, threadId: _id, imagePath: imagePath, onProgress: imagePath == null ? null : _up.onBytes);
+      _up.finish();
       final m = Map<String, dynamic>.from((r['message'] as Map?) ?? const {});
       _id ??= (((r['thread'] as Map?)?['id']) as num?)?.toInt();
       _input.clear();
@@ -252,7 +275,13 @@ class _SupportChatState extends State<SupportChat> {
       await s.handleError(e);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e is ApiException ? e.message : '$e')));
     } finally {
-      if (mounted) setState(() => _sending = false);
+      _up.stop();
+      if (mounted) {
+        setState(() {
+          _sending = false;
+          _pending = null;
+        });
+      }
     }
   }
 
@@ -277,8 +306,8 @@ class _SupportChatState extends State<SupportChat> {
                 : ListView.builder(
                     controller: _scroll,
                     padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-                    itemCount: _items.length,
-                    itemBuilder: (_, i) => _Bubble(m: _items[i]),
+                    itemCount: _items.length + (_pending != null ? 1 : 0),
+                    itemBuilder: (_, i) => i < _items.length ? _Bubble(m: _items[i], session: s) : _PendingImage(path: _pending!, tracker: _up),
                   ),
       ),
       SafeArea(
@@ -286,6 +315,13 @@ class _SupportChatState extends State<SupportChat> {
         child: Padding(
           padding: EdgeInsets.fromLTRB(12, 6, 12, widget.embedded ? NavInset.of(context) + 8 : 10),
           child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            IconButton.filledTonal(
+              tooltip: tr('Rasm yoki skrinshot'),
+              onPressed: _sending ? null : _attach,
+              icon: const Icon(Icons.add_photo_alternate_rounded),
+              style: IconButton.styleFrom(minimumSize: const Size(46, 46)),
+            ),
+            const SizedBox(width: 6),
             Expanded(
               child: TextField(
                 controller: _input,
@@ -312,9 +348,10 @@ class _SupportChatState extends State<SupportChat> {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.m});
+  const _Bubble({required this.m, required this.session});
 
   final Map<String, dynamic> m;
+  final Session session;
 
   @override
   Widget build(BuildContext context) {
@@ -330,12 +367,86 @@ class _Bubble extends StatelessWidget {
           color: me ? cs.primary : (context.isDark ? const Color(0xCC24302B) : Colors.white.withValues(alpha: 0.85)),
           borderRadius: BorderRadius.only(topLeft: const Radius.circular(18), topRight: const Radius.circular(18), bottomLeft: Radius.circular(me ? 18 : 4), bottomRight: Radius.circular(me ? 4 : 18)),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        child: IntrinsicWidth(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           if (!me) Text('${m['author'] ?? ''}', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: cs.primary)),
+          if (m['image'] == true) _ChatImage(session: session, id: (m['id'] as num).toInt()),
+          if ('${m['body'] ?? ''}'.isNotEmpty)
           SelectableText('${m['body'] ?? ''}', style: TextStyle(color: me ? Colors.white : context.ink, fontSize: 14.5, height: 1.3)),
           const SizedBox(height: 2),
           Align(alignment: Alignment.bottomRight, child: Text(formatDateTime('${m['at'] ?? ''}'), style: TextStyle(fontSize: 10.5, color: me ? Colors.white70 : cs.outline))),
-        ]),
+        ])),
+      ),
+    );
+  }
+}
+
+
+/// Chatdagi rasm: kichik ko'rinishda, bosilsa — to'liq ekranda (kattalashtirib ko'rish mumkin)
+class _ChatImage extends StatelessWidget {
+  const _ChatImage({required this.session, required this.id});
+
+  final Session session;
+  final int id;
+
+  @override
+  Widget build(BuildContext context) {
+    final api = session.api!;
+    final url = api.supportFileUrl(id);
+    final img = Image.network(
+      url,
+      headers: api.authHeaders,
+      fit: BoxFit.cover,
+      cacheWidth: 700,
+      loadingBuilder: (c, child, p) => p == null ? child : const SizedBox(height: 160, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+      errorBuilder: (c, e, st) => const SizedBox(height: 80, child: Center(child: Icon(Icons.broken_image_outlined))),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 4),
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => Scaffold(
+            backgroundColor: Colors.black,
+            appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+            body: Center(child: InteractiveViewer(maxScale: 5, child: Image.network(url, headers: api.authHeaders))),
+          ),
+        )),
+        child: ClipRRect(borderRadius: BorderRadius.circular(12), child: ConstrainedBox(constraints: const BoxConstraints(maxHeight: 260, minWidth: 140), child: img)),
+      ),
+    );
+  }
+}
+
+/// Yuborilayotgan rasm: telefondagi nusxa ustida foiz
+class _PendingImage extends StatelessWidget {
+  const _PendingImage({required this.path, required this.tracker});
+
+  final String path;
+  final UploadTracker tracker;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        width: 200,
+        height: 200,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(fit: StackFit.expand, children: [
+            Image.file(File(path), fit: BoxFit.cover, cacheWidth: 500),
+            const ColoredBox(color: Color(0x80000000)),
+            Center(
+              child: ValueListenableBuilder<double>(
+                valueListenable: tracker.progress,
+                builder: (_, p, _) => Stack(alignment: Alignment.center, children: [
+                  SizedBox(width: 58, height: 58, child: CircularProgressIndicator(value: p, strokeWidth: 5, color: Colors.white, backgroundColor: Colors.white24)),
+                  Text('${(p * 100).round()}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                ]),
+              ),
+            ),
+          ]),
+        ),
       ),
     );
   }

@@ -832,4 +832,5 @@ const Map<String, List<String>> kDict = {
   "Platforma bo'yicha savol yoki taklif yozing": ["Напишите вопрос или предложение по платформе", "Савол ё пешниҳод оид ба платформа нависед"],
   "Yordamdan javob keldi": ["Ответ от поддержки", "Ҷавоб аз дастгирӣ омад"],
   "Yordamga yangi xabar": ["Новое сообщение в поддержку", "Паёми нав ба дастгирӣ"],
+  "Rasm yoki skrinshot": ["Фото или скриншот", "Акс ё скриншот"],
 };
