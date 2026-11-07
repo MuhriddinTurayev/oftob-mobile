@@ -117,6 +117,16 @@ class _ShiftCardState extends State<ShiftCard> {
     if (act != 'reopen') {
       final r = await currentFix();
       fix = r.fix;
+      if (fix == null && act == 'start') {
+        // «Keldim» faqat obyektda: joylashuvsiz qabul qilinmaydi
+        if (mounted) {
+          setState(() {
+            _error = "${r.error ?? ''} ${tr("«Keldim» faqat obyektda belgilanadi.")}".trim();
+            _busy = false;
+          });
+        }
+        return;
+      }
       if (fix == null) {
         if (!mounted) return;
         final go = await showDialog<bool>(

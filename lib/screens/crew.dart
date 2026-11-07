@@ -362,6 +362,13 @@ class _WorkerSheet extends StatelessWidget {
           _kv(context, 'Ish kunlari', '${m['days'] ?? 0}'),
           _kv(context, 'Soat', area((m['hours'] as num?) ?? 0)),
           if (money) ...[
+            if (m['base'] != null) _kv(context, 'Ishlagani (asos)', '${_fmtMoney(m['base'] as num?)} $cur'),
+            for (final k in ((m['kpis'] as List?) ?? const []).whereType<Map>())
+              _kv(context, 'KPI: ${k['name']} (${k['fact']}/${k['plan']})', k['reached'] == true ? '+${_fmtMoney(k['bonus'] as num?)} $cur' : tr('reja bajarilmadi'), color: k['reached'] == true ? Colors.green.shade700 : null),
+            if (((m['late_count'] as num?) ?? 0) > 0)
+              _kv(context, '${tr('Kechikish')}: ${m['late_count']} ${tr('marta')}, ${m['late_minutes']} ${tr('daq')}', '−${_fmtMoney(m['late_sum'] as num?)} $cur', color: cs.error),
+            for (final f in ((m['fines'] as List?) ?? const []).whereType<Map>())
+              _kv(context, '${tr('Ushlab qolindi')}: ${f['reason']}', '−${_fmtMoney(f['amount'] as num?)} $cur', color: cs.error),
             _kv(context, 'Hisoblangan', '${_fmtMoney(m['accrued'] as num?)} $cur'),
             _kv(context, 'To\'langan', '${_fmtMoney(m['paid'] as num?)} $cur', color: Colors.green.shade700),
             _kv(context, 'Qoldi', '${_fmtMoney(due)} $cur', color: due > 0 ? cs.error : null),

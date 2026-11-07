@@ -9,6 +9,7 @@ import '../theme.dart';
 import '../widgets.dart';
 import '../screens/company_admin.dart' show InvoiceBar;
 import 'platform_home.dart' show curName, openCompany;
+import 'platform_more.dart' show editPlatformAiKey;
 
 /* Platforma administratori: kompaniyalar to'lovlarini tasdiqlash, sun'iy intellekt (kalitlar, real limitlar, arizalar), kirish kodi */
 
@@ -329,16 +330,31 @@ class _PlatformAiScreenState extends State<PlatformAiScreen> {
                 ),
             ],
             _title(context, 'Ulanishlar va real limitlar',
-                trailing: TextButton.icon(
-                  onPressed: () => setState(() {
-                    _refresh = true;
-                    _k = UniqueKey();
-                  }),
-                  icon: const Icon(Icons.refresh_rounded, size: 18),
-                  label: const Text('Yangilash'),
-                )),
-            if (providers.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text(tr("Ulanish yo'q. «To'liq panel → AI ulanishlari» dan kalit qo'shing."))),
-            for (final p in providers) _provider(context, p, cs),
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                  IconButton(
+                    tooltip: tr('Yangilash'),
+                    onPressed: () => setState(() {
+                      _refresh = true;
+                      _k = UniqueKey();
+                    }),
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: () async {
+                      if (await editPlatformAiKey(context, s, _maps(d['catalog']))) setState(() => _k = UniqueKey());
+                    },
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Ulash'),
+                  ),
+                ])),
+            if (providers.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text(tr("Kalit yo'q — «Ulash» ni bosing: chat uchun DeepSeek/ChatGPT/Claude/Gemini, ovoz uchun Gemini/ChatGPT."))),
+            for (final p in providers)
+              GestureDetector(
+                onTap: () async {
+                  if (await editPlatformAiKey(context, s, _maps(d['catalog']), provider: p)) setState(() => _k = UniqueKey());
+                },
+                child: _provider(context, p, cs),
+              ),
             if (comps.isNotEmpty) _title(context, 'Kompaniyalar limiti', trailing: Text('${tr('yangilanadi')} ${formatDate('${d['renews_at']}')}', style: TextStyle(color: cs.outline, fontSize: 12))),
             for (final c in comps)
               Padding(

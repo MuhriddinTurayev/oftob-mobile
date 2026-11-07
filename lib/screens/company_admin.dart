@@ -84,6 +84,42 @@ class InvoiceBar extends StatelessWidget {
   }
 }
 
+/// To'lov rekvizitlari: karta yoki hisob raqami — bosilsa nusxa olinadi
+class PayDetailCard extends StatelessWidget {
+  const PayDetailCard({super.key, required this.pd});
+  final Map<String, dynamic> pd;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final card = pd['type'] != 'account';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: GlassRow(
+        margin: EdgeInsets.zero,
+        onTap: () {
+          Clipboard.setData(ClipboardData(text: '${pd['number']}'));
+          HapticFeedback.selectionClick();
+          _snack(context, tr('Nusxa olindi'));
+        },
+        child: Row(children: [
+          IconTile(icon: card ? Icons.credit_card_rounded : Icons.account_balance_rounded, color: Brand.blue, size: 40),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${pd['title'] ?? ''}'.isEmpty ? (card ? tr('Karta') : tr('Hisob raqami')) : '${pd['title']}', style: TextStyle(color: cs.outline, fontSize: 12)),
+              Text('${pd['number']}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 0.5)),
+              if ([pd['holder'], pd['bank'], pd['extra']].any((x) => '${x ?? ''}'.isNotEmpty))
+                Text([pd['holder'], pd['bank'], pd['extra']].where((x) => '${x ?? ''}'.isNotEmpty).join(' · '), style: TextStyle(color: cs.outline, fontSize: 12)),
+            ]),
+          ),
+          Icon(Icons.copy_rounded, size: 18, color: cs.outline),
+        ]),
+      ),
+    );
+  }
+}
+
 /* ---------------------------------------- Tarif va to'lov ---------------------------------------- */
 
 class BillingScreen extends StatefulWidget {
@@ -150,7 +186,7 @@ class _BillingScreenState extends State<BillingScreen> {
               ]),
             ),
             const SizedBox(height: 8),
-            Text("Hisob yaratiladi. Uni bir yo'la yoki qismlab to'laysiz; har to'lovni platforma administratori tasdiqlaydi.", style: TextStyle(color: Theme.of(c).colorScheme.outline, fontSize: 12.5)),
+            Text("Hisob yaratiladi. To'lovni rekvizitlarga o'tkazib, chekini yuklaysiz — platforma administratori tasdiqlaydi va tarif yoqiladi.", style: TextStyle(color: Theme.of(c).colorScheme.outline, fontSize: 12.5)),
             const SizedBox(height: 16),
             SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(c, true), style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)), child: const Text('Hisob yaratish'))),
           ]),
@@ -169,8 +205,7 @@ class _BillingScreenState extends State<BillingScreen> {
     }
   }
 
-  Future<void> _pay(Map<String, dynamic> inv, List<Map<String, dynamic>> methods) async {
-    final amount = TextEditingController(text: fmtInput(inv['to_send'] as num?));
+  Future<void> _pay(Map<String, dynamic> inv, List<Map<String, dynamic>> methods, List<Map<String, dynamic>> details) async {
     final note = TextEditingController();
     String method = methods.isNotEmpty ? '${methods.first['id']}' : 'click';
     final now = DateTime.now();
@@ -186,9 +221,24 @@ class _BillingScreenState extends State<BillingScreen> {
           child: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text("To'lov qildim", style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
-              Text('${tr('Qolgan')}: ${_m(inv['to_send'], inv['currency'])}', style: TextStyle(color: Theme.of(c).colorScheme.outline)),
-              const SizedBox(height: 12),
-              TextField(controller: amount, keyboardType: TextInputType.number, inputFormatters: const [ThousandsFormatter()], decoration: InputDecoration(labelText: tr('Summa'), helperText: tr("Qismlab to'lash mumkin"))),
+              const SizedBox(height: 8),
+              Glass(
+                padding: const EdgeInsets.all(14),
+                child: Row(children: [
+                  const IconTile(icon: Icons.payments_rounded, color: Brand.green, size: 40),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text("To'lanadigan summa", style: TextStyle(color: Theme.of(c).colorScheme.outline, fontSize: 12.5)),
+                      Text(_m(inv['to_send'], inv['currency']), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+                    ]),
+                  ),
+                ]),
+              ),
+              if (details.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                for (final pd in details) PayDetailCard(pd: pd),
+              ],
               const SizedBox(height: 10),
               Wrap(spacing: 8, runSpacing: 6, children: [
                 for (final x in methods) ChoiceChip(label: Text('${x['name']}'), selected: method == x['id'], showCheckmark: false, onSelected: (_) => set(() => method = '${x['id']}')),
@@ -210,9 +260,9 @@ class _BillingScreenState extends State<BillingScreen> {
                   if (f != null) set(() => photo = f.path);
                 },
                 child: Row(children: [
-                  IconTile(icon: photo == null ? Icons.add_a_photo_rounded : Icons.check_circle_rounded, color: photo == null ? Brand.blue : Colors.green, size: 40),
+                  IconTile(icon: photo == null ? Icons.add_a_photo_rounded : Icons.check_circle_rounded, color: photo == null ? Brand.orange : Colors.green, size: 40),
                   const SizedBox(width: 12),
-                  Expanded(child: Text(photo == null ? tr('Chek yoki kvitansiya (rasm)') : tr('Chek tanlandi'), style: const TextStyle(fontWeight: FontWeight.w700))),
+                  Expanded(child: Text(photo == null ? tr('Chekni yuklang (majburiy)') : tr('Chek tanlandi'), style: const TextStyle(fontWeight: FontWeight.w700))),
                   if (photo != null) IconButton(onPressed: () => set(() => photo = null), icon: const Icon(Icons.close_rounded)),
                 ]),
               ),
@@ -234,12 +284,11 @@ class _BillingScreenState extends State<BillingScreen> {
       ),
     );
     if (ok != true || !mounted) return;
-    final sum = amount.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (sum.isEmpty) return _snack(context, tr('Summani kiriting'));
+    if (photo == null) return _snack(context, tr("To'lov chekini yuklang — administrator shunga qarab tasdiqlaydi"));
     try {
       await runUpload<dynamic>(context,
           title: tr("To'lov yuborilmoqda"),
-          task: (p) => s.api!.aUpload('/billing/claim', {'amount': sum, 'method': method, 'paid_at': date, 'note': note.text.trim()}, file: photo, onProgress: p));
+          task: (p) => s.api!.aUpload('/billing/claim', {'method': method, 'paid_at': date, 'note': note.text.trim()}, file: photo, onProgress: p));
       HapticFeedback.mediumImpact();
       if (mounted) _snack(context, tr("To'lov administratorga yuborildi. Tasdiqlansa, xabar keladi."));
       _reload();
@@ -329,7 +378,7 @@ class _BillingScreenState extends State<BillingScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
-                        onPressed: () => _pay(inv, methods),
+                        onPressed: () => _pay(inv, methods, _maps(d['pay_details'])),
                         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                         icon: const Icon(Icons.payments_rounded),
                         label: const Text("To'lov qildim"),

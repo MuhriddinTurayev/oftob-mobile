@@ -1,5 +1,6 @@
 import 'rates.dart';
 import 'company_admin.dart';
+import 'work_admin.dart';
 import 'support.dart';
 import 'package:flutter/material.dart' hide Text;
 
@@ -187,6 +188,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (me.can('cash:read') && !primary.contains('Kassa')) _Tab('Kassa', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, (x) => CashScreen(session: x)),
       if (me.can('leads:read') && !primary.contains('Lidlar')) _Tab('Lidlar', Icons.people_alt_outlined, Icons.people_alt, (x) => LeadsScreen(session: x)),
       // rahbar: jamoa (bloklash, rol), AI kalitlari va limit; rahbar va buxgalter: tarif va to'lov
+      if (me.role == 'admin' || const ['accountant', 'foreman', 'viewer'].contains(me.role)) _Tab('Ish vaqti va joylashuv', Icons.share_location_outlined, Icons.share_location, (x) => WorkScreen(session: x)),
+      if (me.role == 'admin' || const ['accountant', 'viewer'].contains(me.role)) _Tab('KPI va ushlab qolish', Icons.query_stats_outlined, Icons.query_stats, (x) => PayrollScreen(session: x)),
       if (me.role == 'admin') _Tab('Jamoa va rollar', Icons.manage_accounts_outlined, Icons.manage_accounts, (x) => TeamScreen(session: x)),
       if (me.role == 'admin') _Tab("Sun'iy intellekt", Icons.auto_awesome_outlined, Icons.auto_awesome, (x) => AiSetupScreen(session: x)),
       if (me.role == 'admin' || me.role == 'accountant') _Tab("Tarif va to'lov", Icons.workspace_premium_outlined, Icons.workspace_premium, (x) => BillingScreen(session: x)),
@@ -209,6 +212,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     'Hisobotlar': Brand.purple,
     'Valyutalar': Brand.amber,
     'Jamoa va rollar': Brand.blue,
+    'Ish vaqti va joylashuv': Brand.teal,
+    'KPI va ushlab qolish': Brand.orange,
     "Sun'iy intellekt": Brand.purple,
     "Tarif va to'lov": Brand.green,
     'Kontragentlar': Brand.orange,

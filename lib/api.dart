@@ -499,6 +499,18 @@ class ApiClient {
     }
   }
 
+  /// Platforma: kirishsiz so'rov (parolni tiklash) → `data`
+  static Future<dynamic> platformPublic(String serverUrl, String path, Map<String, dynamic> body) async {
+    final c = ApiClient(serverUrl: serverUrl, apiKey: '');
+    try {
+      final b = await c._send(() => c._http.post(c._uri('/platform$path'),
+          headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Accept-Language': ApiClient.lang}, body: jsonEncode(body)));
+      return b is Map ? b['data'] : null;
+    } finally {
+      c.close();
+    }
+  }
+
   /* ---------------- umumiy: tarif, AI, jamoa (rahbar va buxgalter) ---------------- */
 
   /// GET → `data` (internet bo'lmasa — oxirgi nusxa)

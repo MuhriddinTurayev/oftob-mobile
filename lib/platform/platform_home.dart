@@ -13,6 +13,7 @@ import '../widgets.dart';
 import '../screens/notifications.dart';
 import '../screens/support.dart';
 import 'platform_extra.dart';
+import 'platform_more.dart';
 
 /// Platforma administratori (super admin) uchun ilova: veb-admin paneldagi ishlar — kompaniyalar, to'lovlar, tariflar,
 /// saytdan arizalar, yordam. Murakkab bo'limlar (sayt matnlari, blog, API, bazalar, administratorlar) «To'liq panel» orqali
@@ -429,7 +430,7 @@ class _CompanyPageState extends State<CompanyPage> {
   final _note = TextEditingController();
   final _aiLimit = TextEditingController();
   String _status = 'active';
-  int? _plan, _aiProvider;
+  int? _plan, _aiProvider, _aiVoice;
   String? _currency, _trial, _paid;
   bool _aiLocked = false, _observer = false, _clearReq = false;
 
@@ -461,6 +462,7 @@ class _CompanyPageState extends State<CompanyPage> {
     _status = '${d['status'] ?? 'active'}';
     _plan = (d['plan_id'] as num?)?.toInt();
     _aiProvider = (d['ai_provider_id'] as num?)?.toInt();
+    _aiVoice = (d['ai_voice_provider_id'] as num?)?.toInt();
     _currency = d['currency'] as String?;
     _trial = d['trial_ends_at'] as String?;
     _paid = d['paid_until'] as String?;
@@ -486,7 +488,7 @@ class _CompanyPageState extends State<CompanyPage> {
     try {
       final d = await s.papi!.pSend('PUT', '/companies/${widget.id}', {
         'name': _name.text.trim(), 'phone': _phone.text.trim(), 'plan_id': _plan, 'status': _status, 'trial_ends_at': _trial, 'paid_until': _paid,
-        'note': _note.text.trim(), 'ai_provider_id': _aiProvider, 'ai_limit': _aiLimit.text.trim().isEmpty ? null : int.tryParse(_aiLimit.text.trim()),
+        'note': _note.text.trim(), 'ai_provider_id': _aiProvider, 'ai_voice_provider_id': _aiVoice, 'ai_limit': _aiLimit.text.trim().isEmpty ? null : int.tryParse(_aiLimit.text.trim()),
         'currency': _curOk ? _currency : null, 'boss_observer': _observer, 'ai_locked': _aiLocked, 'clear_request': _clearReq,
       });
       HapticFeedback.mediumImpact();
@@ -732,6 +734,16 @@ class _CompanyPageState extends State<CompanyPage> {
                 decoration: InputDecoration(labelText: tr('AI ulanishi')),
                 items: [DropdownMenuItem<int?>(value: null, child: Text(tr('Platforma bo\'yicha standart'))), for (final p in provs) DropdownMenuItem<int?>(value: (p['id'] as num).toInt(), child: Text('${p['name']}'))],
                 onChanged: (v) => setState(() => _aiProvider = v),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<int?>(
+                initialValue: provs.any((p) => (p['id'] as num).toInt() == _aiVoice && p['voice'] == true) ? _aiVoice : null,
+                decoration: InputDecoration(labelText: tr('Ovoz uchun ulanish'), helperText: tr('Ovozni faqat Gemini va ChatGPT tushunadi')),
+                items: [
+                  DropdownMenuItem<int?>(value: null, child: Text(tr("Platforma bo'yicha standart"))),
+                  for (final p in provs.where((p) => p['voice'] == true)) DropdownMenuItem<int?>(value: (p['id'] as num).toInt(), child: Text('${p['name']}')),
+                ],
+                onChanged: (v) => setState(() => _aiVoice = v),
               ),
               const SizedBox(height: 10),
               TextField(controller: _aiLimit, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('AI limiti (oyiga)'), helperText: tr("Bo'sh — tarif bo'yicha, 0 — cheklovsiz"))),
@@ -1045,6 +1057,8 @@ class _More extends StatelessWidget {
         if (can('payments')) row(Icons.verified_rounded, Brand.green, "To'lovlarni tasdiqlash", "Kompaniyalar yuborgan to'lovlar", () => push(tr("To'lovlarni tasdiqlash"), ClaimsScreen(session: s))),
         if (can('plans')) row(Icons.workspace_premium_rounded, Brand.orange, 'Tariflar', 'Narx, umrbod narx va limitlar', () => push(tr('Tariflar'), _Plans(session: s))),
         if (can('ai')) row(Icons.auto_awesome_rounded, Brand.purple, "Sun'iy intellekt", 'Kalitlar, real limitlar, arizalar', () => push(tr("Sun'iy intellekt"), PlatformAiScreen(session: s))),
+        if (can('payments')) row(Icons.credit_card_rounded, Brand.blue, "To'lov rekvizitlari", "Kompaniyalar tarifni shu karta/hisobga to'laydi", () => push(tr("To'lov rekvizitlari"), PayDetailsScreen(session: s))),
+        if (can('settings')) row(Icons.alternate_email_rounded, Brand.purple, 'Pochta (SMTP)', 'Parolni tiklash kodlari emailga', () => push(tr('Pochta (SMTP)'), MailSettingsScreen(session: s))),
         if (can('settings')) row(Icons.pin_rounded, Brand.teal, 'Kirish kodi', "Ilovada administrator kirishi uchun kod", () => changeGateCode(context, s)),
         Padding(padding: const EdgeInsets.fromLTRB(4, 8, 4, 8), child: Text("To'liq panel (sayt bo'limlari)", style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))),
         for (final (perm, path, icon, color, title) in [
@@ -1404,6 +1418,19 @@ class _PlatformLoginScreenState extends State<PlatformLoginScreen> {
                   style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                   child: _busy ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)) : const Text('Kirish'),
                 ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  final email = await Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => PlatformForgotScreen(serverUrl: widget.session.serverUrl, email: _email.text.trim())));
+                  if (email != null && mounted) {
+                    setState(() {
+                      _email.text = email;
+                      _pass.clear();
+                      _err = null;
+                    });
+                  }
+                },
+                child: const Text('Parolni unutdingizmi?'),
               ),
             ]),
           ),
