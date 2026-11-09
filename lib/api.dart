@@ -262,8 +262,8 @@ class ApiClient {
   }
 
   /// Oddiy (fayl yo'q) amalni yuboradi; internet yo'q bo'lsa navbatga qo'yadi. `null` — yuborildi (server javobi `data`), `queued` — navbatda.
-  Future<({bool queued, Map<String, dynamic> data})> _queueGeneric({required String kind, required String method, required String path, required Map<String, dynamic> body, required String label, String objectId = '', String refId = ''}) async {
-    final id = Offline.newId();
+  Future<({bool queued, Map<String, dynamic> data})> _queueGeneric({required String kind, required String method, required String path, required Map<String, dynamic> body, required String label, String objectId = '', String refId = '', String? idem}) async {
+    final id = idem ?? Offline.newId();
     try {
       final b = await sendQueued(method, path, body, id, timeout: Offline.online.value ? const Duration(seconds: 25) : const Duration(seconds: 6));
       return (queued: false, data: Map<String, dynamic>.from(((b is Map ? b['data'] : null) as Map?) ?? const {}));
@@ -903,7 +903,7 @@ class ApiClient {
   /// Xodimlar va oy bo'yicha hisoblangan / to'langan / qolgan ish haqi. [month] — YYYY-MM.
   Future<Map<String, dynamic>> crew({String? month, String? object}) async {
     final m = await _getMap('/crew', {'month': month, 'object': object});
-    return Map<String, dynamic>.from((m['data'] as Map?) ?? const {});
+    return _crewWithQueue(Map<String, dynamic>.from((m['data'] as Map?) ?? const {}));
   }
 
   /// Yangi xodim qabul qilish. `true` — internet yo'q, navbatga qo'yildi.
@@ -1313,9 +1313,56 @@ class ApiClient {
   }
 
   /// Oylik to'lash (faqat internet bilan: pul harakati). Prorab — [kind] (cash|card), boshqalar — [deskId].
-  Future<void> crewPay({required String object, required String staffId, required String month, required num amount, String? kind, int? deskId, String? note, required String idemKey}) async {
-    final body = <String, dynamic>{'object': object, 'staff_id': staffId, 'month': month, 'amount': amount, if (kind != null) 'kind': kind, if (deskId != null) 'desk_id': deskId, if (note != null && note.isNotEmpty) 'note': note};
-    await _send(() => _http.post(_uri('/crew/pay'), headers: {..._headers, 'Idempotency-Key': idemKey}, body: jsonEncode(body)));
+  /// Maosh to'lash. `true` — internet yo'q, navbatga qo'yildi: internet chiqqanda o'zi yuboriladi
+  /// (to'lov kuni — bosilgan kun; server pulni yetarliligini o'shanda tekshiradi, yetmasa «Sinxronlash» da ko'rinadi).
+  Future<bool> crewPay({required String object, required String staffId, required String month, required num amount, String? kind, int? deskId, String? note, String? workerName, required String idemKey}) async {
+    final n = DateTime.now();
+    final body = <String, dynamic>{
+      'object': object, 'staff_id': staffId, 'month': month, 'amount': amount,
+      'date': '${n.year.toString().padLeft(4, '0')}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}',
+      if (kind != null) 'kind': kind, if (deskId != null) 'desk_id': deskId, if (note != null && note.isNotEmpty) 'note': note,
+    };
+    final r = await _queueGeneric(kind: 'crew_pay', method: 'POST', path: '/crew/pay', body: body, objectId: object, refId: staffId, idem: idemKey,
+        label: "Maosh to'lovi — ${workerName ?? staffId}: $amount");
+    return r.queued;
+  }
+
+  /// Xodimlar ro'yxatiga yuborilmagan (navbatdagi) maosh to'lovlarini qo'shadi: «To'langan» / «Qoldi» darhol to'g'ri ko'rinadi
+  Map<String, dynamic> _crewWithQueue(Map<String, dynamic> d) {
+    final month = '${d['month'] ?? ''}';
+    final pend = Offline.ops.where((o) => o.kind == 'crew_pay' && o.state == 'pending' && '${o.body['month']}' == month).toList();
+    if (pend.isEmpty) return d;
+    num paidAll = 0;
+    final objs = ((d['objects'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    for (final ob in objs) {
+      num paidObj = 0;
+      final workers = ((ob['workers'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      for (final w in workers) {
+        final mine = pend.where((o) => o.objectId == '${ob['id']}' && o.aptId == '${w['id']}');
+        if (mine.isEmpty) continue;
+        final add = mine.fold<num>(0, (a, o) => a + ((o.body['amount'] as num?) ?? 0));
+        final m = Map<String, dynamic>.from((w['month'] as Map?) ?? const {});
+        m['paid'] = ((m['paid'] as num?) ?? 0) + add;
+        m['due'] = ((m['due'] as num?) ?? 0) - add;
+        w['month'] = m;
+        w['pending'] = true;
+        paidObj += add;
+      }
+      ob['workers'] = workers;
+      if (paidObj != 0 && ob['summary'] is Map) {
+        final sm = Map<String, dynamic>.from(ob['summary'] as Map);
+        sm['paid'] = ((sm['paid'] as num?) ?? 0) + paidObj;
+        sm['due'] = ((sm['due'] as num?) ?? 0) - paidObj;
+        ob['summary'] = sm;
+      }
+      paidAll += paidObj;
+    }
+    final sum = Map<String, dynamic>.from((d['summary'] as Map?) ?? const {});
+    if (paidAll != 0) {
+      sum['paid'] = ((sum['paid'] as num?) ?? 0) + paidAll;
+      sum['due'] = ((sum['due'] as num?) ?? 0) - paidAll;
+    }
+    return {...d, 'objects': objs, 'summary': sum};
   }
 
   /* ---------------- profil: rasm, parol, faol seanslar ---------------- */

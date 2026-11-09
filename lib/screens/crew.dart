@@ -626,11 +626,17 @@ class _PaySheetState extends State<_PaySheet> {
       _err = null;
     });
     try {
-      await widget.session.api!.crewPay(object: widget.objectId, staffId: '${widget.w['id']}', month: widget.monthKey, amount: amount, kind: _foreman ? _kind : null, deskId: _foreman ? null : _desk, note: _note.text.trim(), idemKey: _idem);
+      final queued = await widget.session.api!.crewPay(
+          object: widget.objectId, staffId: '${widget.w['id']}', month: widget.monthKey, amount: amount, kind: _foreman ? _kind : null, deskId: _foreman ? null : _desk,
+          note: _note.text.trim(), workerName: '${widget.w['name'] ?? ''}', idemKey: _idem);
       HapticFeedback.mediumImpact();
       if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr("Maosh to'landi")}: ${money(amount)} ${widget.cur}')));
+        messenger.showSnackBar(SnackBar(
+            content: Text(queued
+                ? '${tr("Offline saqlandi — internet paydo bo'lganda yuboriladi")}: ${money(amount)} ${widget.cur}'
+                : '${tr("Maosh to'landi")}: ${money(amount)} ${widget.cur}')));
       }
     } on ApiException catch (e) {
       if (mounted) {
