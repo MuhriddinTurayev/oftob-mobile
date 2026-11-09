@@ -178,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     behavior: HitTestBehavior.opaque,
                     child: Column(children: [
                       // yangi logo (nomi bilan): yorug' rejimda to'q ko'k, tunda oq
-                      Image.asset(Brand.logo(Theme.of(context).brightness == Brightness.dark), height: 150, filterQuality: FilterQuality.high),
+                      Image.asset(Brand.logo(Theme.of(context).brightness == Brightness.dark), height: 150, filterQuality: FilterQuality.high, semanticLabel: 'Oftob Building'),
                       const SizedBox(height: 8),
                       Text('Xush kelibsiz', style: TextStyle(color: cs.outline)),
                     ]),

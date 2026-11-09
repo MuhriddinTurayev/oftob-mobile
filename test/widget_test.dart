@@ -84,7 +84,7 @@ void main() {
     final session = Session();
     session.loading = false;
     await tester.pumpWidget(OftobApp(session: session, skipSplash: true));
-    expect(find.text('Oftob Building'), findsOneWidget);
+    expect(find.bySemanticsLabel('Oftob Building'), findsOneWidget); // logo (nomi rasmning ichida)
     expect(find.text('Korxonani tanlang'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget); // faqat korxona kodi
     expect(find.textContaining('sslip'), findsNothing);
