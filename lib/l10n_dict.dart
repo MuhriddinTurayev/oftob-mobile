@@ -1265,4 +1265,7 @@ const Map<String, List<String>> kDict = {
   "Kassa shakli": ["Форма кассы", "Шакли касса"],
   "Boshqaruv": ["Управление", "Идоракунӣ"],
   "Profil va smena": ["Профиль и смена", "Профил ва смена"],
+  "Kompaniya kassalari": ["Кассы компании", "Кассаҳои ширкат"],
+  "Obyekt kassalari": ["Кассы объектов", "Кассаҳои объектҳо"],
+  "Prorablar puli": ["Деньги прорабов", "Пули прорабҳо"],
 };

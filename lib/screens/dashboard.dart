@@ -304,11 +304,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _Section(title: 'Xizmatlar'),
             LayoutBuilder(
               builder: (context, bc) {
-                final tw = (bc.maxWidth - 30) / 4;
+                // odatda 4 ustun (kartochka ≥ 72 px); shrift juda katta yoki ekran tor bo'lsa — 3, planshetda — 5–6
+                final big = MediaQuery.textScalerOf(context).scale(10) > 11;
+                final cols = (bc.maxWidth / (big ? 100 : 80)).floor().clamp(3, 6);
+                final tw = (bc.maxWidth - 10 * (cols - 1)) / cols;
+                // ikonka + ikki qator nom + ichki bo'shliq; shrift kattalashsa balandlik ham o'sadi
+                final th = 10 + 42 + 7 + MediaQuery.textScalerOf(context).scale(11.5) * 1.18 * 2 + 10;
                 return Wrap(
                   spacing: 10,
                   runSpacing: 10,
-                  children: [for (final x in services) SizedBox(width: tw, height: tw * 1.08, child: _ServiceTile(x, onTap: () => widget.onOpen?.call(x.label)))],
+                  children: [for (final x in services) SizedBox(width: tw, height: th < tw ? tw : th, child: _ServiceTile(x, onTap: () => widget.onOpen?.call(x.label)))],
                 );
               },
             ),
@@ -506,9 +511,34 @@ class _ServiceTile extends StatelessWidget {
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         IconTile(icon: x.icon, color: x.color, size: 42),
         const SizedBox(height: 7),
-        w.Text(tr(x.label), maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, height: 1.15)),
+        _TileLabel(tr(x.label)),
       ]),
     );
+  }
+}
+
+/// Kartochka nomi: so'z o'rtasidan bo'linmaydi. Bitta uzun so'z — kichrayib bir qatorga sig'adi,
+/// bir necha so'z — ko'pi bilan ikki qator, sig'masa «…».
+class _TileLabel extends StatelessWidget {
+  const _TileLabel(this.text);
+
+  final String text;
+
+  static const _style = TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, height: 1.15);
+
+  @override
+  Widget build(BuildContext context) {
+    if (!text.trim().contains(' ')) {
+      return FittedBox(fit: BoxFit.scaleDown, child: w.Text(text, maxLines: 1, softWrap: false, style: _style));
+    }
+    return LayoutBuilder(builder: (context, bc) {
+      // eng uzun so'z sig'masa — butun nomni bir oz kichraytiramiz (so'z bo'linmasin)
+      final scaler = MediaQuery.textScalerOf(context);
+      final longest = text.split(RegExp(r'\s+')).reduce((a, b) => a.length >= b.length ? a : b);
+      final tp = TextPainter(text: TextSpan(text: longest, style: _style), textDirection: TextDirection.ltr, textScaler: scaler, maxLines: 1)..layout();
+      final k = tp.width > bc.maxWidth ? (bc.maxWidth / tp.width).clamp(0.7, 1.0) : 1.0;
+      return w.Text(text, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: _style.copyWith(fontSize: 11.5 * k));
+    });
   }
 }
 

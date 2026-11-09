@@ -172,18 +172,24 @@ class _CashOpSheetState extends State<_CashOpSheet> {
               }),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
-              initialValue: _desk,
-              isExpanded: true,
-              decoration: InputDecoration(labelText: income ? tr('Qaysi kassaga') : tr('Qaysi kassadan')),
-              items: [
-                for (final d in widget.form.desks)
-                  DropdownMenuItem(
-                    value: (d['id'] as num).toInt(),
-                    child: Text('${d['name']} · ${money(d['balance'] as num?)} ${d['currency'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ),
-              ],
-              onChanged: (v) => setState(() => _desk = v),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 6),
+              child: Text(income ? tr('Qaysi kassaga') : tr('Qaysi kassadan'), style: TextStyle(color: cs.outline, fontSize: 12.5, fontWeight: FontWeight.w700)),
+            ),
+            Glass(
+              radius: 18,
+              shadow: false,
+              onTap: () async {
+                final v = await pickCashDesk(context, widget.form.desks, _desk, title: income ? tr('Qaysi kassaga') : tr('Qaysi kassadan'));
+                if (v != null) setState(() => _desk = v);
+              },
+              padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
+              child: _deskRow == null
+                  ? Row(children: [Expanded(child: Text(tr('Kassani tanlang'), style: TextStyle(color: cs.outline))), const Icon(Icons.unfold_more_rounded)])
+                  : Row(children: [
+                      Expanded(child: DeskTile(_deskRow!)),
+                      Icon(Icons.unfold_more_rounded, color: cs.outline),
+                    ]),
             ),
           ] else
             Glass(
@@ -290,4 +296,93 @@ Future<bool> confirmCashDelete(BuildContext context, Map<String, dynamic> op) as
     ),
   );
   return ok == true;
+}
+
+
+IconData deskIcon(Map d) => switch ('${d['kind']}') {
+      'bank' => Icons.account_balance_rounded,
+      'card' => Icons.credit_card_rounded,
+      _ => d['object_id'] != null ? Icons.apartment_rounded : Icons.payments_rounded,
+    };
+
+Color deskColor(Map d) => switch ('${d['kind']}') {
+      'bank' => const Color(0xFF6366F1),
+      'card' => const Color(0xFF0EA5E9),
+      _ => d['object_id'] != null ? const Color(0xFFF59E0B) : const Color(0xFF16A34A),
+    };
+
+/// Kassa qatori: turi belgisi, nomi va qoldig'i
+class DeskTile extends StatelessWidget {
+  const DeskTile(this.d, {super.key});
+
+  final Map d;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final bal = (d['balance'] as num?) ?? 0;
+    return Row(children: [
+      IconTile(icon: deskIcon(d), color: deskColor(d), size: 38),
+      const SizedBox(width: 11),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Text('${d['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
+          const SizedBox(height: 1),
+          Text('${money(bal)} ${d['currency'] ?? ''}',
+              maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: bal < 0 ? cs.error : cs.outline)),
+        ]),
+      ),
+    ]);
+  }
+}
+
+/// Kassani tanlash varag'i: guruhlarga bo'lingan kartochkalar (kompaniya kassalari, obyekt kassalari, prorablar puli)
+Future<int?> pickCashDesk(BuildContext context, List<Map<String, dynamic>> desks, int? current, {required String title}) {
+  bool isForeman(Map d) => RegExp(r'^(Naqd|Karta)\s+—').hasMatch('${d['name']}');
+  final groups = <String, List<Map<String, dynamic>>>{
+    'Kompaniya kassalari': [for (final d in desks) if (d['object_id'] == null && !isForeman(d)) d],
+    'Obyekt kassalari': [for (final d in desks) if (d['object_id'] != null) d],
+    'Prorablar puli': [for (final d in desks) if (d['object_id'] == null && isForeman(d)) d],
+  }..removeWhere((_, v) => v.isEmpty);
+  return showModalBottomSheet<int>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    useSafeArea: true,
+    builder: (ctx) {
+      final cs = Theme.of(ctx).colorScheme;
+      return ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.8),
+        child: ListView(
+          shrinkWrap: true,
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.paddingOf(ctx).bottom),
+          children: [
+            Padding(padding: const EdgeInsets.only(left: 4, bottom: 10), child: Text(title, style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900))),
+            for (final g in groups.entries) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+                child: Text(tr(g.key).toUpperCase(), style: TextStyle(color: cs.outline, fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+              ),
+              for (final d in g.value)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Glass(
+                    radius: 18,
+                    shadow: false,
+                    blur: false,
+                    tint: (d['id'] as num).toInt() == current ? cs.primary.withValues(alpha: 0.12) : null,
+                    onTap: () => Navigator.of(ctx).pop((d['id'] as num).toInt()),
+                    padding: const EdgeInsets.fromLTRB(10, 10, 12, 10),
+                    child: Row(children: [
+                      Expanded(child: DeskTile(d)),
+                      if ((d['id'] as num).toInt() == current) Icon(Icons.check_circle_rounded, color: cs.primary),
+                    ]),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      );
+    },
+  );
 }

@@ -117,11 +117,21 @@ class _OftobAppState extends State<OftobApp> {
             _wasIn = session.signedIn || session.platformIn;
             final ai = _splashDone ? _assistant() : null;
             // klaviatura: bo'sh joyga bosish yoki «Tayyor» bilan yopiladi (iPhone raqam klaviaturasida yopish tugmasi yo'q)
-            return KeyboardDismiss(
-              child: Stack(children: [
-                child ?? const SizedBox.shrink(),
-                if (ai != null) AiBubble(controller: ai, navigatorKey: _navKey),
-              ]),
+            final mq = MediaQuery.of(context);
+            return MediaQuery(
+              data: mq.copyWith(textScaler: mq.textScaler.clamp(minScaleFactor: 0.85, maxScaleFactor: 1.15)),
+              child: KeyboardDismiss(
+                child: Stack(children: [
+                  NotificationListener<ScrollUpdateNotification>(
+                    onNotification: (n) {
+                      AiBubble.onScroll(n);
+                      return false;
+                    },
+                    child: child ?? const SizedBox.shrink(),
+                  ),
+                  if (ai != null) AiBubble(controller: ai, navigatorKey: _navKey),
+                ]),
+              ),
             );
           },
         ),

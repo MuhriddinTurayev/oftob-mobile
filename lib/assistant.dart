@@ -577,6 +577,17 @@ class ModalWatcher extends NavigatorObserver {
 class AiBubble extends StatefulWidget {
   const AiBubble({super.key, required this.controller, required this.navigatorKey});
 
+  /// Ekran aylantirilmoqda — tugma chetga «yashirinadi» (kontentni yopmasin), to'xtagach qaytadi
+  static final ValueNotifier<bool> scrolling = ValueNotifier(false);
+  static Timer? _scrollTimer;
+
+  static void onScroll(ScrollUpdateNotification n) {
+    if (n.metrics.axis != Axis.vertical || (n.scrollDelta ?? 0).abs() < 1) return;
+    if (!scrolling.value) scrolling.value = true;
+    _scrollTimer?.cancel();
+    _scrollTimer = Timer(const Duration(milliseconds: 1200), () => scrolling.value = false);
+  }
+
   final AssistantController controller;
   final GlobalKey<NavigatorState> navigatorKey;
 
@@ -669,12 +680,20 @@ class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin
       builder: (context, modals, _) {
         if (modals > 0 || mq.viewInsets.bottom > 0) return const SizedBox.shrink();
         final o = _resolve(size, mq.padding);
+        return ValueListenableBuilder<bool>(
+          valueListenable: AiBubble.scrolling,
+          builder: (context, scrolling, _) {
+        final tuck = scrolling && !_dragging;
+        final right = o.dx + _size / 2 > size.width / 2;
         return AnimatedPositioned(
           duration: _dragging ? Duration.zero : const Duration(milliseconds: 320),
-          curve: Curves.easeOutBack,
-          left: o.dx,
+          curve: tuck ? Curves.easeOutCubic : Curves.easeOutBack,
+          left: tuck ? (right ? size.width - _size * 0.38 : -_size * 0.62) : o.dx,
           top: o.dy,
-          child: GestureDetector(
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 220),
+            opacity: tuck ? 0.55 : 1,
+            child: GestureDetector(
             onTap: _show,
             onLongPress: () => _show(listen: true),
             onPanStart: (_) {
@@ -717,6 +736,9 @@ class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin
               ),
             ),
           ),
+          ),
+        );
+          },
         );
       },
     );
@@ -1007,7 +1029,13 @@ class _AssistantSheetState extends State<AssistantSheet> {
                   child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
                 ),
                 const SizedBox(width: 10),
-                Expanded(child: Text(_history ? 'Suhbatlar tarixi' : 'AI yordamchi', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(_history ? 'Suhbatlar tarixi' : 'AI yordamchi', maxLines: 1, softWrap: false, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                  ),
+                ),
                 if (_history)
                   TextButton.icon(onPressed: () => setState(() => _history = false), icon: const Icon(Icons.arrow_back_rounded, size: 18), label: const Text('Suhbatga'))
                 else ...[

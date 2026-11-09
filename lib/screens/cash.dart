@@ -42,10 +42,10 @@ class _CashScreenState extends State<CashScreen> {
     } catch (_) {/* ruxsat yo'q yoki oflayn — qo'shish tugmasi chiqmaydi */}
   }
 
-  Future<void> _add() async {
+  Future<void> _add([String type = 'in']) async {
     final f = _form;
     if (f == null) return;
-    if (await showCashOpForm(context, widget.session, f, deskId: _deskId)) await _refreshAll();
+    if (await showCashOpForm(context, widget.session, f, type: type, deskId: _deskId)) await _refreshAll();
   }
 
   /// Operatsiyani bosish: tuzatish (oddiy kirim/chiqim) yoki o'chirish (o'tkazma va boshqalar)
@@ -221,18 +221,20 @@ class _CashScreenState extends State<CashScreen> {
           padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
           child: Row(children: [
             Expanded(child: const Text('Kassalar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
-            if (_form?.canAdd == true)
-              FilledButton.icon(
-                onPressed: _add,
-                style: FilledButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 14)),
-                icon: const Icon(Icons.add_rounded, size: 20),
-                label: const Text('Kirim / chiqim'),
-              ),
             IconButton(onPressed: _refreshAll, icon: const Icon(Icons.refresh)),
           ]),
         ),
         if (_deskError != null) Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(_deskError!, style: TextStyle(color: cs.error))),
         if (_desks.isNotEmpty) _carousel(),
+        if (_form?.canAdd == true)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(children: [
+              Expanded(child: _OpButton(income: true, onTap: () => _add('in'))),
+              const SizedBox(width: 10),
+              Expanded(child: _OpButton(income: false, onTap: () => _add('out'))),
+            ]),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
           child: Text(deskName == null ? tr("So'nggi operatsiyalar") : '${tr("So'nggi operatsiyalar")} · $deskName', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
@@ -283,5 +285,36 @@ class _CashScreenState extends State<CashScreen> {
       },
     )),
     ]);
+  }
+}
+
+
+/// Kassa kartasi ostidagi «Kirim» / «Chiqim» tugmasi
+class _OpButton extends StatelessWidget {
+  const _OpButton({required this.income, required this.onTap});
+
+  final bool income;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = income ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+    return Glass(
+      radius: 18,
+      shadow: false,
+      onTap: onTap,
+      tint: c.withValues(alpha: context.isDark ? 0.16 : 0.10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        IconTile(icon: income ? Icons.south_west_rounded : Icons.north_east_rounded, color: c, size: 32),
+        const SizedBox(width: 9),
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(income ? 'Kirim' : 'Chiqim', maxLines: 1, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15.5, color: c)),
+          ),
+        ),
+      ]),
+    );
   }
 }

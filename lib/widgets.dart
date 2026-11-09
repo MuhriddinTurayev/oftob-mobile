@@ -250,13 +250,37 @@ class LangSwitch extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<String>(
       valueListenable: L.notifier,
-      builder: (context, cur, _) => Wrap(
-        spacing: 8,
-        runSpacing: 4,
-        children: [
-          for (final c in L.codes) ChoiceChip(label: Text(L.name(c)), selected: cur == c, onSelected: (_) => L.set(c)),
-        ],
-      ),
+      builder: (context, cur, _) {
+        final cs = Theme.of(context).colorScheme;
+        return Row(children: [
+          for (var i = 0; i < L.codes.length; i++) ...[
+            if (i > 0) const SizedBox(width: 6),
+            Expanded(
+              child: Tappable(
+                scale: 0.94,
+                onTap: () => L.set(L.codes[i]),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  height: 40,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                    color: cur == L.codes[i] ? cs.primary : context.pill.withValues(alpha: context.isDark ? 0.12 : 0.7),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: cur == L.codes[i] ? cs.primary : context.pillBorder),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(L.name(L.codes[i]),
+                        maxLines: 1,
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: cur == L.codes[i] ? Colors.white : cs.onSurface)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ]);
+      },
     );
   }
 }
