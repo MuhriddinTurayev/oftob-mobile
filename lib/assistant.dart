@@ -763,6 +763,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
   }
 
   bool _hadText = false;
+  String? _scrollSig;
   void _textChanged() {
     if (_hasText != _hadText && mounted) setState(() => _hadText = _hasText);
   }
@@ -771,7 +772,15 @@ class _AssistantSheetState extends State<AssistantSheet> {
     if (!mounted) return;
     setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) _scroll.animateTo(_scroll.position.maxScrollExtent + 80, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+      // faqat yangi xabar kelganda pastga suramiz. Har soniyadagi yangilanishda (yozish taymeri) emas: iPhone'da
+      // chegaradan oshirib surish ro'yxatni «prujina»dek sakratardi
+      final last = c.messages.isEmpty ? null : c.messages.last;
+      final sig = '${c.messages.length}|${last?.pending}|${last?.text.length}|${last?.ask}';
+      if (sig == _scrollSig) return;
+      _scrollSig = sig;
+      if (_scroll.hasClients && _scroll.position.maxScrollExtent > _scroll.offset) {
+        _scroll.animateTo(_scroll.position.maxScrollExtent, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+      }
     });
   }
 
