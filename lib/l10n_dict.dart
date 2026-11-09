@@ -1236,4 +1236,10 @@ const Map<String, List<String>> kDict = {
   "SI javob berdi": ["ИИ ответил", "СИ ҷавоб дод"],
   "Salom! Men savollarga javob beraman va ishni o'zim bajaraman — yozing yoki mikrofonni bosib ayting. Masalan: «Bobur ishga keldi, telefoni yo'q, belgilab qo'y», «Ertaga betonni tekshirish vazifasini qo'y», «Bugun kim ishda?», «Kassani och». Pulga oid ishlarni tasdiqlaganingizdan keyin bajaraman.": ["Здравствуйте! Я отвечаю на вопросы и сам выполняю работу — напишите или нажмите микрофон и скажите. Например: «Бобур пришёл, телефона нет, отметь его», «Поставь задачу на завтра — проверить бетон», «Кто сегодня на работе?», «Открой кассу». Действия с деньгами выполняю после вашего подтверждения.", "Салом! Ман ба саволҳо ҷавоб медиҳам ва корро худам иҷро мекунам — нависед ё микрофонро пахш карда гӯед. Масалан: «Бобур ба кор омад, телефон надорад, қайд кун», «Барои пагоҳ вазифа гузор — бетонро санҷидан», «Имрӯз кӣ дар кор аст?», «Хазинаро кушо». Корҳои пулиро пас аз тасдиқи шумо иҷро мекунам."],
   "Internet yo'q yoki ovoz serveri javob bermadi — yana bir bor ayting.": ["Нет интернета или сервис голоса не ответил — скажите ещё раз.", "Интернет нест ё хизмати овоз ҷавоб надод — боз як бор гӯед."],
+  "Bekor qilish uchun chapga suring": ["Влево — отмена", "Барои бекор кардан ба чап кашед"],
+  "Ovoz juda qisqa. Mikrofonni bosib turib gapiring.": ["Слишком коротко. Удерживайте микрофон и говорите.", "Овоз хеле кӯтоҳ. Микрофонро пахш карда нигоҳ доред ва гап занед."],
+  "Ovoz yozish": ["Запись голоса", "Сабти овоз"],
+  "Yozish uchun bosib turing": ["Удерживайте для записи", "Барои сабт пахш карда нигоҳ доред"],
+  "Bekor qilish uchun suring": ["Влево — отмена", "Барои бекор кардан кашед"],
+  "Ovoz eshitilmadi. Mikrofonga yaqinroq gapiring.": ["Голос не слышен. Говорите ближе к микрофону.", "Овоз шунида нашуд. Ба микрофон наздиктар гап занед."],
 };

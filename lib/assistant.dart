@@ -135,6 +135,16 @@ class AssistantController extends ChangeNotifier {
   final FlutterTts _tts = FlutterTts();
   Timer? _recTimer;
   String? _recPath;
+  StreamSubscription<Amplitude>? _ampSub;
+  // jimlikni aniqlash: ovoz umuman bo'lmasa, serverga yubormaymiz (aks holda model matn «to'qib» chiqaradi)
+  double _peak = 0;
+  int _ampN = 0;
+
+  /// Ovoz balandligi 0..1 (yozish tugmasi «nafas oladi», Telegram'dagidek)
+  final ValueNotifier<double> level = ValueNotifier(0);
+
+  /// Yozish 45 soniyaga yetib o'zi to'xtadi — tayyor matn (yozish maydoniga qo'yiladi)
+  final ValueNotifier<String?> autoText = ValueNotifier(null);
 
   ApiClient? get _api => session.api;
 
@@ -368,7 +378,7 @@ class AssistantController extends ChangeNotifier {
   /* ---------------- ovoz ---------------- */
 
   Future<String?> startRecording() async {
-    if (recording || busy || transcribing) return null;
+    if (recording || transcribing) return null;
     stopSpeaking();
     try {
       if (!await _rec.hasPermission()) return tr('Mikrofonga ruxsat berilmadi. Telefon sozlamalarida ruxsat bering.');
@@ -378,11 +388,25 @@ class AssistantController extends ChangeNotifier {
       recording = true;
       recSeconds = 0;
       HapticFeedback.mediumImpact();
+      await _ampSub?.cancel();
+      _peak = 0;
+      _ampN = 0;
+      _ampSub = _rec.onAmplitudeChanged(const Duration(milliseconds: 90)).listen((a) {
+        // dBFS (-60…0) → 0…1
+        final v = ((a.current + 50) / 46).clamp(0.0, 1.0).toDouble();
+        level.value = v;
+        _ampN++;
+        if (v > _peak) _peak = v;
+      });
       _recTimer?.cancel();
       _recTimer = Timer.periodic(const Duration(seconds: 1), (t) {
         recSeconds++;
         notifyListeners();
-        if (recSeconds >= 45) unawaited(stopAndSend());
+        if (recSeconds >= 45) {
+          unawaited(stopAndTranscribe().then((t) {
+            if (t != null) autoText.value = t;
+          }));
+        }
       });
       notifyListeners();
       return null;
@@ -395,6 +419,8 @@ class AssistantController extends ChangeNotifier {
 
   Future<void> cancelRecording() async {
     _recTimer?.cancel();
+    unawaited(_ampSub?.cancel());
+    level.value = 0;
     if (!recording) return;
     recording = false;
     try {
@@ -409,9 +435,19 @@ class AssistantController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Yozishni to'xtatib, serverga yuboradi (nutq → matn), keyin [submit]
-  Future<void> stopAndSend({void Function()? closeSheet}) async {
+  /// Yozishni to'xtatib, matnga o'giradi va matnni qaytaradi (yubormaydi: matn yozish maydoniga tushadi,
+  /// foydalanuvchi tekshirib, «Yuborish» ni bosadi). Xato bo'lsa — xabar chiqadi va null.
+  Future<String?> stopAndTranscribe() async {
+    String? out;
+    await stopAndSend(onText: (t) => out = t);
+    return out;
+  }
+
+  /// Yozishni to'xtatib, serverga yuboradi (nutq → matn), keyin [submit] (yoki [onText] — matnni qaytarish)
+  Future<void> stopAndSend({void Function()? closeSheet, void Function(String text)? onText}) async {
     _recTimer?.cancel();
+    unawaited(_ampSub?.cancel());
+    level.value = 0;
     if (!recording) return;
     recording = false;
     transcribing = true;
@@ -427,7 +463,9 @@ class AssistantController extends ChangeNotifier {
     String? err;
     try {
       if (path == null || !File(path).existsSync() || File(path).lengthSync() < 3000) {
-        err = tr('Ovoz juda qisqa. Mikrofonni bosib, gapirib, yana bosing.');
+        err = tr('Ovoz juda qisqa. Mikrofonni bosib turib gapiring.');
+      } else if (_ampN >= 8 && _peak < 0.12) {
+        err = tr("Ovoz eshitilmadi. Mikrofonga yaqinroq gapiring.");
       } else {
         text = await _api!.aiListen(path);
       }
@@ -449,6 +487,10 @@ class AssistantController extends ChangeNotifier {
       return;
     }
     notifyListeners();
+    if (onText != null) {
+      onText(text);
+      return;
+    }
     await submit(text, closeSheet: closeSheet);
   }
 
@@ -480,6 +522,9 @@ class AssistantController extends ChangeNotifier {
   @override
   void dispose() {
     _recTimer?.cancel();
+    unawaited(_ampSub?.cancel());
+    level.dispose();
+    autoText.dispose();
     _rec.dispose();
     stopSpeaking();
     super.dispose();
@@ -674,26 +719,52 @@ class _AssistantSheetState extends State<AssistantSheet> {
   final _text = TextEditingController();
   final _scroll = ScrollController();
   String? _note;
+  String? _hint;
+  Timer? _hintTimer;
   bool _history = false;
 
+  /* Telegram'dagidek ovoz yozish: bosib turib gapiradi; tepaga suradi — qulflanadi (barmoqni qo'yib yuborsa
+     ham yozaveradi); chapga suradi — bekor; qo'yib yuboradi — matnga o'girilib, yozish maydoniga tushadi.
+     Yuborish — faqat «Yuborish» tugmasi bilan. */
+  static const _lockDist = 80.0;
+  static const _cancelDist = 120.0;
+  String? _mode; // shu bosishda nima qilinadi: 'rec' | 'send' | 'stop'
+  bool _pressing = false;
+  bool _locked = false;
+  Offset _start = Offset.zero;
+  double _dx = 0, _dy = 0;
+  DateTime _downAt = DateTime.now();
+  DateTime _recStart = DateTime.now();
+
   AssistantController get c => widget.controller;
+  bool get _hasText => _text.text.trim().isNotEmpty;
+  bool get _recUi => _pressing || (c.recording && _locked) || (c.recording && _mode == 'rec');
 
   @override
   void initState() {
     super.initState();
     c.sheetOpen = true;
     c.addListener(_changed);
-    if (widget.autoListen) WidgetsBinding.instance.addPostFrameCallback((_) => _mic());
+    c.autoText.addListener(_autoText);
+    _text.addListener(_textChanged);
+    if (widget.autoListen) WidgetsBinding.instance.addPostFrameCallback((_) => _startLocked());
   }
 
   @override
   void dispose() {
     c.sheetOpen = false;
     c.removeListener(_changed);
+    c.autoText.removeListener(_autoText);
+    _hintTimer?.cancel();
     if (c.recording) unawaited(c.cancelRecording());
     _text.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  bool _hadText = false;
+  void _textChanged() {
+    if (_hasText != _hadText && mounted) setState(() => _hadText = _hasText);
   }
 
   void _changed() {
@@ -715,13 +786,169 @@ class _AssistantSheetState extends State<AssistantSheet> {
     await c.submit(t, closeSheet: _close);
   }
 
-  Future<void> _mic() async {
-    if (c.recording) {
-      await c.stopAndSend(closeSheet: _close);
+  void _showHint(String t) {
+    _hintTimer?.cancel();
+    setState(() => _hint = t);
+    _hintTimer = Timer(const Duration(milliseconds: 2200), () {
+      if (mounted) setState(() => _hint = null);
+    });
+  }
+
+  /// Tayyor matn yozish maydoniga qo'shiladi (yuborilmaydi)
+  void _insert(String t) {
+    final cur = _text.text.trimRight();
+    final v = cur.isEmpty ? t.trim() : '$cur ${t.trim()}';
+    _text.value = TextEditingValue(text: v, selection: TextSelection.collapsed(offset: v.length));
+    setState(() {});
+  }
+
+  /// 45 soniyaga yetib yozish o'zi to'xtadi
+  void _autoText() {
+    final t = c.autoText.value;
+    if (t == null || !mounted) return;
+    c.autoText.value = null;
+    _pressing = false;
+    _locked = false;
+    _dx = _dy = 0;
+    _insert(t);
+  }
+
+  /// AI pufakchasini uzoq bosib ochilganda — darhol qulflangan holda yozadi
+  Future<void> _startLocked() async {
+    if (c.recording || c.transcribing) return;
+    setState(() {
+      _locked = true;
+      _note = null;
+      _recStart = DateTime.now();
+    });
+    final err = await c.startRecording();
+    if (!mounted) return;
+    if (err != null || !c.recording) {
+      setState(() {
+        _locked = false;
+        _note = err;
+      });
+    }
+  }
+
+  void _down(PointerDownEvent e) {
+    _mode = null;
+    if (c.transcribing) return;
+    if (c.recording && _locked) {
+      _mode = 'stop';
       return;
     }
-    final err = await c.startRecording();
-    if (mounted) setState(() => _note = err);
+    if (c.recording) return;
+    if (_hasText) {
+      _mode = 'send';
+      return;
+    }
+    _mode = 'rec';
+    _hintTimer?.cancel();
+    setState(() {
+      _pressing = true;
+      _locked = false;
+      _dx = _dy = 0;
+      _start = e.position;
+      _downAt = DateTime.now();
+      _recStart = _downAt;
+      _note = null;
+      _hint = null;
+    });
+    HapticFeedback.lightImpact();
+    c.startRecording().then((err) {
+      if (!mounted) return;
+      if (err != null) {
+        setState(() {
+          _pressing = false;
+          _locked = false;
+          _note = err;
+        });
+        return;
+      }
+      // barmoq yozish boshlanmasdan qo'yib yuborilgan (yoki ruxsat oynasi chiqib, bosish uzilgan)
+      if (!_pressing && !_locked && c.recording) unawaited(c.cancelRecording());
+    });
+  }
+
+  void _move(PointerMoveEvent e) {
+    if (_mode != 'rec' || !_pressing || _locked) return;
+    final d = e.position - _start;
+    final dx = d.dx.clamp(-_cancelDist - 20, 0.0).toDouble();
+    final dy = d.dy.clamp(-_lockDist - 20, 0.0).toDouble();
+    if (dy < -_lockDist) {
+      HapticFeedback.mediumImpact();
+      setState(() {
+        _locked = true;
+        _dx = _dy = 0;
+      });
+      return;
+    }
+    if (dx < -_cancelDist) {
+      _cancel();
+      return;
+    }
+    // bir vaqtda faqat bitta yo'nalish: qaysi tomonga ko'proq surilsa
+    setState(() {
+      if (-dx > -dy) {
+        _dx = dx;
+        _dy = 0;
+      } else {
+        _dy = dy;
+        _dx = 0;
+      }
+    });
+  }
+
+  void _up(PointerEvent e, {bool cancelled = false}) {
+    final m = _mode;
+    _mode = null;
+    switch (m) {
+      case 'send':
+        if (!cancelled && !c.busy) _send();
+      case 'stop':
+        if (!cancelled) _finish();
+      case 'rec':
+        if (_locked) {
+          setState(() => _pressing = false); // qulflangan — barmoqsiz yozaveradi
+          return;
+        }
+        if (!_pressing) return; // bekor qilingan yoki 45 soniyada o'zi to'xtagan
+        final held = DateTime.now().difference(_downAt);
+        if (cancelled || !c.recording || held < const Duration(milliseconds: 450)) {
+          setState(() {
+            _pressing = false;
+            _dx = _dy = 0;
+          });
+          unawaited(c.cancelRecording());
+          if (!cancelled) _showHint(tr('Yozish uchun bosib turing'));
+          return;
+        }
+        _finish();
+    }
+  }
+
+  void _cancel() {
+    HapticFeedback.heavyImpact();
+    setState(() {
+      _pressing = false;
+      _locked = false;
+      _dx = _dy = 0;
+    });
+    unawaited(c.cancelRecording());
+  }
+
+  /// Yozishni tugatadi: ovoz matnga o'giriladi va maydonga tushadi
+  Future<void> _finish() async {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _pressing = false;
+      _locked = false;
+      _dx = _dy = 0;
+    });
+    final t = await c.stopAndTranscribe();
+    if (!mounted || t == null) return;
+    _insert(t);
   }
 
   @override
@@ -791,37 +1018,14 @@ class _AssistantSheetState extends State<AssistantSheet> {
                     ),
             ),
             if (!_history && _note != null) Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 6), child: Text(_note!, style: TextStyle(color: cs.error, fontSize: 12.5))),
-            if (!_history && (c.recording || c.transcribing)) _listening(cs),
+            if (!_history && _hint != null)
+              Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 6), child: Align(alignment: Alignment.centerRight, child: _hintPill(_hint!, cs))),
             if (!_history && c.limitLine != null)
               Padding(padding: const EdgeInsets.fromLTRB(18, 0, 18, 2), child: Align(alignment: Alignment.centerLeft, child: w.Text(c.limitLine!, style: TextStyle(color: cs.outline, fontSize: 11.5)))),
             if (!_history)
             Padding(
               padding: EdgeInsets.fromLTRB(12, 4, 12, 12 + (mq.viewInsets.bottom > 0 ? 0 : mq.padding.bottom)),
-              child: Row(children: [
-                Expanded(
-                  child: Glass(
-                    radius: 24,
-                    shadow: false,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: TextField(
-                      controller: _text,
-                      minLines: 1,
-                      maxLines: 3,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: _send,
-                      decoration: InputDecoration(hintText: tr('Savol yoki buyruq yozing…'), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, filled: false, isDense: true, contentPadding: const EdgeInsets.symmetric(vertical: 13)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _roundBtn(
-                  icon: c.recording ? Icons.stop_rounded : Icons.mic_rounded,
-                  color: c.recording ? Colors.red.shade600 : Brand.teal,
-                  onTap: c.transcribing ? null : _mic,
-                ),
-                const SizedBox(width: 8),
-                _roundBtn(icon: Icons.send_rounded, color: Brand.green, onTap: c.busy ? null : () => _send()),
-              ]),
+              child: _inputRow(cs),
             ),
           ]),
         ),
@@ -868,36 +1072,191 @@ class _AssistantSheetState extends State<AssistantSheet> {
     );
   }
 
-  Widget _roundBtn({required IconData icon, required Color color, VoidCallback? onTap}) => GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 46,
+  Widget _inputRow(ColorScheme cs) {
+    final rec = _recUi;
+    Widget field;
+    if (rec) {
+      field = _recBar(cs);
+    } else if (c.transcribing) {
+      field = Glass(
+        key: const ValueKey('tr'),
+        radius: 24,
+        shadow: false,
+        padding: const EdgeInsets.only(left: 16, right: 4),
+        child: SizedBox(
           height: 46,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: onTap == null ? color.withValues(alpha: 0.35) : color, boxShadow: [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))]),
-          child: Icon(icon, color: Colors.white, size: 22),
+          child: Row(children: [
+            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2.2)),
+            const SizedBox(width: 10),
+            Expanded(child: w.Text(tr("Matnga o'girilmoqda…"), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5))),
+            TextButton(onPressed: c.cancelTranscribing, child: const Text('Bekor')),
+          ]),
         ),
       );
-
-  Widget _listening(ColorScheme cs) {
-    final s = c.recSeconds;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Glass(
-        radius: 16,
+    } else {
+      field = Glass(
+        key: const ValueKey('field'),
+        radius: 24,
         shadow: false,
-        tint: (c.recording ? Colors.red : Brand.teal).withValues(alpha: 0.12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: TextField(
+          controller: _text,
+          minLines: 1,
+          maxLines: 4,
+          textInputAction: TextInputAction.send,
+          onSubmitted: _send,
+          decoration: InputDecoration(hintText: tr('Savol yoki buyruq yozing…'), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, filled: false, isDense: true, contentPadding: const EdgeInsets.symmetric(vertical: 13)),
+        ),
+      );
+    }
+    final lockP = (-_dy / _lockDist).clamp(0.0, 1.0);
+    return Stack(clipBehavior: Clip.none, children: [
+      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            transitionBuilder: (ch, a) => FadeTransition(opacity: a, child: SizeTransition(sizeFactor: a, axis: Axis.horizontal, alignment: Alignment.centerRight, child: ch)),
+            child: field,
+          ),
+        ),
+        const SizedBox(width: 8),
+        const SizedBox(width: 46, height: 46),
+      ]),
+      // qulf: tepaga surilsa — qo'l qo'yib yuborilsa ham yozaveradi
+      Positioned(
+        key: const ValueKey('lock'),
+        right: 3,
+        bottom: 66,
+        child: IgnorePointer(
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 160),
+            opacity: rec && _pressing && !_locked ? 1 : 0,
+            child: AnimatedSlide(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutBack,
+              offset: rec && _pressing && !_locked ? Offset.zero : const Offset(0, 0.5),
+              child: Transform.translate(offset: Offset(0, _dy * 0.45), child: _LockPill(progress: lockP)),
+            ),
+          ),
+        ),
+      ),
+      Positioned(key: const ValueKey('mic'), right: 0, bottom: 0, child: _micButton(cs)),
+    ]);
+  }
+
+  Widget _micButton(ColorScheme cs) {
+    final rec = _recUi;
+    final showSend = !rec && !c.transcribing && _hasText;
+    final IconData icon = showSend
+        ? Icons.send_rounded
+        : rec && _locked
+            ? Icons.arrow_upward_rounded
+            : Icons.mic_rounded;
+    final disabled = c.transcribing || (showSend && c.busy);
+    final color = rec ? Brand.green : (disabled ? Brand.green.withValues(alpha: 0.4) : Brand.green);
+    // tugma barmoq ketidan yuradi (Telegram'dagidek); qulflanganda joyida turadi
+    final off = rec && !_locked ? Offset(_dx * 0.85, _dy * 0.85) : Offset.zero;
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: _down,
+      onPointerMove: _move,
+      onPointerUp: _up,
+      onPointerCancel: (e) => _up(e, cancelled: true),
+      // pastki oyna surilib ketmasin (barmoq tugma ustida suriladi)
+      child: GestureDetector(
+        onVerticalDragUpdate: (_) {},
+        onHorizontalDragUpdate: (_) {},
+        child: Semantics(
+          button: true,
+          label: showSend ? tr('Yuborish') : tr('Ovoz yozish'),
+          child: SizedBox(
+            width: 46,
+            height: 46,
+            child: Transform.translate(
+              offset: off,
+              child: Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
+                // ovoz balandligiga qarab «nafas oladigan» halqa
+                if (rec)
+                  ValueListenableBuilder<double>(
+                    valueListenable: c.level,
+                    builder: (_, lv, _) => AnimatedScale(
+                      duration: const Duration(milliseconds: 140),
+                      scale: 1.65 + lv * 0.9,
+                      child: Container(width: 46, height: 46, decoration: BoxDecoration(shape: BoxShape.circle, color: Brand.green.withValues(alpha: 0.18))),
+                    ),
+                  ),
+                AnimatedScale(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutBack,
+                  scale: rec ? 1.55 : 1,
+                  child: Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: disabled ? null : const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF5B9BFF), Color(0xFF1D4ED8)]),
+                      color: disabled ? color : null,
+                      boxShadow: [BoxShadow(color: Brand.green.withValues(alpha: rec ? 0.45 : 0.3), blurRadius: rec ? 18 : 12, offset: const Offset(0, 4))],
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 160),
+                      transitionBuilder: (ch, a) => ScaleTransition(scale: a, child: FadeTransition(opacity: a, child: ch)),
+                      child: Icon(icon, key: ValueKey(icon), color: Colors.white, size: rec ? 20 : 22),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _recBar(ColorScheme cs) {
+    final cancelP = (-_dx / _cancelDist).clamp(0.0, 1.0);
+    return Glass(
+      key: const ValueKey('rec'),
+      radius: 24,
+      shadow: false,
+      padding: const EdgeInsets.only(left: 16, right: 4),
+      child: SizedBox(
+        height: 46,
         child: Row(children: [
-          if (c.recording) const _RecDot() else const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2.2)),
+          const _RecDot(),
+          const SizedBox(width: 9),
+          _RecClock(start: _recStart),
           const SizedBox(width: 10),
-          Expanded(child: Text(c.recording ? '${tr('Tinglayapman…')} ${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}' : tr("Matnga o'girilmoqda…"), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5))),
-          if (c.recording) TextButton(onPressed: c.cancelRecording, child: const Text('Bekor')),
-          if (!c.recording && c.transcribing) TextButton(onPressed: c.cancelTranscribing, child: const Text('Bekor')),
+          if (_locked) ...[
+            Expanded(child: _Wave(level: c.level, color: cs.primary)),
+            TextButton(
+              onPressed: _cancel,
+              child: w.Text(tr('Bekor qilish'), style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w800)),
+            ),
+          ] else ...[
+            Expanded(
+              child: ClipRect(
+                child: Transform.translate(
+                  offset: Offset(_dx * 0.55, 0),
+                  child: Opacity(
+                    opacity: 1 - cancelP * 0.9,
+                    child: Align(alignment: Alignment.centerRight, child: _Shimmer(text: '‹  ${tr('Bekor qilish uchun suring')}')),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 30),
+          ],
         ]),
       ),
     );
   }
+
+  Widget _hintPill(String t, ColorScheme cs) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(color: context.isDark ? const Color(0xFF1E293B) : const Color(0xFF0F172A), borderRadius: BorderRadius.circular(12)),
+        child: w.Text(t, style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600)),
+      );
 
   Widget _intro(ColorScheme cs) {
     return Padding(
@@ -988,6 +1347,182 @@ class _RecDotState extends State<_RecDot> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) => FadeTransition(opacity: Tween(begin: 0.3, end: 1.0).animate(_c), child: Container(width: 14, height: 14, decoration: BoxDecoration(color: Colors.red.shade600, shape: BoxShape.circle)));
+}
+
+/// Yozish vaqti: 0:07,3 (Telegram'dagidek o'ndan bir soniya bilan)
+class _RecClock extends StatefulWidget {
+  const _RecClock({required this.start});
+  final DateTime start;
+
+  @override
+  State<_RecClock> createState() => _RecClockState();
+}
+
+class _RecClockState extends State<_RecClock> {
+  late final Timer _t = Timer.periodic(const Duration(milliseconds: 100), (_) {
+    if (mounted) setState(() {});
+  });
+
+  @override
+  void dispose() {
+    _t.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ms = DateTime.now().difference(widget.start).inMilliseconds.clamp(0, 3600000);
+    final sec = ms ~/ 1000;
+    return w.Text('${sec ~/ 60}:${(sec % 60).toString().padLeft(2, '0')},${(ms % 1000) ~/ 100}',
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, fontFeatures: [FontFeature.tabularFigures()]));
+  }
+}
+
+/// Qulf: tepaga surilgan sari yopiladi; ostida «tepaga» o'qi sakraydi
+class _LockPill extends StatefulWidget {
+  const _LockPill({required this.progress});
+  final double progress;
+
+  @override
+  State<_LockPill> createState() => _LockPillState();
+}
+
+class _LockPillState extends State<_LockPill> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final p = widget.progress;
+    return Container(
+      width: 40,
+      height: 82 - 22 * p,
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: dark ? Colors.white12 : const Color(0x1A0F172A)),
+        boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 12, offset: Offset(0, 4))],
+      ),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(p > 0.75 ? Icons.lock_rounded : Icons.lock_open_rounded, size: 20, color: p > 0.75 ? Brand.green : (dark ? Colors.white70 : const Color(0xFF475569))),
+        if (p < 0.6)
+          AnimatedBuilder(
+            animation: _c,
+            builder: (_, _) => Transform.translate(
+              offset: Offset(0, 3 - 6 * _c.value),
+              child: Icon(Icons.keyboard_arrow_up_rounded, size: 20, color: (dark ? Colors.white : const Color(0xFF475569)).withValues(alpha: 0.7 * (1 - p))),
+            ),
+          ),
+      ]),
+    );
+  }
+}
+
+/// Qulflangan yozishda — jonli ovoz to'lqini
+class _Wave extends StatefulWidget {
+  const _Wave({required this.level, required this.color});
+  final ValueNotifier<double> level;
+  final Color color;
+
+  @override
+  State<_Wave> createState() => _WaveState();
+}
+
+class _WaveState extends State<_Wave> {
+  final List<double> _v = List.filled(40, 0.0, growable: true);
+
+  @override
+  void initState() {
+    super.initState();
+    widget.level.addListener(_tick);
+  }
+
+  @override
+  void dispose() {
+    widget.level.removeListener(_tick);
+    super.dispose();
+  }
+
+  void _tick() {
+    if (!mounted) return;
+    setState(() {
+      _v.add(widget.level.value);
+      if (_v.length > 40) _v.removeAt(0);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(height: 26, child: CustomPaint(painter: _WavePainter(List.of(_v), widget.color)));
+}
+
+class _WavePainter extends CustomPainter {
+  _WavePainter(this.v, this.color);
+  final List<double> v;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const step = 5.0;
+    final n = (size.width / step).floor();
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < n; i++) {
+      final idx = v.length - n + i;
+      final lv = idx >= 0 && idx < v.length ? v[idx] : 0.0;
+      final h = 3 + (size.height - 4) * lv;
+      final x = i * step + 2;
+      canvas.drawLine(Offset(x, size.height / 2 - h / 2), Offset(x, size.height / 2 + h / 2), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WavePainter old) => true;
+}
+
+/// «‹ Bekor qilish uchun chapga suring» — yaltirab turadigan matn
+class _Shimmer extends StatefulWidget {
+  const _Shimmer({required this.text});
+  final String text;
+
+  @override
+  State<_Shimmer> createState() => _ShimmerState();
+}
+
+class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1700))..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, _) {
+        final x = 1.3 - _c.value * 1.6; // o'ngdan chapga yuradi
+        return ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (r) => LinearGradient(
+            colors: [cs.outline, cs.onSurface, cs.outline],
+            stops: [(x - 0.2).clamp(0.0, 1.0), x.clamp(0.0, 1.0), (x + 0.2).clamp(0.0, 1.0)],
+          ).createShader(r),
+          child: w.Text(widget.text, maxLines: 1, overflow: TextOverflow.fade, softWrap: false, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.white)),
+        );
+      },
+    );
+  }
 }
 
 class _TypingDots extends StatefulWidget {
