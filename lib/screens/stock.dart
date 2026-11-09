@@ -7,11 +7,12 @@ import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../l10n.dart';
+import 'stock_use.dart';
 
 enum _Tab { balance, moves }
 
 /// Ombor: materiallar qoldig'i (qidiruv, minimumdan past) va harakatlar (kirim, chiqim, ko'chirish, tuzatish).
-/// Ombor operatsiyalarini yozish (kirim/chiqim qilish) hozircha saytda — API faqat o'qish uchun.
+/// «Ombordan sarflash» — ilovada ham (prorab: o'z obyekti omboridan); kirim — xarid hisoboti orqali, ko'chirish/tuzatish — saytda.
 class StockScreen extends StatefulWidget {
   const StockScreen({super.key, required this.session});
 
@@ -35,6 +36,15 @@ class _StockScreenState extends State<StockScreen> {
     super.dispose();
   }
 
+  bool get _canUse => widget.session.me?.can('stock:write') == true;
+
+  Future<void> _use([Map<String, dynamic>? item]) async {
+    final ok = await showStockUse(context, widget.session, item: item);
+    if (!ok || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Ombordan sarflandi — qoldiq kamaydi'))));
+    setState(() => _key = UniqueKey());
+  }
+
   void _apply() => setState(() {
         _q = _search.text.trim();
         _key = UniqueKey();
@@ -52,6 +62,16 @@ class _StockScreenState extends State<StockScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Column(children: [
+      if (_canUse)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: FilledButton.icon(
+            onPressed: () => _use(),
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+            icon: const Icon(Icons.outbox_rounded),
+            label: const Text('Ombordan sarflash'),
+          ),
+        ),
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
         child: SizedBox(
@@ -204,6 +224,21 @@ class _StockScreenState extends State<StockScreen> {
             const SizedBox(height: 14),
             Text('Omborlar bo\'yicha', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
             for (final w in whs) _row('${w['name'] ?? ''}', '${area(w['qty'] as num?)} ${i['unit'] ?? ''}'),
+          ],
+          if (_canUse && ((i['balance'] as num?) ?? 0) > 0) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _use(i);
+                },
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                icon: const Icon(Icons.outbox_rounded),
+                label: const Text('Sarflash'),
+              ),
+            ),
           ],
         ]),
       ),

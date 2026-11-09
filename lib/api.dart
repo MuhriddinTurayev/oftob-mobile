@@ -1135,6 +1135,19 @@ class ApiClient {
     }
   }
 
+  Future<List<Map<String, dynamic>>> stockWarehouses() async => _list((await _getMap('/stock/warehouses'))['data']);
+
+  /// Ombordan sarflash (saytdagi «Ombordan sarfladim»): prorab — faqat o'z obyekti omboridan.
+  Future<Map<String, dynamic>> stockUse({required int item, required int warehouse, required num qty, String? object, String? note, String? date, required String idemKey}) async {
+    final b = await _send(() => _http.post(_uri('/stock/use'), headers: {..._headers, 'Idempotency-Key': idemKey}, body: jsonEncode({
+          'item_id': item, 'warehouse_id': warehouse, 'qty': qty,
+          if (object != null && object.isNotEmpty) 'object': object,
+          if (note != null && note.isNotEmpty) 'note': note,
+          if (date != null) 'date': date,
+        })));
+    return Map<String, dynamic>.from(((b as Map?)?['data'] as Map?) ?? const {});
+  }
+
   /* ---------------- vazifalar ---------------- */
 
   Future<Paged> tasks({int page = 1, String? status, int? assignee}) async {
