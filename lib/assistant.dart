@@ -882,6 +882,8 @@ class _AssistantSheetState extends State<AssistantSheet> {
 
   void _move(PointerMoveEvent e) {
     if (_mode != 'rec' || !_pressing || _locked) return;
+    // yozish hali boshlanmagan (masalan, mikrofon ruxsati so'ralmoqda) — qulflash/bekor qilish yo'q
+    if (!c.recording) return;
     final d = e.position - _start;
     final dx = d.dx.clamp(-_cancelDist - 20, 0.0).toDouble();
     final dy = d.dy.clamp(-_lockDist - 20, 0.0).toDouble();
