@@ -296,6 +296,13 @@ class NavItem {
   final IconData activeIcon;
 }
 
+/// Pastki panel uchun qisqa nomlar (to'liq nom sahifa sarlavhasida qoladi)
+const _navShort = {
+  'ru': {'Davomat': 'Явка'},
+};
+
+String navLabel(String label) => _navShort[L.code]?[label] ?? tr(label);
+
 /// Suzuvchi shisha pastki panel (HEMIS uslubi): tanlangan bo'lim yumshoq «tabletka» ichida.
 class GlassNavBar extends StatelessWidget {
   const GlassNavBar({super.key, required this.items, required this.index, required this.onTap});
@@ -348,7 +355,11 @@ class GlassNavBar extends StatelessWidget {
                             AnimatedDefaultTextStyle(
                               duration: const Duration(milliseconds: 250),
                               style: TextStyle(fontSize: 11, fontWeight: i == index ? FontWeight.w800 : FontWeight.w600, color: i == index ? cs.primary : cs.outline),
-                              child: Text(tr(items[i].label), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              // uzun so'z kesilmasin («Посещаем…»): pastki panel uchun qisqa nom, baribir sig'masa — kichrayadi
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 3),
+                                child: FittedBox(fit: BoxFit.scaleDown, child: Text(navLabel(items[i].label), maxLines: 1, softWrap: false)),
+                              ),
                             ),
                           ]),
                         ),

@@ -19,6 +19,11 @@ import '../l10n.dart';
 num _n(Object? v) => v is num ? v : (num.tryParse('$v') ?? 0);
 String _cur(Object? c) => '$c'.trim().toLowerCase() == 'сум' ? "so'm" : '${c ?? ''}';
 String _kind(Object? k) => k == 'card' ? 'Karta' : 'Naqd';
+
+/// Ish haqi to'lovi (prorab ishchiga bergan maosh): chek ham, mahsulot surati ham kerak emas.
+/// Yangi server `salary` beradi; eski serverda — izohdagi «Ish haqi: …» dan taniymiz.
+final _salaryNote = RegExp(r'^\s*(Ish haqi|Зарплата|Музди меҳнат)\s*:', caseSensitive: false);
+bool _isSalary(Map o) => o['fund'] == 'spend' && (o['salary'] == true || _salaryNote.hasMatch('${o['note'] ?? ''}'));
 List<Map<String, dynamic>> _list(Object? v) => (v is List ? v : const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 
 /// Kameradan yoki galereyadan chek surati
@@ -375,6 +380,7 @@ class _FundsScreenState extends State<FundsScreen> {
     final cs = Theme.of(context).colorScheme;
     final fund = '${o['fund']}';
     final spend = fund == 'spend';
+    final salary = _isSalary(o);
     final isIn = '${o['type']}' == 'in';
     final color = spend ? Colors.red.shade700 : Colors.green.shade700;
     final st = o['status'];
@@ -394,7 +400,7 @@ class _FundsScreenState extends State<FundsScreen> {
       child: SizedBox(
         height: 74,
         child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-          IconTile(icon: spend ? Icons.shopping_cart_outlined : (isIn ? Icons.south_west_rounded : Icons.north_east_rounded), color: color, size: 42),
+          IconTile(icon: salary ? Icons.payments_outlined : spend ? Icons.shopping_cart_outlined : (isIn ? Icons.south_west_rounded : Icons.north_east_rounded), color: color, size: 42),
           const SizedBox(width: 12),
           Expanded(
             child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -410,7 +416,12 @@ class _FundsScreenState extends State<FundsScreen> {
                       StatusChip(stLabel, stColor),
                       const SizedBox(width: 6),
                       if (o['pending'] == true) ...[const StatusChip('Yuborilmagan', Colors.orange), const SizedBox(width: 6)],
-                      if (o['has_receipt'] == true) StatusChip('Chek bor', Colors.blueGrey) else StatusChip("Chek yo'q", Colors.deepOrange),
+                      if (salary)
+                        const StatusChip('Ish haqi', Colors.indigo)
+                      else if (o['has_receipt'] == true)
+                        StatusChip('Chek bor', Colors.blueGrey)
+                      else
+                        StatusChip("Chek yo'q", Colors.deepOrange),
                       if (((o['photos'] as num?) ?? 0) > 0) StatusChip('${tr('Mahsulot surati')}: ${o['photos']}', Colors.teal),
                     ]),
                   ),
@@ -731,6 +742,7 @@ class _OpSheetState extends State<_OpSheet> {
     final cs = Theme.of(context).colorScheme;
     final api = widget.session.api!;
     final spend = o['fund'] == 'spend';
+    final salary = _isSalary(o);
     final items = (o['items'] is List ? o['items'] as List : const []).whereType<Map>().toList();
     final st = o['status'];
     final canManage = widget.boss && spend && widget.session.me!.can('funds:write') && ['admin', 'accountant', 'cashier'].contains(widget.session.me!.role);
@@ -761,7 +773,17 @@ class _OpSheetState extends State<_OpSheet> {
           ],
           if (spend) ...[
             const SizedBox(height: 14),
-            if (o['has_receipt'] == true)
+            if (salary && o['has_receipt'] != true)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: Colors.indigo.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(12)),
+                child: Row(children: [
+                  Icon(Icons.payments_outlined, color: Colors.indigo.shade400),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(tr("Ish haqi to'lovi — chek talab qilinmaydi"))),
+                ]),
+              )
+            else if (o['has_receipt'] == true)
               GestureDetector(
                 onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => _ReceiptView(api: api, id: o['id'] as int))),
                 child: ClipRRect(
@@ -779,7 +801,7 @@ class _OpSheetState extends State<_OpSheet> {
             ],
           ],
           const SizedBox(height: 16),
-          if (mine && o['has_receipt'] != true)
+          if (mine && !salary && o['has_receipt'] != true)
             FilledButton.icon(
               onPressed: _busy
                   ? null
@@ -804,7 +826,7 @@ class _OpSheetState extends State<_OpSheet> {
                   ? ValueListenableBuilder<double>(valueListenable: _up.progress, builder: (_, p, _) => Text('${tr('Chek yuklanmoqda')}… ${(p * 100).round()}%'))
                   : const Text('Chek qo\'shish'),
             ),
-          if (mine && _photos < 8) ...[
+          if (mine && !salary && _photos < 8) ...[
             if (o['has_receipt'] != true) const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: _busy || _addingGoods ? null : _addGoods,

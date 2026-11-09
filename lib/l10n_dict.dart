@@ -1242,4 +1242,6 @@ const Map<String, List<String>> kDict = {
   "Yozish uchun bosib turing": ["Удерживайте для записи", "Барои сабт пахш карда нигоҳ доред"],
   "Bekor qilish uchun suring": ["Влево — отмена", "Барои бекор кардан кашед"],
   "Ovoz eshitilmadi. Mikrofonga yaqinroq gapiring.": ["Голос не слышен. Говорите ближе к микрофону.", "Овоз шунида нашуд. Ба микрофон наздиктар гап занед."],
+  "Ish haqi to'lovi — chek talab qilinmaydi": ["Выплата зарплаты — чек не нужен", "Пардохти музди меҳнат — чек лозим нест"],
+  "Ish haqi": ["Зарплата", "Музди меҳнат"],
 };
