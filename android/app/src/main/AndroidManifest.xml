@@ -1,6 +1,12 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Serverga (API) ulanish uchun -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- open_filex bu ruxsatlarni qo'shadi, lekin ilova faqat o'zi yuklagan fayllarni ochadi (galereyaga kirmaydi).
+         Rasm tanlash — tizimning Photo Picker'i orqali (ruxsat kerak emas). Google Play «foto/video ruxsatlari» deklaratsiyasini so'ramasin. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- Xodimlarning kelgan/ketgan joyi (GPS) uchun -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
