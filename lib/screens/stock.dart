@@ -39,9 +39,10 @@ class _StockScreenState extends State<StockScreen> {
   bool get _canUse => widget.session.me?.can('stock:write') == true;
 
   Future<void> _use([Map<String, dynamic>? item]) async {
-    final ok = await showStockUse(context, widget.session, item: item);
-    if (!ok || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Ombordan sarflandi — qoldiq kamaydi'))));
+    final r = await showStockUse(context, widget.session, item: item);
+    if (r == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(r == 'queued' ? tr("Offline saqlandi — internet paydo bo'lganda yuboriladi") : tr('Ombordan sarflandi — qoldiq kamaydi'))));
     setState(() => _key = UniqueKey());
   }
 

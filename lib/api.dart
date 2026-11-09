@@ -8,6 +8,21 @@ import 'package:http/http.dart' as http;
 import 'offline.dart';
 import 'upload.dart';
 
+/// Yozish so'rovlarini (POST/PATCH/DELETE) belgilab boradi — keyingi o'qishlar yangi ma'lumotni sabr bilan kutadi
+class _WriteTracker extends http.BaseClient {
+  _WriteTracker(this._inner);
+  final http.Client _inner;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    if (request.method != 'GET' && request.method != 'HEAD') ApiClient._lastWrite = DateTime.now();
+    return _inner.send(request);
+  }
+
+  @override
+  void close() => _inner.close();
+}
+
 /// Server xatosi: matni foydalanuvchiga ko'rsatiladi.
 /// Katta JSON alohida oqimda o'qiladi (yopilma faqat baytlarni ushlaydi — boshqa obyektlar oqimga o'tmaydi).
 Future<dynamic> _decodeInBackground(List<int> bytes) => Isolate.run(() => jsonDecode(utf8.decode(bytes)));
@@ -42,7 +57,11 @@ class ApiClient {
 
   ApiClient({required String serverUrl, required this.apiKey, http.Client? client})
       : base = normalizeUrl(serverUrl),
-        _http = client ?? http.Client();
+        _http = _WriteTracker(client ?? http.Client());
+
+  /// Oxirgi yozish (POST/PATCH/DELETE) vaqti: shundan keyingi ~30 soniyada ro'yxatlar serverni sabr bilan kutadi —
+  /// yangi saqlangan narsa eski nusxa ostida «yo'qolib» qolmasin
+  static DateTime _lastWrite = DateTime.fromMillisecondsSinceEpoch(0);
 
   final String base; // masalan https://oftob.37-60-247-120.sslip.io
   final String apiKey;
@@ -78,18 +97,27 @@ class ApiClient {
     return u.replace(queryParameters: q);
   }
 
-  Future<dynamic> _send(Future<http.Response> Function() call, {Duration timeout = const Duration(seconds: 25)}) async {
-    final http.Response r;
-    try {
-      r = await call().timeout(timeout);
-    } on TimeoutException {
-      Offline.markOnline(false);
-      throw ApiException('Server javob bermadi. Internet va manzilni tekshiring.', code: 'network');
-    } on FormatException {
-      throw ApiException('Server manzili noto\'g\'ri.');
-    } catch (e) {
-      Offline.markOnline(false);
-      throw ApiException('Serverga ulanib bo\'lmadi. Internet va manzilni tekshiring.', code: 'network');
+  Future<dynamic> _send(Future<http.Response> Function() call, {Duration timeout = const Duration(seconds: 25), int retries = 0}) async {
+    http.Response r;
+    var attempt = 0;
+    while (true) {
+      try {
+        r = await call().timeout(timeout);
+        break;
+      } on TimeoutException {
+        Offline.markOnline(false);
+        throw ApiException('Server javob bermadi. Internet va manzilni tekshiring.', code: 'network');
+      } on FormatException {
+        throw ApiException('Server manzili noto\'g\'ri.');
+      } catch (e) {
+        // mobil internetda eski ulanish uzilib qolgan bo'lishi mumkin (connection reset) — bir marta darhol qayta urinamiz
+        if (attempt++ < retries) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          continue;
+        }
+        Offline.markOnline(false);
+        throw ApiException('Serverga ulanib bo\'lmadi. Internet va manzilni tekshiring.', code: 'network');
+      }
     }
     Offline.markOnline(true); // server javob berdi (xato bo'lsa ham) — internet bor
     dynamic body;
@@ -170,22 +198,55 @@ class ApiClient {
   }
 
   /// GET: javob lokal nusxaga yoziladi; internet bo'lmasa — oxirgi saqlangan nusxa qaytariladi (offline rejim).
-  Future<Map<String, dynamic>> _getMap(String path, [Map<String, dynamic>? q]) async {
+  /// Internet sekin yoki uzilib-uzilib ishlasa ekran aylanib turmaydi: saqlangan nusxa bo'lsa va server bir necha soniyada
+  /// javob bermasa — darhol saqlangan nusxa ko'rsatiladi, yangisi esa fonda kelib keshga yoziladi (keyingi ochilishda yangi).
+  Future<Map<String, dynamic>> _getMap(String path, [Map<String, dynamic>? q, Duration patience = const Duration(milliseconds: 3500)]) async {
     final uri = _uri(path, q);
     final qs = (uri.queryParameters.entries.toList()..sort((a, b) => a.key.compareTo(b.key))).map((e) => '${e.key}=${e.value}').join('&');
     final key = '${uri.path.replaceFirst('/api/v1', '')}?$qs';
-    try {
-      final b = await _send(() => _http.get(uri, headers: _headers), timeout: Offline.online.value ? const Duration(seconds: 25) : const Duration(seconds: 6));
+    final online = Offline.online.value;
+    final net = () async {
+      final b = await _send(() => _http.get(uri, headers: _headers), timeout: online ? const Duration(seconds: 25) : const Duration(seconds: 8), retries: 1);
       final m = b is Map ? Map<String, dynamic>.from(b) : <String, dynamic>{};
       if (Offline.enabled) unawaited(Offline.put(key, m));
       return m;
-    } on ApiException catch (e) {
-      if (e.isNetwork && Offline.enabled) {
-        final c = await Offline.get(key);
-        if (c != null) return c;
+    }();
+    if (!Offline.enabled) return net;
+    final cached = await _cachedFor(key, q);
+    if (cached == null) return net; // saqlangan nusxa yo'q — faqat server
+    final c = Completer<Map<String, dynamic>>();
+    unawaited(net.then((m) {
+      if (!c.isCompleted) c.complete(m);
+    }, onError: (Object e) {
+      if (c.isCompleted) return;
+      if (e is ApiException && e.isNetwork) {
+        c.complete(cached);
+      } else {
+        c.completeError(e);
       }
-      rethrow;
+    }));
+    // yaqinda biror narsa saqlangan bo'lsa — serverni ko'proq kutamiz (yangi yozuv ko'rinsin)
+    final recentWrite = DateTime.now().difference(_lastWrite) < const Duration(seconds: 30);
+    final wait = !online ? const Duration(milliseconds: 700) : (recentWrite ? const Duration(seconds: 12) : patience);
+    Timer(wait, () {
+      if (!c.isCompleted) c.complete(cached);
+    });
+    return c.future;
+  }
+
+  /// Saqlangan nusxa: aynan shu so'rov; bo'lmasa — bugungi sana bilan / sanasiz varianti (masalan, davomat bugun uchun)
+  Future<Map<String, dynamic>?> _cachedFor(String key, Map<String, dynamic>? q) async {
+    final c = await Offline.get(key);
+    if (c != null) return c;
+    final n = DateTime.now();
+    final today = '${n.year.toString().padLeft(4, '0')}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
+    final d = q?['date'];
+    if (d == null || d == '' || d == today) {
+      final alt = key.contains('date=$today') ? key.replaceFirst('date=$today&', '').replaceFirst('&date=$today', '').replaceFirst('?date=$today', '?') : key.replaceFirst('?', '?date=$today&');
+      final a = await Offline.get(alt);
+      if (a != null) return a;
     }
+    return null;
   }
 
   /// Navbatdagi (offline yig'ilgan) amalni yuboradi; Idempotency-Key tufayli takror yuborilsa ham bir marta bajariladi.
@@ -404,7 +465,8 @@ class ApiClient {
   /* ---------------- umumiy ---------------- */
 
   /// Kalit egasi, kompaniya, ruxsatlar.
-  Future<Me> me() async => Me.fromJson((await _getMap('/me'))['data'] as Map);
+  /// Ilova ochilishida: saqlangan profil bo'lsa 1,5 soniyadan ortiq kutilmaydi (rol va ruxsatlar kamdan-kam o'zgaradi)
+  Future<Me> me() async => Me.fromJson((await _getMap('/me', null, const Duration(milliseconds: 1500)))['data'] as Map);
 
   /* ---------------- obyektlar ---------------- */
 
@@ -1138,14 +1200,22 @@ class ApiClient {
   Future<List<Map<String, dynamic>>> stockWarehouses() async => _list((await _getMap('/stock/warehouses'))['data']);
 
   /// Ombordan sarflash (saytdagi «Ombordan sarfladim»): prorab — faqat o'z obyekti omboridan.
-  Future<Map<String, dynamic>> stockUse({required int item, required int warehouse, required num qty, String? object, String? note, String? date, required String idemKey}) async {
-    final b = await _send(() => _http.post(_uri('/stock/use'), headers: {..._headers, 'Idempotency-Key': idemKey}, body: jsonEncode({
-          'item_id': item, 'warehouse_id': warehouse, 'qty': qty,
-          if (object != null && object.isNotEmpty) 'object': object,
-          if (note != null && note.isNotEmpty) 'note': note,
-          if (date != null) 'date': date,
-        })));
-    return Map<String, dynamic>.from(((b as Map?)?['data'] as Map?) ?? const {});
+  /// Internet yo'q bo'lsa — navbatga qo'yiladi (true qaytadi), internet chiqqanda o'zi yuboriladi.
+  Future<bool> stockUse({required int item, required int warehouse, required num qty, String? object, String? note, String? date, required String label}) async {
+    final r = await _queueGeneric(
+      kind: 'stock_use',
+      method: 'POST',
+      path: '/stock/use',
+      label: label,
+      objectId: object ?? '',
+      body: {
+        'item_id': item, 'warehouse_id': warehouse, 'qty': qty,
+        if (object != null && object.isNotEmpty) 'object': object,
+        if (note != null && note.isNotEmpty) 'note': note,
+        if (date != null) 'date': date,
+      },
+    );
+    return r.queued;
   }
 
   /* ---------------- vazifalar ---------------- */

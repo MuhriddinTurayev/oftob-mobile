@@ -1,6 +1,16 @@
 import 'api.dart';
+import 'l10n.dart';
 import 'offline.dart';
 import 'session.dart';
+
+/// Bitta so'rov: ruxsat yo'q (403) kabi xato qolganlarini to'xtatmaydi; internet yo'q bo'lsa — butun yuklash to'xtaydi
+Future<void> _try(Future<Object?> Function() f) async {
+  try {
+    await f();
+  } on ApiException catch (e) {
+    if (e.isNetwork || e.unauthorized) rethrow;
+  }
+}
 
 String _d(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -37,6 +47,8 @@ Future<void> prefetchAll(Session s) async {
           final r = await api.leads(page: p, perPage: 100);
           if (!r.meta.hasMore) break;
         }
+        await _try(() => api.leads()); // bosh sahifa va «Lidlar» ro'yxati shu so'rovni yuboradi
+        await _try(() => api.leadSources());
       },
     if (me.can('cash:read'))
       'Kassa': () async {
@@ -56,6 +68,7 @@ Future<void> prefetchAll(Session s) async {
           final r = await api.stockMoves(page: p);
           if (!r.meta.hasMore) break;
         }
+        await _try(() => api.stockWarehouses());
       },
     if (me.can('tasks:read'))
       'Vazifalar': () async {
@@ -69,6 +82,7 @@ Future<void> prefetchAll(Session s) async {
     if (me.can('attendance:read'))
       'Davomat': () async {
         await api.attendance(date: _d(now));
+        await _try(() => api.attendance()); // bosh sahifadagi «Bugun ishda» (sanasiz so'rov)
       },
     if (me.can('crew:read'))
       'Xodimlar': () async {
@@ -79,6 +93,52 @@ Future<void> prefetchAll(Session s) async {
         await api.funds();
         await api.currencies();
       },
+    if (me.can('journal:read'))
+      'Fotohisobotlar': () async {
+        await _try(() => api.journal());
+      },
+    if (me.can('sales:read'))
+      'Qarzdorlar': () async {
+        await _try(() => api.salesDebtors());
+      },
+    if (me.can('parties:read'))
+      'Kontragentlar': () async {
+        await _try(() => api.counterparties());
+      },
+    if (me.can('payments:read'))
+      "To'lov so'rovlari": () async {
+        await _try(() => api.paymentRequests());
+      },
+    if (me.can('reports:read'))
+      'Hisobotlar': () async {
+        final p = await api.reportPeople();
+        if (const ['admin', 'viewer', 'accountant', 'cashier'].contains(me.role)) await _try(() => api.reportFeed());
+        final today = _d(now);
+        final fm = ((p['foremen'] as List?) ?? const []).whereType<Map>().toList();
+        final sl = ((p['sellers'] as List?) ?? const []).whereType<Map>().toList();
+        if (fm.isNotEmpty) await _try(() => api.reportForeman(user: (fm.first['id'] as num).toInt(), from: today, to: today));
+        if (sl.isNotEmpty) await _try(() => api.reportSales(user: (sl.first['id'] as num).toInt(), from: today, to: today));
+      },
+    if (me.role == 'admin' || const ['accountant', 'foreman', 'viewer'].contains(me.role))
+      'Ish vaqti': () async {
+        await _try(() => api.aGet('/work'));
+        if (me.role != 'foreman') {
+          await _try(() => api.aGet('/work/staff', {'month': '${now.year}-${now.month.toString().padLeft(2, '0')}'}));
+        }
+      },
+    if (me.can('cash:read') || me.can('funds:read'))
+      'Kassa shakli': () async {
+        await _try(() => api.aGet('/cash/form'));
+      },
+    if (me.role == 'admin' || me.role == 'accountant')
+      'Boshqaruv': () async {
+        await _try(() => api.aGet('/billing'));
+        if (me.role == 'admin') await _try(() => api.aGet('/team'));
+      },
+    'Profil va smena': () async {
+      await _try(() => api.profile());
+      await _try(() => api.shift());
+    },
     'Bildirishnomalar': () async {
       await api.notifications();
     },
@@ -86,7 +146,7 @@ Future<void> prefetchAll(Session s) async {
   var i = 0;
   var network = false;
   for (final e in steps.entries) {
-    Offline.progress.value = '${e.key} (${++i}/${steps.length})';
+    Offline.progress.value = '${tr(e.key)} (${++i}/${steps.length})';
     try {
       await e.value();
       await Future.delayed(const Duration(milliseconds: 400)); // ketma-ket og'ir ishlar orasida nafas: ilova qotmasin

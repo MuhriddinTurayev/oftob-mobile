@@ -13,18 +13,18 @@ import '../theme.dart';
 
 String ymd(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-/// Ombordan sarflash oynasini ochadi. Saqlansa — true.
+/// Ombordan sarflash oynasini ochadi.
 /// Saytdagi «Ombordan sarfladim» bilan bir xil: prorab faqat o'z obyekti omboridagi materialni o'z obyektiga sarflaydi;
 /// boshqa rollar — ruxsat etilgan istalgan ombordan, obyekt tanlanadi (ixtiyoriy).
-Future<bool> showStockUse(BuildContext context, Session session, {Map<String, dynamic>? item}) async {
-  final ok = await showModalBottomSheet<bool>(
+/// Natija: null — bekor qilindi, 'sent' — yuborildi, 'queued' — internet yo'q, navbatga qo'yildi.
+Future<String?> showStockUse(BuildContext context, Session session, {Map<String, dynamic>? item}) {
+  return showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     useSafeArea: true,
     builder: (_) => _StockUseSheet(session: session, item: item),
   );
-  return ok == true;
 }
 
 class _StockUseSheet extends StatefulWidget {
@@ -41,7 +41,6 @@ class _StockUseSheetState extends State<_StockUseSheet> {
   final _qty = TextEditingController();
   final _note = TextEditingController();
   final _search = TextEditingController();
-  final String _idem = 'su-${DateTime.now().microsecondsSinceEpoch}';
   Timer? _debounce;
 
   bool _loading = true;
@@ -151,17 +150,17 @@ class _StockUseSheetState extends State<_StockUseSheet> {
       _error = null;
     });
     try {
-      await _api.stockUse(
+      final queued = await _api.stockUse(
         item: _item!['id'] as int,
         warehouse: _wh!,
         qty: q,
         object: _foreman ? null : _object,
         note: _note.text.trim(),
         date: ymd(_date),
-        idemKey: _idem,
+        label: '${tr('Ombordan sarflash')}: ${_item!['name']} −${area(q)} ${_item!['unit'] ?? ''}',
       );
       HapticFeedback.mediumImpact();
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted) Navigator.of(context).pop(queued ? 'queued' : 'sent');
     } on ApiException catch (e) {
       if (mounted) {
         setState(() {
