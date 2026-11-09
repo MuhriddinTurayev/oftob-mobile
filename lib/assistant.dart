@@ -150,8 +150,15 @@ class AssistantController extends ChangeNotifier {
 
   static String _newId() => 'c${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}${Random().nextInt(1296).toRadixString(36).padLeft(2, '0')}';
 
+  String _loadedLang = '';
+
   Future<void> load() async {
-    if (loaded) return;
+    if (loaded) {
+      // ilova tili almashgan: tayyor savollar va limit matni yangi tilda qayta olinadi (suhbat o'zgarmaydi)
+      if (_loadedLang != L.code) await _refreshTexts();
+      return;
+    }
+    _loadedLang = L.code;
     try {
       final d = await _api!.aiState();
       messages
@@ -169,6 +176,18 @@ class AssistantController extends ChangeNotifier {
       messages.add(AiMsg('assistant', e is ApiException ? e.message : '$e', error: true));
     }
     notifyListeners();
+  }
+
+  Future<void> _refreshTexts() async {
+    final lang = L.code;
+    try {
+      final d = await _api!.aiState();
+      chips = ((d['chips'] as List?) ?? const []).map((e) => '$e').toList();
+      final lim = d['limit'];
+      if (lim is Map && lim['line'] != null) limitLine = '${lim['line']}';
+      _loadedLang = lang;
+      notifyListeners();
+    } catch (_) {}
   }
 
   /// Yangi (bo'sh) suhbat — eskisi tarixda qoladi
