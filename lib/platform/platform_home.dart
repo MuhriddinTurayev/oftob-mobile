@@ -110,7 +110,7 @@ class _PlatformHomeState extends State<PlatformHome> {
           Container(
             width: 46,
             height: 46,
-            decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [Brand.green, Color(0xFF16A05A)])),
+            decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [Color(0xFF5B9BFF), Color(0xFF1D4ED8)])),
             child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white),
           ),
           const SizedBox(width: 12),
@@ -996,7 +996,7 @@ class _More extends StatelessWidget {
             Container(
               width: 54,
               height: 54,
-              decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [Brand.green, Color(0xFF16A05A)])),
+              decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [Color(0xFF5B9BFF), Color(0xFF1D4ED8)])),
               child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 28),
             ),
             const SizedBox(width: 14),
@@ -1388,7 +1388,7 @@ class _PlatformLoginScreenState extends State<PlatformLoginScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
         children: [
-          Reveal(child: Center(child: Container(width: 76, height: 76, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [Brand.green, Color(0xFF16A05A)])), child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 40)))),
+          Reveal(child: Center(child: Container(width: 76, height: 76, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [Color(0xFF5B9BFF), Color(0xFF1D4ED8)])), child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 40)))),
           const SizedBox(height: 16),
           const Center(child: Text('Platforma egalari uchun kirish', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900))),
           const SizedBox(height: 6),

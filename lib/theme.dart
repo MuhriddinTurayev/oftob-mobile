@@ -15,25 +15,33 @@ import 'motion.dart';
 /// Brend ranglari (logotip: to'q yashil + sariq) va «shisha» (glass) uslubi:
 /// yumshoq gradient fon, yarim shaffof oq kartalar, suzuvchi pastki panel.
 class Brand {
-  static const green = Color(0xFF0B7A3B);
-  static const greenDark = Color(0xFF064D26);
+  /// Asosiy rang (nomi tarixiy: avval yashil edi) — yangi logodagi ko'k
+  static const green = Color(0xFF2563EB);
+  static const greenDark = Color(0xFF1E3A8A);
   static const amber = Color(0xFFF2A900);
-  static const blue = Color(0xFF2F6FDE);
-  static const purple = Color(0xFF7B5CE0);
+  static const blue = Color(0xFF3B82F6);
+  static const purple = Color(0xFF6366F1);
   static const pink = Color(0xFFE0457B);
-  static const teal = Color(0xFF14A39A);
+  static const teal = Color(0xFF0EA5E9);
   static const orange = Color(0xFFF27A1A);
+
+  /// Logodagi to'q ko'k (yorug' fondagi matn va belgilar)
+  static const navy = Color(0xFF11265C);
+
+  /// Logo: yorug' fonda — to'q ko'k, tungi rejimda — oq
+  static String logo(bool dark) => dark ? 'assets/brand/logo_white.png' : 'assets/brand/logo_navy.png';
+  static String mark(bool dark) => dark ? 'assets/brand/mark_white.png' : 'assets/brand/mark_navy.png';
 }
 
 /// Mavzu ranglari: yorug' va qorong'i rejimda o'qiladigan «siyoh» va shaffof belgi (pill) ranglari.
 extension GlassColors on BuildContext {
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
 
-  /// Shisha kartadagi asosiy yirik matn rangi (yorug'da — to'q yashil, qorong'ida — och mint)
-  Color get ink => isDark ? const Color(0xFFC6F3DA) : const Color(0xFF0A4D2A);
+  /// Shisha kartadagi asosiy yirik matn rangi (yorug'da — to'q ko'k, qorong'ida — och havorang)
+  Color get ink => isDark ? const Color(0xFFE3ECFF) : const Color(0xFF0F2350);
 
   /// Ikkinchi darajali matn (yorliqlar)
-  Color get inkSoft => isDark ? const Color(0xFF9DBBAA) : const Color(0xFF3F5A4B);
+  Color get inkSoft => isDark ? const Color(0xFFA3B4D6) : const Color(0xFF4A5B80);
 
   /// Karta ichidagi kichik belgi (chip) foni va chegarasi
   Color get pill => isDark ? Colors.white.withValues(alpha: 0.09) : Colors.white.withValues(alpha: 0.6);
@@ -99,15 +107,15 @@ class GlassBackdrop extends StatelessWidget {
   /// Oxirgi chizilgan fon rasmi (tun/kun) — «xira shisha» panellar o'z ostidagi fon bo'lagini shundan oladi
   static final Map<bool, ui.Image> latest = {};
 
-  static List<Color> _base(bool dark) => dark ? const [Color(0xFF0A1410), Color(0xFF0C1822), Color(0xFF0B1711)] : const [Color(0xFFD6EFE2), Color(0xFFE6EEFB), Color(0xFFF4F7E8)];
+  static List<Color> _base(bool dark) => dark ? const [Color(0xFF070D1C), Color(0xFF0B1631), Color(0xFF09122A)] : const [Color(0xFFC9D7EE), Color(0xFFDCE6F6), Color(0xFFEEF3FB)];
 
   /// (markaz, rang, radius, shaffoflik)
   static List<(Alignment, Color, double, double)> _glows(bool dark) => [
-        (const Alignment(1.25, -0.75), dark ? const Color(0xFF2F63B8) : const Color(0xFF6EA8FF), 0.95, dark ? 0.55 : 0.78),
-        (const Alignment(-1.0, 0.48), dark ? const Color(0xFF1C8556) : const Color(0xFF45D6A0), 0.9, dark ? 0.6 : 0.72),
-        (const Alignment(0.73, 0.46), dark ? const Color(0xFF7255C8) : const Color(0xFFB59BFF), 0.8, dark ? 0.45 : 0.66),
-        (const Alignment(-1.16, 0.75), dark ? const Color(0xFF9A7014) : const Color(0xFFFFC94A), 0.9, dark ? 0.4 : 0.74),
-        (const Alignment(0.15, -0.22), dark ? const Color(0xFF1E5A7A) : const Color(0xFF7DE3FF), 0.65, dark ? 0.32 : 0.6),
+        (const Alignment(1.25, -0.75), dark ? const Color(0xFF1D4ED8) : const Color(0xFF7DB0FF), 0.95, dark ? 0.5 : 0.62),
+        (const Alignment(-1.0, 0.48), dark ? const Color(0xFF1E3A8A) : const Color(0xFFA9C7FF), 0.9, dark ? 0.55 : 0.6),
+        (const Alignment(0.73, 0.46), dark ? const Color(0xFF3B4FD8) : const Color(0xFFBFD6FF), 0.8, dark ? 0.35 : 0.62),
+        (const Alignment(-1.16, 0.75), dark ? const Color(0xFF0C4A8A) : const Color(0xFFE6EEFF), 0.9, dark ? 0.4 : 0.8),
+        (const Alignment(0.15, -0.22), dark ? const Color(0xFF0E7490) : const Color(0xFF9FD0FF), 0.65, dark ? 0.22 : 0.42),
       ];
 
   static void _paint(Canvas c, Rect rect, bool dark) {
@@ -229,7 +237,7 @@ class Glass extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final br = BorderRadius.circular(radius);
     final fill = tint;
-    final fillGradient = gradient ?? (tint != null ? null : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? const [Color(0xB3222D29), Color(0x99151D1A)] : [Colors.white.withValues(alpha: blur ? 0.46 : 0.5), Colors.white.withValues(alpha: blur ? 0.16 : 0.2)]));
+    final fillGradient = gradient ?? (tint != null ? null : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? const [Color(0xB31A2542), Color(0x99111A33)] : [Colors.white.withValues(alpha: blur ? 0.6 : 0.62), Colors.white.withValues(alpha: blur ? 0.26 : 0.3)]));
     Widget body = DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: br,
@@ -245,7 +253,7 @@ class Glass extends StatelessWidget {
     if (blur || clip) body = ClipRRect(borderRadius: br, child: body);
     Widget out = Container(
       margin: margin,
-      decoration: shadow ? BoxDecoration(borderRadius: br, boxShadow: [BoxShadow(color: (dark ? Colors.black : const Color(0xFF1B4332)).withValues(alpha: dark ? 0.35 : 0.10), blurRadius: 16, offset: const Offset(0, 6))]) : null,
+      decoration: shadow ? BoxDecoration(borderRadius: br, boxShadow: [BoxShadow(color: (dark ? Colors.black : const Color(0xFF1E3A8A)).withValues(alpha: dark ? 0.35 : 0.12), blurRadius: 18, offset: const Offset(0, 7))]) : null,
       child: body,
     );
     if (onTap != null || onLongPress != null) {
@@ -365,18 +373,43 @@ class IconTile extends StatelessWidget {
   final double size;
   final double? iconSize;
 
+  /// Brend ranglari ko'k oilasiga keltiriladi (bir xil, toza ko'rinish); semantik ranglar (yashil — kirim, qizil — chiqim) o'zgarmaydi
+  static Color tone(Color c) => switch (c.toARGB32()) {
+        0xFF2563EB || 0xFF3B82F6 => const Color(0xFF3478F6),
+        0xFF0EA5E9 => const Color(0xFF1EA7E8),
+        0xFF6366F1 => const Color(0xFF5B6CF2),
+        0xFFE0457B => const Color(0xFF7C6CF2),
+        0xFFF2A900 => const Color(0xFF4F8DF7),
+        0xFFF27A1A => const Color(0xFF3E7FEF),
+        _ => c,
+      };
+
+  static Color _shade(Color c, double l) {
+    final h = HSLColor.fromColor(c);
+    return h.withLightness((h.lightness + l).clamp(0.0, 1.0)).toColor();
+  }
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = tone(color);
+    final r = BorderRadius.circular(size * 0.3);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(size * 0.32),
-        // tungi rejimda yumshoqroq: yorqin rang matndan diqqatni tortmaydi
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? [color.withValues(alpha: 0.13), color.withValues(alpha: 0.06)] : [color.withValues(alpha: 0.20), color.withValues(alpha: 0.10)]),
+        borderRadius: r,
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_shade(c, dark ? 0.08 : 0.16), c, _shade(c, -0.14)]),
+        // yumshoq rangli nur (plitka «suzib» turadi)
+        boxShadow: [BoxShadow(color: c.withValues(alpha: dark ? 0.28 : 0.34), blurRadius: size * 0.32, offset: Offset(0, size * 0.1))],
       ),
-      child: Icon(icon, size: iconSize ?? size * 0.5, color: dark ? color.withValues(alpha: 0.78) : color),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: r,
+        // yuqoridagi yaltiroq yorug'lik (shisha/3D)
+        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.center, colors: [Colors.white.withValues(alpha: dark ? 0.22 : 0.34), Colors.white.withValues(alpha: 0)]),
+        border: Border.all(color: Colors.white.withValues(alpha: dark ? 0.16 : 0.32), width: 0.8),
+      ),
+      child: Icon(icon, size: iconSize ?? size * 0.5, color: Colors.white),
     );
   }
 }
@@ -384,18 +417,19 @@ class IconTile extends StatelessWidget {
 class AppTheme {
   static ThemeData build(Brightness b) {
     final dark = b == Brightness.dark;
-    final text = dark ? const Color(0xFFEAF2ED) : const Color(0xFF10201A);
-    final card = dark ? const Color(0xA61E2925) : const Color(0x99FFFFFF); // yarim shaffof («shisha»)
-    final solid = dark ? const Color(0xFF16221C) : const Color(0xFFF7FAF8); // dialog, varaq, menyu — shaffof emas
-    final border = dark ? const Color(0x1FFFFFFF) : const Color(0x14123524);
-    final primary = dark ? const Color(0xFF4CC38A) : Brand.green;
+    final text = dark ? const Color(0xFFE8EEFC) : const Color(0xFF0E1B3D);
+    final card = dark ? const Color(0xA61A2542) : const Color(0x99FFFFFF); // yarim shaffof («shisha»)
+    final solid = dark ? const Color(0xFF121A31) : const Color(0xFFF5F8FE); // dialog, varaq, menyu — shaffof emas
+    final border = dark ? const Color(0x1FFFFFFF) : const Color(0x161E3A8A);
+    final primary = dark ? const Color(0xFF6EA8FF) : Brand.green;
+    final onTint = dark ? const Color(0xFFBFD6FF) : const Color(0xFF1D4ED8); // ko'k fondagi matn
     final scheme = ColorScheme.fromSeed(seedColor: Brand.green, brightness: b).copyWith(
       primary: primary,
-      onPrimary: dark ? const Color(0xFF05301A) : Colors.white,
-      primaryContainer: dark ? const Color(0xFF14432A) : const Color(0xFFD3EEDD),
-      onPrimaryContainer: dark ? const Color(0xFFD7F5E3) : const Color(0xFF05301A),
-      secondaryContainer: dark ? const Color(0xFF1D4A31) : const Color(0xFFD3EEDD),
-      onSecondaryContainer: dark ? const Color(0xFFD7F5E3) : const Color(0xFF05301A),
+      onPrimary: dark ? const Color(0xFF0B1E4D) : Colors.white,
+      primaryContainer: dark ? const Color(0xFF1E3A8A) : const Color(0xFFDBE7FF),
+      onPrimaryContainer: dark ? const Color(0xFFDDE8FF) : const Color(0xFF0B1E4D),
+      secondaryContainer: dark ? const Color(0xFF1E3570) : const Color(0xFFDBE7FF),
+      onSecondaryContainer: dark ? const Color(0xFFDDE8FF) : const Color(0xFF0B1E4D),
       tertiary: Brand.amber,
       surface: card,
       onSurface: text,
@@ -403,7 +437,7 @@ class AppTheme {
       surfaceContainerHigh: solid,
       surfaceContainer: solid,
       surfaceContainerLow: solid,
-      outline: dark ? const Color(0xFF9DB0A5) : const Color(0xFF5E6F66),
+      outline: dark ? const Color(0xFF98A9CB) : const Color(0xFF5B6886),
       outlineVariant: border,
     );
     OutlineInputBorder ob(Color c, double w) => OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: c, width: w));
@@ -436,8 +470,8 @@ class AppTheme {
         shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         labelStyle: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: text),
-        secondaryLabelStyle: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: dark ? const Color(0xFFC6F3DA) : const Color(0xFF075F2E)),
-        checkmarkColor: dark ? const Color(0xFFC6F3DA) : const Color(0xFF075F2E),
+        secondaryLabelStyle: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: onTint),
+        checkmarkColor: onTint,
         iconTheme: IconThemeData(color: text, size: 18),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -454,14 +488,16 @@ class AppTheme {
         style: ButtonStyle(
           minimumSize: const WidgetStatePropertyAll(Size(56, 50)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 18)),
-          elevation: const WidgetStatePropertyAll(0),
-          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
           textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-          backgroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.disabled) ? primary.withValues(alpha: 0.06) : primary.withValues(alpha: st.contains(WidgetState.pressed) ? 0.28 : 0.17)),
-          foregroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.disabled) ? scheme.outline : (dark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E))),
-          iconColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.disabled) ? scheme.outline : (dark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E))),
-          side: WidgetStateProperty.resolveWith((st) => BorderSide(color: primary.withValues(alpha: st.contains(WidgetState.disabled) ? 0.1 : 0.34), width: 1.1)),
-          overlayColor: WidgetStatePropertyAll(primary.withValues(alpha: 0.08)),
+          backgroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.disabled)
+              ? (dark ? Colors.white.withValues(alpha: 0.06) : const Color(0x332563EB))
+              : (st.contains(WidgetState.pressed) ? (dark ? const Color(0xFF2B63D9) : const Color(0xFF1D4ED8)) : (dark ? const Color(0xFF3274F0) : const Color(0xFF2F6BF0)))),
+          foregroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.disabled) ? scheme.outline : Colors.white),
+          iconColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.disabled) ? scheme.outline : Colors.white),
+          side: const WidgetStatePropertyAll(BorderSide.none),
+          overlayColor: WidgetStatePropertyAll(Colors.white.withValues(alpha: 0.1)),
+          elevation: const WidgetStatePropertyAll(0),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -469,19 +505,19 @@ class AppTheme {
           minimumSize: const WidgetStatePropertyAll(Size(56, 50)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 18)),
           elevation: const WidgetStatePropertyAll(0),
-          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
           textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-          backgroundColor: WidgetStateProperty.resolveWith((st) => (dark ? Colors.white : Colors.white).withValues(alpha: dark ? 0.06 : (st.contains(WidgetState.pressed) ? 0.8 : 0.5))),
-          foregroundColor: WidgetStatePropertyAll(dark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E)),
-          iconColor: WidgetStatePropertyAll(dark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E)),
-          side: WidgetStatePropertyAll(BorderSide(color: dark ? border : Colors.white.withValues(alpha: 0.95), width: 1.4)),
+          backgroundColor: WidgetStateProperty.resolveWith((st) => Colors.white.withValues(alpha: dark ? (st.contains(WidgetState.pressed) ? 0.12 : 0.07) : (st.contains(WidgetState.pressed) ? 0.95 : 0.82))),
+          foregroundColor: WidgetStatePropertyAll(onTint),
+          iconColor: WidgetStatePropertyAll(onTint),
+          side: WidgetStatePropertyAll(BorderSide(color: dark ? const Color(0x2EFFFFFF) : Colors.white, width: 1.2)),
           overlayColor: WidgetStatePropertyAll(primary.withValues(alpha: 0.08)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700))),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: dark ? const Color(0x33FFFFFF) : const Color(0xCCFFFFFF),
-        foregroundColor: dark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E),
+        foregroundColor: onTint,
         elevation: 0,
         focusElevation: 0,
         hoverElevation: 0,
@@ -498,12 +534,12 @@ class AppTheme {
         style: ButtonStyle(
           minimumSize: const WidgetStatePropertyAll(Size(0, 42)),
           backgroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? primary.withValues(alpha: dark ? 0.32 : 0.20) : (dark ? const Color(0x0FFFFFFF) : const Color(0x66FFFFFF))),
-          foregroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? (dark ? const Color(0xFFC6F3DA) : const Color(0xFF075F2E)) : text),
+          foregroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? onTint : text),
           side: WidgetStateProperty.resolveWith((st) => BorderSide(color: st.contains(WidgetState.selected) ? primary.withValues(alpha: 0.5) : (dark ? border : const Color(0xCCFFFFFF)))),
           textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
         ),
       ),
-      snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: dark ? const Color(0xFF263530) : const Color(0xFF16261E), contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+      snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: dark ? const Color(0xFF223156) : const Color(0xFF13234A), contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
       bottomSheetTheme: BottomSheetThemeData(backgroundColor: solid, surfaceTintColor: Colors.transparent, showDragHandle: true, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28)))),
       dialogTheme: DialogThemeData(backgroundColor: solid, surfaceTintColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26))),
       pageTransitionsTheme: const PageTransitionsTheme(builders: {
@@ -552,10 +588,10 @@ class HeroGlass extends StatelessWidget {
       clip: true,
       shadow: true,
       onTap: onTap,
-      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? [Color.alphaBlend(tint.withValues(alpha: 0.20), const Color(0xB8222D29)), Color.alphaBlend(tint.withValues(alpha: 0.06), const Color(0xA81A2320)), const Color(0x9E151D1A)] : [tint.withValues(alpha: 0.17), tint.withValues(alpha: 0.05), Colors.white.withValues(alpha: 0.46)]),
+      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? [Color.alphaBlend(tint.withValues(alpha: 0.22), const Color(0xB81A2542)), Color.alphaBlend(tint.withValues(alpha: 0.07), const Color(0xA8141D36)), const Color(0x9E10182E)] : [tint.withValues(alpha: 0.16), Colors.white.withValues(alpha: 0.55), Colors.white.withValues(alpha: 0.4)]),
       child: Stack(children: [
         Positioned(right: -34, top: -46, child: IgnorePointer(child: Container(width: 150, height: 150, decoration: BoxDecoration(shape: BoxShape.circle, color: tint.withValues(alpha: 0.07))))),
-        Positioned(left: -40, bottom: -64, child: IgnorePointer(child: Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, color: Brand.amber.withValues(alpha: 0.07))))),
+        Positioned(left: -40, bottom: -64, child: IgnorePointer(child: Container(width: 130, height: 130, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFF7DB0FF).withValues(alpha: 0.10))))),
         Padding(padding: padding, child: child),
       ]),
     );
@@ -596,7 +632,7 @@ class GlassFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final fg = context.isDark ? const Color(0xFF8FE5BB) : const Color(0xFF075F2E);
+    final fg = context.isDark ? const Color(0xFFBFD6FF) : const Color(0xFF1D4ED8);
     return Padding(
       padding: EdgeInsets.only(bottom: NavInset.of(context) + 6),
       child: Tappable(
@@ -607,7 +643,7 @@ class GlassFab extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            gradient: LinearGradient(colors: context.isDark ? [Color.alphaBlend(cs.primary.withValues(alpha: 0.32), const Color(0xF0141F1A)), const Color(0xEE141F1A)] : [Color.alphaBlend(cs.primary.withValues(alpha: 0.18), const Color(0xF5FFFFFF)), const Color(0xF0FFFFFF)]),
+            gradient: LinearGradient(colors: context.isDark ? [Color.alphaBlend(cs.primary.withValues(alpha: 0.32), const Color(0xF0121A31)), const Color(0xEE121A31)] : [Color.alphaBlend(cs.primary.withValues(alpha: 0.16), const Color(0xF5FFFFFF)), const Color(0xF0FFFFFF)]),
             border: Border.all(color: cs.primary.withValues(alpha: 0.4), width: 1.1),
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: context.isDark ? 0.3 : 0.08), blurRadius: 14, offset: const Offset(0, 5))],
           ),
@@ -688,7 +724,7 @@ class _RenderFrost extends RenderProxyBox {
     final rr = RRect.fromRectAndRadius(rect, Radius.circular(_radius));
     // soya
     c.drawRRect(rr.shift(const Offset(0, 6)), Paint()
-      ..color = (_dark ? Colors.black : const Color(0xFF1B4332)).withValues(alpha: _dark ? 0.35 : 0.10)
+      ..color = (_dark ? Colors.black : const Color(0xFF1E3A8A)).withValues(alpha: _dark ? 0.35 : 0.12)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12));
     c.save();
     c.clipRRect(rr);
@@ -704,7 +740,7 @@ class _RenderFrost extends RenderProxyBox {
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: _dark ? const [Color(0xB8141E1A), Color(0xC70E1613)] : const [Color(0xB3FFFFFF), Color(0x9EFFFFFF)],
+        colors: _dark ? const [Color(0xBA121A31), Color(0xC80C1326)] : const [Color(0xBFFFFFFF), Color(0xA8FFFFFF)],
       ).createShader(rect));
     c.restore();
     c.drawRRect(rr.deflate(0.55), Paint()

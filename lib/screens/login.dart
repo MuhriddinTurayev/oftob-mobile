@@ -9,6 +9,7 @@ import 'staff_login.dart';
 import '../platform/platform_home.dart';
 import '../l10n.dart';
 import '../widgets.dart';
+import '../theme.dart';
 
 /// Kirish: foydalanuvchi faqat korxonani tanlaydi (kod yozadi yoki oxirgilaridan bosadi).
 /// Server manzili, port va boshqa texnik narsalar ko'rsatilmaydi.
@@ -176,10 +177,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     onLongPress: _developer,
                     behavior: HitTestBehavior.opaque,
                     child: Column(children: [
-                      Image.asset('assets/logo.png', height: 96),
-                      const SizedBox(height: 10),
-                      Text('Oftob Building', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 2),
+                      // yangi logo (nomi bilan): yorug' rejimda to'q ko'k, tunda oq
+                      Image.asset(Brand.logo(Theme.of(context).brightness == Brightness.dark), height: 150, filterQuality: FilterQuality.high),
+                      const SizedBox(height: 8),
                       Text('Xush kelibsiz', style: TextStyle(color: cs.outline)),
                     ]),
                   ),

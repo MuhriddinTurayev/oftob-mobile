@@ -52,7 +52,10 @@ class _OftobSplashState extends State<OftobSplash> with TickerProviderStateMixin
   double _seg(double a, double b, [Curve curve = Curves.easeOutCubic]) => curve.transform(((_c.value - a) / (b - a)).clamp(0.0, 1.0));
 
   static const _word = 'OFTOB';
-  Color get _ink => Theme.of(context).brightness == Brightness.dark ? const Color(0xFFC6F3DA) : const Color(0xFF0B4D2A);
+  bool get _dark => Theme.of(context).brightness == Brightness.dark;
+  // logodagi ranglar: yorug'da — to'q ko'k, tunda — oq
+  Color get _ink => _dark ? Colors.white : Brand.navy;
+  Color get _glow => _dark ? const Color(0xFF3B82F6) : const Color(0xFF7DB0FF);
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +89,7 @@ class _OftobSplashState extends State<OftobSplash> with TickerProviderStateMixin
                           height: logoW * 1.45 * (0.7 + 0.3 * sun),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: RadialGradient(colors: [Brand.amber.withValues(alpha: 0.38), Brand.amber.withValues(alpha: 0.0)]),
+                            gradient: RadialGradient(colors: [_glow.withValues(alpha: _dark ? 0.32 : 0.45), _glow.withValues(alpha: 0.0)]),
                           ),
                         ),
                       ),
@@ -100,7 +103,7 @@ class _OftobSplashState extends State<OftobSplash> with TickerProviderStateMixin
                               child: Align(
                                 alignment: Alignment.bottomCenter,
                                 heightFactor: (0.05 + 0.95 * rise).clamp(0.0, 1.0),
-                                child: Image.asset('assets/logo.png', width: logoW, filterQuality: FilterQuality.high),
+                                child: Image.asset(Brand.mark(_dark), width: logoW * 0.62, filterQuality: FilterQuality.high),
                               ),
                             ),
                           ),
@@ -116,17 +119,17 @@ class _OftobSplashState extends State<OftobSplash> with TickerProviderStateMixin
                   const SizedBox(height: 8),
                   // — BUILDING —
                   Row(mainAxisSize: MainAxisSize.min, children: [
-                    Container(width: 34 * lines, height: 3, decoration: BoxDecoration(color: Brand.amber, borderRadius: BorderRadius.circular(2))),
+                    Container(width: 34 * lines, height: 2, decoration: BoxDecoration(color: _ink.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(2))),
                     SizedBox(width: 12 * lines),
                     Opacity(
                       opacity: building,
                       child: Text(
                         'BUILDING',
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _ink.withValues(alpha: 0.85), letterSpacing: 16 - 10 * building, decoration: TextDecoration.none),
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: _ink.withValues(alpha: 0.9), letterSpacing: 14 - 6 * building, decoration: TextDecoration.none),
                       ),
                     ),
                     SizedBox(width: 12 * lines),
-                    Container(width: 34 * lines, height: 3, decoration: BoxDecoration(color: Brand.amber, borderRadius: BorderRadius.circular(2))),
+                    Container(width: 34 * lines, height: 2, decoration: BoxDecoration(color: _ink.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(2))),
                   ]),
                 ]),
               ),
@@ -141,14 +144,14 @@ class _OftobSplashState extends State<OftobSplash> with TickerProviderStateMixin
                     Container(
                       width: 120,
                       height: 4,
-                      decoration: BoxDecoration(color: Brand.green.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(3)),
+                      decoration: BoxDecoration(color: _ink.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(3)),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(3),
                         child: Align(
                           alignment: Alignment(-1 + 2 * _loop.value * 1.6 - 0.6, 0),
                           child: FractionallySizedBox(
                             widthFactor: 0.36,
-                            child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(colors: [Brand.green.withValues(alpha: 0), Brand.green, Brand.amber]))),
+                            child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(colors: [Brand.green.withValues(alpha: 0), Brand.green, const Color(0xFF7DB0FF)]))),
                           ),
                         ),
                       ),
@@ -172,7 +175,7 @@ class _OftobSplashState extends State<OftobSplash> with TickerProviderStateMixin
         offset: Offset(0, (1 - t) * 26),
         child: Text(
           _word[i],
-          style: TextStyle(fontSize: 46, fontWeight: FontWeight.w900, color: _ink, letterSpacing: 3, height: 1.05, decoration: TextDecoration.none),
+          style: TextStyle(fontSize: 44, fontWeight: FontWeight.w400, color: _ink, letterSpacing: 12, height: 1.05, decoration: TextDecoration.none),
         ),
       ),
     );

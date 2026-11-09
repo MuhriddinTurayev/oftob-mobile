@@ -93,7 +93,7 @@ class _CashScreenState extends State<CashScreen> {
   }
 
   static const _palette = [
-    [Color(0xFF0B7A3B), Color(0xFF14A05A)],
+    [Color(0xFF1D4ED8), Color(0xFF3B82F6)],
     [Color(0xFF2F6FDE), Color(0xFF5B8DEF)],
     [Color(0xFF7B5CE0), Color(0xFF9C84F0)],
     [Color(0xFFE0457B), Color(0xFFF07A9E)],
@@ -157,7 +157,7 @@ class _CashScreenState extends State<CashScreen> {
   Widget _carousel() {
     final pages = <Widget>[
       _card(
-        g: const [Color(0xFF10201A), Color(0xFF2B4A3C)],
+        g: const [Color(0xFF0F1E44), Color(0xFF1E3A8A)],
         icon: Icons.account_balance_rounded,
         title: _total != null ? tr('Barcha kassalarda jami') : tr('Hamma kassalar'),
         sub: '${_desks.length} ${tr('ta kassa')} · ${tr('chapga suring')}',

@@ -960,7 +960,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.only(topLeft: const Radius.circular(20), topRight: const Radius.circular(20), bottomLeft: Radius.circular(me ? 20 : 5), bottomRight: Radius.circular(me ? 5 : 20)),
-          gradient: me ? const LinearGradient(colors: [Brand.green, Color(0xFF0F9460)]) : null,
+          gradient: me ? const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)]) : null,
           color: me ? null : context.pill.withValues(alpha: context.isDark ? 0.12 : 0.72),
           border: me ? null : Border.all(color: context.pillBorder),
         ),
