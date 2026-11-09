@@ -564,8 +564,8 @@ class _CashCard extends StatelessWidget {
         Row(children: [
           const IconTile(icon: Icons.account_balance_wallet_rounded, color: Brand.green, size: 38),
           const SizedBox(width: 10),
-          Text('Kassalarda jami', style: TextStyle(color: cs.outline, fontWeight: FontWeight.w700, fontSize: 13.5)),
-          const Spacer(),
+          Expanded(child: Text('Kassalarda jami', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontWeight: FontWeight.w700, fontSize: 13.5))),
+          const SizedBox(width: 6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(color: context.pill, borderRadius: BorderRadius.circular(20), border: Border.all(color: context.pillBorder)),

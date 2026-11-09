@@ -181,9 +181,12 @@ class _CashScreenState extends State<CashScreen> {
         ),
     ];
     final n = pages.length;
+    final ts = MediaQuery.textScalerOf(context);
+    // sarlavha + summa + izoh + pastki qator; shrift kattalashsa karta ham bo'yiga o'sadi
+    final cardH = 12 + 32 + ts.scale(15) * 1.35 + ts.scale(26) * 1.25 + ts.scale(12.5) * 1.35 * 2 + 4 + 8;
     return Column(children: [
       SizedBox(
-        height: 150,
+        height: cardH < 150 ? 150 : cardH,
         child: PageView.builder(
           controller: _page,
           itemCount: n,
