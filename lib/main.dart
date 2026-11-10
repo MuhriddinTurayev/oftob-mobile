@@ -11,6 +11,7 @@ import 'screens/login.dart';
 import 'session.dart';
 import 'l10n.dart';
 import 'assistant.dart';
+import 'push.dart';
 import 'splash.dart';
 import 'theme.dart';
 
@@ -18,6 +19,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await L.load(); // saqlangan (yoki telefon) tili birinchi kadrdan to'g'ri bo'lsin
   await ThemeController.load();
+  await Push.init(); // telefon bildirishnomalari va ilova yopiq paytdagi tekshiruv (Android)
   final session = Session()..restore();
   L.notifier.addListener(session.refreshMe); // til o'zgarsa — rol nomi kabi server matnlari yangi tilda olinadi
   if (_fpsLog) _startFpsLog();

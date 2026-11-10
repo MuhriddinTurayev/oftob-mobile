@@ -14,6 +14,7 @@ import '../widgets.dart';
 import '../theme.dart';
 import '../motion.dart';
 import 'shift_card.dart';
+import '../tg_connect.dart';
 import '../l10n.dart';
 
 /// Bosh ekran: rahbar uchun bir qarashda — kassa, sotuv, vazifalar, yangi lidlar, oxirgi operatsiyalar.
@@ -261,6 +262,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ]),
           ),
+          // Telegram ulanmagan bo'lsa — eslatma (xabarlar ilova yopiq bo'lsa ham kelishi uchun)
+          if (!searching) Padding(padding: const EdgeInsets.only(top: 12), child: TgConnectBanner(session: widget.session)),
           const SizedBox(height: 14),
           if (!searching) ...[
             if (me.can('objects:read') && _objs.isNotEmpty) ...[

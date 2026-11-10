@@ -12,8 +12,7 @@ import '../theme.dart';
 
 /// Bildirishnomalar markazi: serverdan voqealar lentasini har 10 soniyada (ilova ochiq turganda) so'raydi,
 /// o'qilmaganlarni sanaydi va yangi voqea kelganda [onFresh] orqali xabar beradi.
-/// DIQQAT: bu push EMAS — ilova yopiq turganda telefon xabar bermaydi (buning uchun pullik Apple Developer + APNs kerak).
-/// Ilova yopiq paytda xabarlar Telegram orqali keladi (profil Telegram'ga ulangan bo'lsa).
+/// Ilova yopiq/fonda bo'lsa — telefonga bildirishnomani push.dart (WorkManager, Android) chiqaradi; darhol — Telegram bot (tg_connect.dart).
 class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
   NotificationCenter(this.session, {this.onFresh});
 

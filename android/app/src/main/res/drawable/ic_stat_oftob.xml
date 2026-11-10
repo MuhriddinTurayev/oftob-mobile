@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bildirishnoma belgisi (status bar): oq bino siluet — Android uni bir rangda ko'rsatadi -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,21V9l5,-3v15H4zM10,21V3l8,4v14h-3v-3h-2v3h-3zM12,8v2h2V8h-2zM12,12v2h2v-2h-2zM15.5,10v2h1.5v-2h-1.5zM15.5,14v2h1.5v-2h-1.5zM5.5,11v2H7v-2H5.5zM5.5,15v2H7v-2H5.5zM2,22h20v-1H2z" />
+</vector>

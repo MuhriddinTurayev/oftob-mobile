@@ -8,6 +8,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'offline.dart';
 import 'webcache.dart';
 
+import 'push.dart';
 import 'api.dart';
 import 'company.dart';
 
@@ -209,6 +210,7 @@ class Session extends ChangeNotifier {
   }
 
   Future<void> _signOut() async {
+    await Push.stop(); // boshqa odam kirsa — oldingi foydalanuvchining xabarlari chiqmasin
     // platforma administratori
     final p = papi;
     if (p != null) {

@@ -34,6 +34,8 @@ import '../assistant.dart';
 import '../avatar.dart';
 import '../motion.dart';
 import 'profile.dart';
+import '../push.dart';
+import '../tg_connect.dart';
 import 'journal.dart';
 
 class _Tab {
@@ -71,6 +73,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     ApiClient.onExpired = _expired;
     AppNav.sections = [..._primary.map((e) => e.label), ..._more.map((e) => e.label)];
     _syncTimer = Timer.periodic(const Duration(seconds: 30), (_) => _tickSync());
+    TgLink.load(s); // Telegram ulanganmi — ulanmagan bo'lsa bosh sahifada eslatma
+    Push.openGo.addListener(_pushGo);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pushGo(); // ilova bildirishnoma bosilib ochilgan bo'lsa — o'sha bo'limga
+      // telefon bildirishnomalariga ruxsat (Android 13+ / iPhone) — bir marta so'raladi
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) Push.askPermission();
+      });
+    });
     // ochilgandan keyin 25 soniya o'tgach (ekran birinchi bo'lib silliq ochilsin)
     Future.delayed(const Duration(seconds: 25), () {
       if (mounted) _tickSync(first: true);
@@ -101,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     if (AppNav.open == _open) AppNav.open = null;
+    Push.openGo.removeListener(_pushGo);
     if (ApiClient.onExpired == _expired) ApiClient.onExpired = null;
     WidgetsBinding.instance.removeObserver(this);
     _syncTimer?.cancel();
@@ -114,7 +126,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _dashRefresh.value++;
       _nc.refresh();
       _tickSync();
+      TgLink.load(s);
+    } else if (state == AppLifecycleState.paused) {
+      Push.soon(); // fonga o'tdi — 1 daqiqadan keyin yangi voqealarni tekshirib, telefonga chiqaradi
     }
+  }
+
+  /// Telefon bildirishnomasi bosildi — tegishli bo'lim (yoki bildirishnomalar ro'yxati)
+  void _pushGo() {
+    final go = Push.openGo.value;
+    if (go == null || !mounted) return;
+    Push.openGo.value = null;
+    if (go == 'notifications') return _openNotifications();
+    _go(go);
   }
 
   /// Ilova ochiq turganda yangi voqea kelsa — tepada qisqa xabar
@@ -391,6 +415,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 6),
+        // Telegram bot: ulanish holati; ulansa — xabarlar ilova yopiq bo'lsa ham darhol keladi
+        ValueListenableBuilder<Map<String, dynamic>?>(
+          valueListenable: TgLink.state,
+          builder: (context, d, _) => row(
+            Icons.send_rounded,
+            Brand.teal,
+            'Telegram bot',
+            sub: d == null ? "Xabarlar Telegram'ga" : (d['linked'] == true ? "Ulangan — xabarlar Telegram'ga keladi" : 'Ulanmagan — bosing va ulaning'),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              if (d != null) Icon(d['linked'] == true ? Icons.check_circle_rounded : Icons.error_outline_rounded, color: d['linked'] == true ? Brand.green : Colors.orange.shade700, size: 20),
+              Icon(Icons.chevron_right, color: cs.outline),
+            ]),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => TelegramConnectScreen(session: s))).then((_) => TgLink.load(s)),
+          ),
+        ),
         ..._moreGroups(cs, row),
         ListenableBuilder(
           listenable: Listenable.merge([Offline.pending, Offline.failed]),
