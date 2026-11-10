@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -143,9 +144,21 @@ class Push {
     } catch (_) {}
   }
 
+  /// Ilova ikonkasidagi son (TikTok kabi): o'qilmagan bildirishnomalar soni; 0 — son yo'qoladi
+  static int _badge = -1;
+
+  static Future<void> setBadge(int n) async {
+    if (!supported || n == _badge) return;
+    _badge = n;
+    try {
+      await AppBadgePlus.updateBadge(n < 0 ? 0 : n);
+    } catch (_) {}
+  }
+
   /// Chiqishda: fondagi tekshiruv to'xtaydi, eski xabarlar o'chadi
   static Future<void> stop() async {
     if (!supported) return;
+    await setBadge(0);
     try {
       await Workmanager().cancelAll();
       await _ln.cancelAll();
@@ -183,7 +196,7 @@ class Push {
 
   /// Bildirishnomalarni telefon tepasida ko'rsatish (ilova ochiq bo'lsa ham — Telegram kabi banner, ovoz bilan).
   /// Ko'rsatilganlar belgilanadi — fondagi tekshiruv ularni qayta chiqarmaydi.
-  static Future<bool> showItems(List<Map> fresh, {String uid = ''}) async {
+  static Future<bool> showItems(List<Map> fresh, {String uid = '', int? badge}) async {
     if (!supported || fresh.isEmpty) return false;
     try {
       await _initPlugin();
@@ -195,7 +208,8 @@ class Push {
           '${e['id']}'.hashCode & 0x7fffffff,
           tr('${e['title']}'),
           '${e['body'] ?? ''}',
-          const NotificationDetails(android: _channel, iOS: DarwinNotificationDetails(presentAlert: true, presentBanner: true, presentList: true, presentSound: true)),
+          NotificationDetails(
+              android: _channel, iOS: DarwinNotificationDetails(presentAlert: true, presentBanner: true, presentList: true, presentSound: true, presentBadge: true, badgeNumber: badge)),
           payload: '${e['go'] ?? ''}',
         );
       }
@@ -262,8 +276,11 @@ class Push {
     final floor = seen.compareTo(mark) > 0 ? seen : mark;
     final fresh = list.where((e) => '${e['at']}'.compareTo(floor) > 0).toList();
     await _bgWrite(markKey, latest.compareTo(mark) > 0 ? latest : mark);
+    // ikonkadagi son: ilovada hali ochib ko'rilmaganlar
+    final unread = list.where((e) => '${e['at']}'.compareTo(seen) > 0).length;
+    await setBadge(seen.isEmpty ? fresh.length : unread);
     if (fresh.isEmpty) return 0;
-    await showItems(fresh);
+    await showItems(fresh, badge: seen.isEmpty ? fresh.length : unread);
     return fresh.length;
   }
 }

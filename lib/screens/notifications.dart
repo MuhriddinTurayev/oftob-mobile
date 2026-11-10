@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../format.dart';
+import '../push.dart';
 import '../session.dart';
 import '../l10n.dart';
 import '../theme.dart';
@@ -75,6 +76,7 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
       _first = false;
       items = list;
       notifyListeners();
+      Push.setBadge(unread); // ilova ikonkasidagi son
       if (fresh.isNotEmpty) onFresh?.call(fresh);
     } catch (e) {
       await session.handleError(e); // 401 bo'lsa — chiqarib yuboradi; boshqa xatolar jim (keyingi urinishda)
@@ -90,6 +92,7 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
     if (latest.compareTo(_seen) <= 0) return;
     _seen = latest;
     notifyListeners();
+    Push.setBadge(unread); // o'qildi — ikonkadagi son kamayadi
     try {
       await _storage.write(key: _key, value: _seen);
     } catch (_) {}
