@@ -74,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     AppNav.sections = [..._primary.map((e) => e.label), ..._more.map((e) => e.label)];
     _syncTimer = Timer.periodic(const Duration(seconds: 30), (_) => _tickSync());
     TgLink.load(s); // Telegram ulanganmi — ulanmagan bo'lsa bosh sahifada eslatma
+    Push.syncCreds(); // fondagi tekshiruv qulflangan iPhone'da ham kirish ma'lumotini o'qiy olsin
     Push.openGo.addListener(_pushGo);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _pushGo(); // ilova bildirishnoma bosilib ochilgan bo'lsa — o'sha bo'limga
@@ -128,6 +129,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _tickSync();
       TgLink.load(s);
     } else if (state == AppLifecycleState.paused) {
+      Push.syncCreds();
       Push.soon(); // fonga o'tdi — 1 daqiqadan keyin yangi voqealarni tekshirib, telefonga chiqaradi
     }
   }
@@ -141,10 +143,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _go(go);
   }
 
-  /// Ilova ochiq turganda yangi voqea kelsa — tepada qisqa xabar
-  void _fresh(List<Map<String, dynamic>> fresh) {
+  /// Ilova ochiq turganda yangi voqea kelsa — telefon tepasida banner (Telegram kabi, ovoz bilan);
+  /// bildirishnomaga ruxsat berilmagan bo'lsa — ilova ichida pastda xabar
+  Future<void> _fresh(List<Map<String, dynamic>> fresh) async {
     if (!mounted) return;
     HapticFeedback.mediumImpact();
+    if (await Push.showItems(fresh, uid: '${s.userId}')) return;
+    if (!mounted) return;
     final f = fresh.first;
     final more = fresh.length > 1 ? ' (+${fresh.length - 1})' : '';
     ScaffoldMessenger.of(context)

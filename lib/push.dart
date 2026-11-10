@@ -134,14 +134,93 @@ class Push {
     } catch (_) {}
   }
 
-  /// Serverdan yangi bildirishnomalarni olib, ko'rilmaganlarini telefonga chiqaradi (fonda ham, ilovada ham ishlaydi)
+  /// iPhone: telefon qulflangan paytda ham fondagi tekshiruv o'qiy olishi uchun kirish ma'lumotlarining nusxasi
+  /// «birinchi qulf ochilgandan keyin» ruxsati bilan saqlanadi (oddiy kalitlar qulflangan telefonda o'qilmaydi).
+  static const _bgOpts = IOSOptions(accessibility: KeychainAccessibility.first_unlock);
+
+  static Future<String?> _bgRead(String k) async {
+    try {
+      return await _store.read(key: 'bg_$k', iOptions: _bgOpts);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> _bgWrite(String k, String v) async {
+    try {
+      await _store.write(key: 'bg_$k', value: v, iOptions: _bgOpts);
+    } catch (_) {}
+  }
+
+  /// Ilova ochiq paytda chaqiriladi (kirgandan keyin va fonga o'tishda): server, kalit, foydalanuvchi, til nusxasi
+  static Future<void> syncCreds() async {
+    if (!supported) return;
+    try {
+      for (final k in const ['server', 'key', 'uid', 'lang']) {
+        final v = await _store.read(key: k);
+        if (v != null && v.isNotEmpty) await _bgWrite(k, v);
+      }
+    } catch (_) {}
+  }
+
+  /// Bildirishnomalarni telefon tepasida ko'rsatish (ilova ochiq bo'lsa ham — Telegram kabi banner, ovoz bilan).
+  /// Ko'rsatilganlar belgilanadi — fondagi tekshiruv ularni qayta chiqarmaydi.
+  static Future<bool> showItems(List<Map> fresh, {String uid = ''}) async {
+    if (!supported || fresh.isEmpty) return false;
+    try {
+      await _initPlugin();
+      if (!await enabled()) return false;
+      final list = [...fresh]..sort((a, b) => '${a['at']}'.compareTo('${b['at']}'));
+      final show = list.length > 4 ? list.sublist(list.length - 4) : list;
+      for (final e in show) {
+        await _ln.show(
+          '${e['id']}'.hashCode & 0x7fffffff,
+          tr('${e['title']}'),
+          '${e['body'] ?? ''}',
+          const NotificationDetails(android: _channel, iOS: DarwinNotificationDetails(presentAlert: true, presentBanner: true, presentList: true, presentSound: true)),
+          payload: '${e['go'] ?? ''}',
+        );
+      }
+      if (list.length > show.length) {
+        await _ln.show(1, tr('Yangi bildirishnomalar'), '${list.length} ${tr('ta yangi voqea')}',
+            const NotificationDetails(android: _channel, iOS: DarwinNotificationDetails(presentAlert: true, presentBanner: true)), payload: 'notifications');
+      }
+      if (uid.isNotEmpty) {
+        final latest = list.last['at'].toString();
+        final mark = await _bgRead('push_mark_$uid') ?? '';
+        if (latest.compareTo(mark) > 0) await _bgWrite('push_mark_$uid', latest);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('push show: $e');
+      return false;
+    }
+  }
+
+  /// Serverdan yangi bildirishnomalarni olib, ko'rilmaganlarini telefonga chiqaradi (fonda — ilova yopiq bo'lsa ham)
   static Future<int> checkNow() async {
     if (!supported) return 0;
-    final server = await _store.read(key: 'server');
-    final key = await _store.read(key: 'key');
-    final uid = await _store.read(key: 'uid') ?? '0';
+    // avval qulflangan telefonda ham o'qiladigan nusxa, bo'lmasa — oddiy kalitlar
+    Future<String?> rd(String k) async {
+      final v = await _bgRead(k);
+      if (v != null && v.isNotEmpty) return v;
+      try {
+        return await _store.read(key: k);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final server = await rd('server');
+    final key = await rd('key');
+    final uid = await rd('uid') ?? '0';
     if (server == null || key == null || server.isEmpty || key.isEmpty) return 0;
-    await L.load();
+    final lang = await rd('lang');
+    if (lang != null && L.codes.contains(lang)) {
+      await L.set(lang);
+    } else {
+      await L.load();
+    }
     final r = await http
         .get(Uri.parse('$server/api/v1/notifications?lang=${L.code}'), headers: {'Authorization': 'Bearer $key', 'Accept': 'application/json'})
         .timeout(const Duration(seconds: 25));
@@ -150,38 +229,22 @@ class Push {
     final list = (data is List ? data : const []).whereType<Map>().toList();
     if (list.isEmpty) return 0;
     final markKey = 'push_mark_$uid';
-    final seen = await _store.read(key: 'notif_seen_$uid') ?? ''; // ilovada o'qilganlar
-    var mark = await _store.read(key: markKey) ?? '';
+    var seen = '';
+    try {
+      seen = await _store.read(key: 'notif_seen_$uid') ?? ''; // ilovada o'qilganlar (qulflangan iPhone'da o'qilmasligi mumkin — muhim emas)
+    } catch (_) {}
+    final mark = await _bgRead(markKey) ?? '';
     final latest = list.map((e) => '${e['at']}').reduce((a, b) => a.compareTo(b) > 0 ? a : b);
     if (mark.isEmpty) {
       // birinchi marta: eskilarini ko'rsatmaymiz, faqat bundan keyingi yangilarini
-      await _store.write(key: markKey, value: latest);
+      await _bgWrite(markKey, latest);
       return 0;
     }
     final floor = seen.compareTo(mark) > 0 ? seen : mark;
-    final fresh = list.where((e) => '${e['at']}'.compareTo(floor) > 0).toList()..sort((a, b) => '${a['at']}'.compareTo('${b['at']}'));
-    await _store.write(key: markKey, value: latest.compareTo(mark) > 0 ? latest : mark);
+    final fresh = list.where((e) => '${e['at']}'.compareTo(floor) > 0).toList();
+    await _bgWrite(markKey, latest.compareTo(mark) > 0 ? latest : mark);
     if (fresh.isEmpty) return 0;
-    await _initPlugin();
-    final show = fresh.length > 4 ? fresh.sublist(fresh.length - 4) : fresh;
-    for (final e in show) {
-      await _ln.show(
-        '${e['id']}'.hashCode & 0x7fffffff,
-        tr('${e['title']}'),
-        '${e['body'] ?? ''}',
-        const NotificationDetails(android: _channel, iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true)),
-        payload: '${e['go'] ?? ''}',
-      );
-    }
-    if (fresh.length > show.length) {
-      await _ln.show(
-        1,
-        tr('Yangi bildirishnomalar'),
-        '${fresh.length} ${tr('ta yangi voqea')}',
-        const NotificationDetails(android: _channel),
-        payload: 'notifications',
-      );
-    }
+    await showItems(fresh);
     return fresh.length;
   }
 }
