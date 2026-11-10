@@ -209,7 +209,12 @@ class _TaskSheetState extends State<_TaskSheet> {
       if (mounted) {
         final messenger = ScaffoldMessenger.of(context);
         Navigator.pop(context);
-        if (queued) messenger.showSnackBar(const SnackBar(content: Text("Offline saqlandi — internet paydo bo'lganda yuboriladi")));
+        if (queued) {
+          messenger.showSnackBar(const SnackBar(content: Text("Offline saqlandi — internet paydo bo'lganda yuboriladi")));
+        } else if (status == 'done' && widget.task['can_accept'] == false) {
+          // ijrochi «Bajarildi» bossa — rahbar tekshiradi va qabul qiladi (web bilan bir xil)
+          messenger.showSnackBar(const SnackBar(content: Text('Rahbar tekshiruviga yuborildi')));
+        }
       }
     } catch (e) {
       await widget.session.handleError(e);
