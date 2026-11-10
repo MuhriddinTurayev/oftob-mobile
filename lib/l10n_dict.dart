@@ -1298,4 +1298,13 @@ const Map<String, List<String>> kDict = {
   "Yangi parol beriladi, eskisi ishlamay qoladi": ["Будет выдан новый пароль, старый перестанет работать", "Пароли нав дода мешавад, кӯҳна кор намекунад"],
   "Yangi parol berish": ["Выдать новый пароль", "Пароли нав додан"],
   "Yangi parol tayyor": ["Новый пароль готов", "Пароли нав тайёр"],
+  "Arizani rad etasizmi?": ["Отклонить заявку?", "Дархостро рад мекунед?"],
+  "Kompaniya bloklanadi, kira olmaydi. Keyin holatini o'zgartirib ochish mumkin.": ["Компания будет заблокирована и не сможет войти. Позже можно открыть, сменив статус.", "Ширкат баста мешавад ва ворид шуда наметавонад. Баъдтар бо иваз кардани ҳолат кушодан мумкин."],
+  "Kompaniya saytda ro'yxatdan o'tdi. Tasdiqlamaguningizcha kira olmaydi.": ["Компания зарегистрировалась на сайте. Пока вы не подтвердите, войти нельзя.", "Ширкат дар сайт сабти ном шуд. То шумо тасдиқ накунед, ворид шуда наметавонад."],
+  "Pochta sozlanmagan — xabarni telefon yoki Telegram orqali yuboring.": ["Почта не настроена — отправьте сообщение по телефону или в Telegram.", "Почта танзим нашудааст — паёмро тавассути телефон ё Telegram фиристед."],
+  "Tasdiqlandi — havolani yuboring": ["Подтверждено — отправьте ссылку", "Тасдиқ шуд — пайвандро фиристед"],
+  "Tasdiqlash va havola berish": ["Подтвердить и выдать ссылку", "Тасдиқ кардан ва пайванд додан"],
+  "Xabarni nusxalash": ["Скопировать сообщение", "Нусхаи паём"],
+  "Xat emailga yuborildi.": ["Письмо отправлено на email.", "Мактуб ба email фиристода шуд."],
+  "Tasdiq kutmoqda": ["Ожидают подтверждения", "Интизори тасдиқ"],
 };

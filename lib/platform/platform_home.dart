@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' as w show Text;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -188,6 +189,7 @@ Color stateColor(String st, ColorScheme cs) => switch (st) {
       'trial' => Brand.blue,
       'expired' => Colors.orange.shade700,
       'suspended' => cs.error,
+      'pending' => Colors.orange.shade700,
       _ => cs.outline,
     };
 
@@ -378,7 +380,7 @@ class _CompaniesState extends State<_Companies> {
       SizedBox(
         height: 44,
         child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16), children: [
-          for (final (id, t) in [('', 'Hammasi'), ('active', 'Faol'), ('trial', 'Sinov'), ('expired', 'Tugagan'), ('suspended', "To'xtatilgan")])
+          for (final (id, t) in [('', 'Hammasi'), ('pending', 'Tasdiq kutmoqda'), ('active', 'Faol'), ('trial', 'Sinov'), ('expired', 'Tugagan'), ('suspended', "To'xtatilgan")])
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(label: Text(t), selected: _st == id, showCheckmark: false, onSelected: (_) => setState(() => _st = id)),
@@ -471,6 +473,95 @@ class _CompanyPageState extends State<CompanyPage> {
     _aiLocked = d['ai_locked'] == true;
     _observer = d['boss_observer'] == true;
     _clearReq = false;
+  }
+
+  /// Arizani tasdiqlash: server sinov muddatini boshlaydi; kirish havolasi va tayyor xabar ko'rsatiladi (nusxa / Telegram / qo'ng'iroq)
+  Future<void> _approve() async {
+    setState(() => _busy = true);
+    try {
+      final r = Map<String, dynamic>.from(await s.papi!.pSend('POST', '/companies/${widget.id}/approve', const {}) as Map);
+      HapticFeedback.mediumImpact();
+      if (!mounted) return;
+      final text = '${r['text'] ?? ''}', phone = '${r['phone'] ?? ''}', link = '${r['link'] ?? ''}';
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (c) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.paddingOf(c).bottom),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(children: [
+              const Icon(Icons.check_circle_rounded, color: Brand.green, size: 30),
+              const SizedBox(width: 10),
+              Expanded(child: Text('Tasdiqlandi — havolani yuboring', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
+            ]),
+            const SizedBox(height: 6),
+            Text(r['mailed'] == true ? tr('Xat emailga yuborildi.') : tr("Pochta sozlanmagan — xabarni telefon yoki Telegram orqali yuboring."), style: TextStyle(color: Theme.of(c).colorScheme.outline, fontSize: 13)),
+            const SizedBox(height: 12),
+            Glass(radius: 16, blur: false, shadow: false, padding: const EdgeInsets.all(12), child: SelectableText(text, style: const TextStyle(fontSize: 13.5, height: 1.45))),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: text));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Nusxa olindi'))));
+              },
+              icon: const Icon(Icons.copy_rounded),
+              label: const Text('Xabarni nusxalash'),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => launchUrl(Uri.parse('https://t.me/share/url?url=${Uri.encodeComponent(link)}&text=${Uri.encodeComponent(text)}'), mode: LaunchMode.externalApplication),
+                  icon: const Icon(Icons.send_rounded, size: 18),
+                  label: const Text('Telegram'),
+                ),
+              ),
+              if (phone.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => launchUrl(Uri.parse('tel:${phone.replaceAll(RegExp(r'[^0-9+]'), '')}')),
+                    icon: const Icon(Icons.call_rounded, size: 18),
+                    label: FittedBox(child: w.Text(phone, maxLines: 1)),
+                  ),
+                ),
+              ],
+            ]),
+          ]),
+        ),
+      );
+      await _load();
+    } catch (e) {
+      await s.handleError(e);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: w.Text(e is ApiException ? e.message : '$e')));
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _reject() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Arizani rad etasizmi?'),
+        content: const Text("Kompaniya bloklanadi, kira olmaydi. Keyin holatini o'zgartirib ochish mumkin."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Bekor qilish')),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: Theme.of(c).colorScheme.error), onPressed: () => Navigator.pop(c, true), child: const Text('Rad etish')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _busy = true);
+    try {
+      final d = Map<String, dynamic>.from(await s.papi!.pSend('POST', '/companies/${widget.id}/reject', const {}) as Map);
+      if (mounted) setState(() => _fill(d));
+    } catch (e) {
+      await s.handleError(e);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: w.Text(e is ApiException ? e.message : '$e')));
+    }
+    if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _load() async {
@@ -646,6 +737,40 @@ class _CompanyPageState extends State<CompanyPage> {
               ]),
             ]),
           ),
+          if (state == 'pending') ...[
+            const SizedBox(height: 12),
+            Glass(
+              radius: 22,
+              tint: Colors.orange.withValues(alpha: 0.10),
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Row(children: [
+                  const IconTile(icon: Icons.person_add_alt_1_rounded, color: Brand.amber, size: 40),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Yangi ariza', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: context.ink)),
+                      Text("Kompaniya saytda ro'yxatdan o'tdi. Tasdiqlamaguningizcha kira olmaydi.", style: TextStyle(color: context.inkSoft, fontSize: 12.5)),
+                    ]),
+                  ),
+                ]),
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  onPressed: _busy ? null : _approve,
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Tasdiqlash va havola berish'),
+                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _reject,
+                  icon: const Icon(Icons.close_rounded),
+                  label: const Text('Rad etish'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(46), foregroundColor: cs.error),
+                ),
+              ]),
+            ),
+          ],
           if (d['plan_request'] != null) ...[
             const SizedBox(height: 10),
             GlassRow(
@@ -683,6 +808,7 @@ class _CompanyPageState extends State<CompanyPage> {
                 child: SegmentedButton<String>(
                   showSelectedIcon: false,
                   segments: [
+                    if (_status == 'pending') ButtonSegment(value: 'pending', label: FittedBox(child: Text(tr('Ariza')))),
                     ButtonSegment(value: 'trial', label: Text(tr('Sinov'))),
                     ButtonSegment(value: 'active', label: Text(tr('Faol'))),
                     ButtonSegment(value: 'suspended', label: Text(tr("To'xtatilgan"))),
