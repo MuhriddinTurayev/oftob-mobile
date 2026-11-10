@@ -36,6 +36,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   _Filter _filter = _Filter.all;
   String? _object; // null — hamma obyektlar
   String _q = '';
+
+  /// Ixcham ko'rinish: obyektlar yig'iq (sarlavhada sonlar), uzun guruhlar dastlab 5 ta bilan
+  final Set<String> _openSites = {};
+  final Set<String> _openGroups = {};
+  bool _officeAll = false;
+  static const _peek = 5;
+
+  /// Qidiruv yoki filtr bor — hammasi ochiq ko'rinadi
+  bool get _focused => _q.isNotEmpty || _filter != _Filter.all || _object != null;
   final _selected = <String>{}; // "obyekt|xodim"
   bool _busy = false;
 
@@ -151,7 +160,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             Text('$came/${_office.length}', style: TextStyle(color: cs.outline, fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(height: 4),
-          for (final o in _office) _officeRow(o, cs),
+          ...() {
+            // avval kelganlar, keyin kelmaganlar; ko'p bo'lsa — dastlab bir qismi
+            final list = [..._office]..sort((a, b) => (a['status'] == 'none' ? 1 : 0) - (b['status'] == 'none' ? 1 : 0));
+            final all = _officeAll || _focused || list.length <= _peek + 1;
+            final shown = all ? list : list.take(_peek).toList();
+            return [
+              for (final o in shown) _officeRow(o, cs),
+              if (!all) _moreButton(list.length - shown.length, cs, () => setState(() => _officeAll = true)),
+            ];
+          }(),
         ]),
       ),
     );
@@ -317,6 +335,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     ]);
   }
 
+  Widget _moreButton(int n, ColorScheme cs, VoidCallback onTap) => Padding(
+        padding: const EdgeInsets.only(top: 4, bottom: 4),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text('${tr('Yana')} $n ${tr('ta')}', style: TextStyle(color: cs.primary, fontWeight: FontWeight.w800)),
+              Icon(Icons.expand_more_rounded, color: cs.primary, size: 20),
+            ]),
+          ),
+        ),
+      );
+
   Widget _dateBar(ColorScheme cs) {
     final label = _isToday ? 'Bugun · ${formatDate(_dateStr)}' : formatDate(_dateStr);
     return Padding(
@@ -352,17 +385,43 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     for (final site in sites) {
       final ws = ((site['workers'] as List?) ?? const []).whereType<Map>().where(_passes).toList();
       if (ws.isEmpty) continue;
+      final sid = '${site['id']}';
+      final nWork = ws.where((w) => w['status'] == 'working' || w['status'] == 'forgot').length;
+      final nLeft = ws.where((w) => w['status'] == 'left').length;
+      final nAbs = ws.where((w) => w['status'] == 'absent').length;
+      // bitta obyekt, qidiruv/filtr bo'lsa — ochiq; aks holda foydalanuvchi bosib ochadi
+      final open = _focused || sites.length == 1 || _openSites.contains(sid);
+      Widget pill(String t, int n, Color c) => n == 0
+          ? const SizedBox.shrink()
+          : Container(
+              margin: const EdgeInsets.only(right: 6, top: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+              decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+              child: Text('${tr(t)} $n', style: TextStyle(color: c, fontWeight: FontWeight.w800, fontSize: 12)),
+            );
       rows.add(Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-        child: Row(children: [
-          Expanded(child: Text('${site['name']}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis)),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-            decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
-            child: Text('${site['came']}/${site['total']}', style: TextStyle(color: cs.primary, fontWeight: FontWeight.w800, fontSize: 12.5)),
-          ),
-        ]),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Glass(
+          radius: 20,
+          onTap: _focused || sites.length == 1 ? null : () => setState(() => open ? _openSites.remove(sid) : _openSites.add(sid)),
+          padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+          child: Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${site['name']}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Wrap(children: [pill('Ishda', nWork, Brand.teal), pill('Ketgan', nLeft, Colors.blueGrey), pill('Kelmagan', nAbs, cs.error)]),
+              ]),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+              child: Text('${site['came']}/${site['total']}', style: TextStyle(color: cs.primary, fontWeight: FontWeight.w800, fontSize: 12.5)),
+            ),
+            if (!_focused && sites.length > 1) Icon(open ? Icons.expand_less_rounded : Icons.expand_more_rounded, color: cs.outline),
+          ]),
+        ),
       ));
+      if (!open) continue;
       // ishchilar holati bo'yicha alohida guruhlarda: Ishda, Ketgan, Kelmagan (prorablar bloki kabi)
       final groups = <(String, Color, List<Map>)>[
         ('Ishda', Brand.teal, ws.where((w) => w['status'] == 'working' || w['status'] == 'forgot').toList()),
@@ -371,8 +430,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ];
       for (final g in groups) {
         if (g.$3.isEmpty) continue;
+        final gk = '$sid|${g.$1}';
+        final all = _focused || _openGroups.contains(gk) || g.$3.length <= _peek + 1;
+        final list = all ? g.$3 : g.$3.take(_peek).toList();
         final tiles = <Widget>[];
-        for (final w in g.$3) {
+        for (final w in list) {
           final key = '${site['id']}|${w['id']}';
           tiles.add(KeyedSubtree(
             key: _keys.putIfAbsent(key, GlobalKey.new),
@@ -397,6 +459,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               : null,
           onAction: (act) => _mark(act, {'${site['id']}': ['${w['id']}']}),
           live: _isToday,
+          dense: w['status'] == 'absent',
           site: site['site'] as Map?,
           // ishchini bosish — Telegram-botga ulash kodi
           onInfo: w['tg_code'] != null
@@ -422,6 +485,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 if (k > 0) Divider(height: 1, color: cs.outline.withValues(alpha: 0.12)),
                 tiles[k],
               ],
+              if (!all) _moreButton(g.$3.length - list.length, cs, () => setState(() => _openGroups.add(gk))),
             ]),
           ),
         ));
@@ -537,7 +601,10 @@ class _Stat extends StatelessWidget {
 }
 
 class _WorkerTile extends StatelessWidget {
-  const _WorkerTile({required this.w, required this.selected, required this.selecting, required this.canMark, required this.busy, required this.onToggle, required this.onLong, required this.onAction, this.live = false, this.flat = false, this.onInfo, this.site, this.flash, this.pending = false});
+  const _WorkerTile({required this.w, required this.selected, required this.selecting, required this.canMark, required this.busy, required this.onToggle, required this.onLong, required this.onAction, this.live = false, this.flat = false, this.onInfo, this.site, this.flash, this.pending = false, this.dense = false});
+
+  /// Ixcham qator (kelmaganlar ro'yxati): kichikroq avatar va bo'shliq
+  final bool dense;
 
   /// Hozirgina belgilangan: 'in' — yashil, 'out' — kulrang yonadi
   final String? flash;
@@ -627,30 +694,34 @@ class _WorkerTile extends StatelessWidget {
     // tor telefon (≤360dp): ism 2 qatorda, «xaritada» — faqat belgi, tugma ixcham
     final narrow = MediaQuery.sizeOf(context).width < 360;
     final avatar = selected
-        ? CircleAvatar(radius: 20, backgroundColor: cs.primary, child: Icon(Icons.check, color: cs.onPrimary))
-        : CircleAvatar(radius: 20, backgroundColor: color.withValues(alpha: 0.14), foregroundColor: color, child: Text(name.isEmpty ? '?' : name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w800)));
+        ? CircleAvatar(radius: dense ? 16 : 20, backgroundColor: cs.primary, child: Icon(Icons.check, color: cs.onPrimary, size: dense ? 18 : 24))
+        : CircleAvatar(
+            radius: dense ? 16 : 20,
+            backgroundColor: color.withValues(alpha: 0.14),
+            foregroundColor: color,
+            child: Text(name.isEmpty ? '?' : name[0].toUpperCase(), style: TextStyle(fontWeight: FontWeight.w800, fontSize: dense ? 13 : 15)));
     final row = Row(children: [
           // Telegram holati — avatar burchagidagi kichik nishon (alohida belgi qatorni siqmaydi)
           if (w['tg_code'] != null && !selecting)
             Tooltip(
               message: tgOn ? tr('Telegram ulangan') : tr('Telegram ulanmagan — bosing, kod chiqadi'),
               child: SizedBox(
-                width: 42,
-                height: 42,
+                width: dense ? 34 : 42,
+                height: dense ? 34 : 42,
                 child: Stack(clipBehavior: Clip.none, children: [
                   Positioned.fill(child: Align(alignment: Alignment.topLeft, child: avatar)),
                   Positioned(
                     right: -2,
                     bottom: -2,
                     child: Container(
-                      width: 19,
-                      height: 19,
+                      width: dense ? 15 : 19,
+                      height: dense ? 15 : 19,
                       decoration: BoxDecoration(
                         color: tgOn ? const Color(0xFF229ED9) : cs.surfaceContainerHighest,
                         shape: BoxShape.circle,
                         border: Border.all(color: cs.surface, width: 2),
                       ),
-                      child: Icon(Icons.send_rounded, size: 9.5, color: tgOn ? Colors.white : cs.outline),
+                      child: Icon(Icons.send_rounded, size: dense ? 7.5 : 9.5, color: tgOn ? Colors.white : cs.outline),
                     ),
                   ),
                 ]),
@@ -751,7 +822,7 @@ class _WorkerTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               border: flash == null ? null : Border.all(color: (flash == 'in' ? Brand.green : const Color(0xFF475569)).withValues(alpha: 0.5), width: 1.4),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 9),
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: dense ? 5 : 9),
             child: row,
           ),
         ),
