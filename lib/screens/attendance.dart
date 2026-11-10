@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/widgets.dart' as w show Text;
 
 import 'package:flutter/services.dart';
 
+import '../assistant.dart' show AiBubble;
 import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
@@ -34,6 +38,38 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String _q = '';
   final _selected = <String>{}; // "obyekt|xodim"
   bool _busy = false;
+
+  /// Hozirgina belgilanganlar ("obyekt|xodim" → in/out): qator bir necha soniya yashil/kulrang yonib turadi
+  final Map<String, String> _flash = {};
+  Timer? _flashT;
+
+  /// Hozir yuborilayotganlar — o'sha qator tugmasida aylanuvchi belgi
+  final Set<String> _pending = {};
+
+  /// Har bir qatorning kaliti — belgilangandan keyin «Ko'rish» shu qatorga olib boradi
+  final Map<String, GlobalKey> _keys = {};
+
+  @override
+  void dispose() {
+    _flashT?.cancel();
+    super.dispose();
+  }
+
+  String _nameOf(String site, String id) {
+    for (final x in _sites) {
+      if ('${x['id']}' != site) continue;
+      for (final w in ((x['workers'] as List?) ?? const []).whereType<Map>()) {
+        if ('${w['id']}' == id) return '${w['name']}';
+      }
+    }
+    return '';
+  }
+
+  /// Belgilangan qatorga ekranni olib borish
+  void _reveal(String k) {
+    final c = _keys[k]?.currentContext;
+    if (c != null) Scrollable.ensureVisible(c, duration: const Duration(milliseconds: 450), curve: Curves.easeOutCubic, alignment: 0.3);
+  }
 
   Session get s => widget.session;
   bool get _isToday {
@@ -127,7 +163,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final lng = o['in_lng'] as num?;
     final dist = o['in_dist'] as num?;
     final (label, color) = switch (st) {
-      'working' => ('Ishda', Colors.teal),
+      'working' => ('Ishda', Brand.teal),
       'left' => ('Ketdi', Colors.blueGrey),
       _ => ('Kelmadi', cs.error),
     };
@@ -187,7 +223,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _mark(String act, Map<String, List<String>> byObject) async {
     if (_busy) return;
-    setState(() => _busy = true);
+    final keys = [for (final e in byObject.entries) for (final id in e.value) '${e.key}|$id'];
+    final names = [for (final k in keys) _nameOf(k.substring(0, k.indexOf('|')), k.substring(k.indexOf('|') + 1))].where((x) => x.isNotEmpty).toList();
+    setState(() {
+      _busy = true;
+      _pending
+        ..clear()
+        ..addAll(keys);
+    });
     var done = 0, skipped = 0;
     var queued = false;
     final errors = <String>{};
@@ -205,10 +248,52 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       errors.add('$e');
     }
     if (!mounted) return;
-    setState(() => _busy = false);
-    final msg = queued ? "Offline saqlandi ($done) — internet paydo bo'lganda yuboriladi" : '${act == 'in' ? 'Smenaga qo\'yildi' : 'Smenadan olindi'}: $done${skipped > 0 ? ' · o\'tkazib yuborildi: $skipped' : ''}${errors.isNotEmpty ? '\n${errors.join('; ')}' : ''}';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     await _load(quiet: true);
+    if (!mounted) return;
+    final ok = errors.isEmpty && (done > 0 || queued);
+    setState(() {
+      _busy = false;
+      _pending.clear();
+      if (ok) {
+        _selected.clear();
+        _flash
+          ..clear()
+          ..addEntries(keys.map((k) => MapEntry(k, act)));
+      }
+    });
+    _flashT?.cancel();
+    _flashT = Timer(const Duration(seconds: 8), () {
+      if (mounted) setState(_flash.clear);
+    });
+    // aniq xabar: kim, nima bo'ldi, qaysi guruhga o'tdi + «Ko'rish» (qatorga olib boradi)
+    final who = names.isEmpty ? '' : (names.length == 1 ? names.first : '${names.first} ${tr('va yana')} ${names.length - 1}');
+    final title = act == 'in' ? tr('ishga keldi') : tr('ishdan ketdi');
+    final group = act == 'in' ? tr('«Ishda» ro\'yxatiga o\'tdi') : tr('«Ketgan» ro\'yxatiga o\'tdi');
+    final color = act == 'in' ? Brand.green : const Color(0xFF475569);
+    final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+    if (!ok) {
+      messenger.showSnackBar(SnackBar(content: w.Text(errors.isNotEmpty ? errors.join('; ') : tr("Hech kim belgilanmadi"))));
+      return;
+    }
+    AiBubble.tuck(const Duration(milliseconds: 5400)); // AI tugmasi xabarni yopmasin
+    messenger.showSnackBar(SnackBar(
+      duration: const Duration(seconds: 5),
+      backgroundColor: color,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      content: Row(children: [
+        Icon(act == 'in' ? Icons.login_rounded : Icons.logout_rounded, color: Colors.white),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            w.Text('$who — $title', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            w.Text(queued ? tr("Offline saqlandi — internet paydo bo'lganda yuboriladi") : (skipped > 0 ? '$group · ${tr("o'tkazib yuborildi")}: $skipped' : group),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 12.5)),
+          ]),
+        ),
+      ]),
+      action: keys.isEmpty ? null : SnackBarAction(label: tr("Ko'rish"), textColor: Colors.white, onPressed: () => _reveal(keys.first)),
+    ));
   }
 
   Map<String, List<String>> _selectedByObject() {
@@ -280,7 +365,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ));
       // ishchilar holati bo'yicha alohida guruhlarda: Ishda, Ketgan, Kelmagan (prorablar bloki kabi)
       final groups = <(String, Color, List<Map>)>[
-        ('Ishda', Colors.teal, ws.where((w) => w['status'] == 'working' || w['status'] == 'forgot').toList()),
+        ('Ishda', Brand.teal, ws.where((w) => w['status'] == 'working' || w['status'] == 'forgot').toList()),
         ('Ketgan', Colors.blueGrey, ws.where((w) => w['status'] == 'left').toList()),
         ('Kelmagan', cs.error, ws.where((w) => w['status'] == 'absent').toList()),
       ];
@@ -288,8 +373,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         if (g.$3.isEmpty) continue;
         final tiles = <Widget>[];
         for (final w in g.$3) {
-          tiles.add(_WorkerTile(
+          final key = '${site['id']}|${w['id']}';
+          tiles.add(KeyedSubtree(
+            key: _keys.putIfAbsent(key, GlobalKey.new),
+            child: _WorkerTile(
           flat: true,
+          flash: _flash[key],
+          pending: _pending.contains(key),
           w: w,
           selected: _selected.contains('${site['id']}|${w['id']}'),
           selecting: _selected.isNotEmpty,
@@ -314,7 +404,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       objectId: '${site['id']}', staffId: '${w['id']}', name: '${w['name']}', code: '${w['tg_code']}', linked: w['tg_linked'] == true, bot: '${_data?['bot'] ?? ''}')
                   .then((_) => _load(quiet: true))
               : null,
-        ));
+        )));
         }
         rows.add(Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -347,8 +437,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Row(children: [
               _Stat('Jami', '${sum['staff'] ?? 0}', _filter == _Filter.all, () => setState(() => _filter = _Filter.all), cs.primary),
-              _Stat('Keldi', '${sum['came'] ?? 0}', _filter == _Filter.came, () => setState(() => _filter = _Filter.came), Colors.green.shade700),
-              _Stat('Ishda', '${sum['working'] ?? 0}', _filter == _Filter.working, () => setState(() => _filter = _Filter.working), Colors.teal),
+              _Stat('Keldi', '${sum['came'] ?? 0}', _filter == _Filter.came, () => setState(() => _filter = _Filter.came), Brand.green),
+              _Stat('Ishda', '${sum['working'] ?? 0}', _filter == _Filter.working, () => setState(() => _filter = _Filter.working), Brand.teal),
               _Stat('Kelmadi', '${sum['absent'] ?? 0}', _filter == _Filter.absent, () => setState(() => _filter = _Filter.absent), cs.error),
             ]),
           ),
@@ -447,7 +537,13 @@ class _Stat extends StatelessWidget {
 }
 
 class _WorkerTile extends StatelessWidget {
-  const _WorkerTile({required this.w, required this.selected, required this.selecting, required this.canMark, required this.busy, required this.onToggle, required this.onLong, required this.onAction, this.live = false, this.flat = false, this.onInfo, this.site});
+  const _WorkerTile({required this.w, required this.selected, required this.selecting, required this.canMark, required this.busy, required this.onToggle, required this.onLong, required this.onAction, this.live = false, this.flat = false, this.onInfo, this.site, this.flash, this.pending = false});
+
+  /// Hozirgina belgilangan: 'in' — yashil, 'out' — kulrang yonadi
+  final String? flash;
+
+  /// Shu qator yuborilmoqda
+  final bool pending;
 
   /// Obyekt joylashuvi (xaritada doira): {lat, lng, radius}
   final Map? site;
@@ -497,7 +593,7 @@ class _WorkerTile extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final st = '${w['status']}';
     final (label, color) = switch (st) {
-      'working' => ('Ishda', Colors.teal),
+      'working' => ('Ishda', Brand.teal),
       'left' => ('Ketdi', Colors.blueGrey),
       'forgot' => ('Chiqmagan', Colors.orange.shade800),
       _ => ('Kelmadi', cs.error),
@@ -527,14 +623,45 @@ class _WorkerTile extends StatelessWidget {
                     : pts.isNotEmpty
                         ? (Icons.place_outlined, '${tr('Joylashuv bor')}$far', false)
                         : (Icons.phone_iphone_rounded, tr('Telefon orqali'), false);
+    final tgOn = w['tg_linked'] == true;
+    // tor telefon (≤360dp): ism 2 qatorda, «xaritada» — faqat belgi, tugma ixcham
+    final narrow = MediaQuery.sizeOf(context).width < 360;
+    final avatar = selected
+        ? CircleAvatar(radius: 20, backgroundColor: cs.primary, child: Icon(Icons.check, color: cs.onPrimary))
+        : CircleAvatar(radius: 20, backgroundColor: color.withValues(alpha: 0.14), foregroundColor: color, child: Text(name.isEmpty ? '?' : name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w800)));
     final row = Row(children: [
-          selected
-              ? CircleAvatar(radius: 20, backgroundColor: cs.primary, child: Icon(Icons.check, color: cs.onPrimary))
-              : CircleAvatar(radius: 20, backgroundColor: color.withValues(alpha: 0.14), foregroundColor: color, child: Text(name.isEmpty ? '?' : name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w800))),
+          // Telegram holati — avatar burchagidagi kichik nishon (alohida belgi qatorni siqmaydi)
+          if (w['tg_code'] != null && !selecting)
+            Tooltip(
+              message: tgOn ? tr('Telegram ulangan') : tr('Telegram ulanmagan — bosing, kod chiqadi'),
+              child: SizedBox(
+                width: 42,
+                height: 42,
+                child: Stack(clipBehavior: Clip.none, children: [
+                  Positioned.fill(child: Align(alignment: Alignment.topLeft, child: avatar)),
+                  Positioned(
+                    right: -2,
+                    bottom: -2,
+                    child: Container(
+                      width: 19,
+                      height: 19,
+                      decoration: BoxDecoration(
+                        color: tgOn ? const Color(0xFF229ED9) : cs.surfaceContainerHighest,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: cs.surface, width: 2),
+                      ),
+                      child: Icon(Icons.send_rounded, size: 9.5, color: tgOn ? Colors.white : cs.outline),
+                    ),
+                  ),
+                ]),
+              ),
+            )
+          else
+            avatar,
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              Text(name, maxLines: narrow ? 2 : 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, height: 1.2)),
               if (sub.isNotEmpty) Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12.5)),
               if (whereIcon != null)
                 GestureDetector(
@@ -542,37 +669,59 @@ class _WorkerTile extends StatelessWidget {
                   onTap: pts.isEmpty || selecting ? null : () => showCheckinMap(context, name: name, points: pts, site: site),
                   child: Padding(
                     padding: const EdgeInsets.only(top: 2, bottom: 2),
-                    child: Row(children: [
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                       Icon(whereIcon, size: 14, color: whereWarn ? Colors.orange.shade700 : cs.primary),
                       const SizedBox(width: 4),
-                      Flexible(child: Text(whereText, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: whereWarn ? Colors.orange.shade700 : cs.outline, fontSize: 12, fontWeight: FontWeight.w600))),
+                      Flexible(child: Text(whereText, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: whereWarn ? Colors.orange.shade700 : cs.outline, fontSize: 12, fontWeight: FontWeight.w600, height: 1.2))),
                       if (pts.isNotEmpty) ...[
                         const SizedBox(width: 6),
-                        Icon(Icons.map_rounded, size: 15, color: cs.primary),
-                        const SizedBox(width: 2),
-                        Text(tr('xaritada'), style: TextStyle(color: cs.primary, fontSize: 12, fontWeight: FontWeight.w700)),
+                        Container(
+                          padding: narrow ? const EdgeInsets.all(3) : const EdgeInsets.fromLTRB(5, 2, 7, 2),
+                          decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.map_rounded, size: 13, color: cs.primary),
+                            if (!narrow) ...[
+                              const SizedBox(width: 3),
+                              Text(tr('xaritada'), style: TextStyle(color: cs.primary, fontSize: 11.5, fontWeight: FontWeight.w800, height: 1.2)),
+                            ],
+                          ]),
+                        ),
                       ],
                     ]),
                   ),
                 ),
             ]),
           ),
-          if (w['tg_code'] != null && !selecting)
-            Padding(
-              padding: const EdgeInsets.only(left: 4, right: 2),
-              child: Tooltip(
-                message: w['tg_linked'] == true ? tr('Telegram ulangan') : tr('Telegram ulanmagan — bosing, kod chiqadi'),
-                child: Icon(Icons.telegram, size: 22, color: w['tg_linked'] == true ? const Color(0xFF229ED9) : cs.outline.withValues(alpha: 0.55)),
-              ),
-            ),
           const SizedBox(width: 8),
-          if (canMark && !selecting && (st == 'absent' || st == 'working' || st == 'forgot'))
+          if (flash != null)
+            // hozirgina belgilandi — tugma o'rniga aniq belgi
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(color: flash == 'in' ? Brand.green : const Color(0xFF475569), borderRadius: BorderRadius.circular(20)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.check_rounded, color: Colors.white, size: 16),
+                const SizedBox(width: 4),
+                Text(flash == 'in' ? 'Keldi' : 'Ketdi', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12.5)),
+              ]),
+            )
+          else if (canMark && !selecting && (st == 'absent' || st == 'working' || st == 'forgot'))
             SizedBox(
               height: 34,
-              child: FilledButton.tonal(
+              child: FilledButton(
                 onPressed: busy ? null : () => onAction(st == 'absent' ? 'in' : 'out'),
-                style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14), visualDensity: VisualDensity.compact),
-                child: Text(st == 'absent' ? 'Keldi' : 'Ketdi'),
+                style: FilledButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: narrow ? 9 : 14),
+                  visualDensity: VisualDensity.compact,
+                  textStyle: TextStyle(fontSize: narrow ? 13 : 14, fontWeight: FontWeight.w700),
+                  backgroundColor: st == 'absent' ? Brand.green : const Color(0xFF64748B),
+                ),
+                child: pending
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white))
+                    : Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(st == 'absent' ? Icons.login_rounded : Icons.logout_rounded, size: narrow ? 15 : 16),
+                        SizedBox(width: narrow ? 4 : 5),
+                        Text(st == 'absent' ? 'Keldi' : 'Ketdi'),
+                      ]),
               ),
             )
           else
@@ -590,8 +739,18 @@ class _WorkerTile extends StatelessWidget {
           onTap: selecting ? onToggle : onInfo,
           onLongPress: onLong,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            decoration: BoxDecoration(color: selected ? cs.primaryContainer.withValues(alpha: 0.6) : Colors.transparent, borderRadius: BorderRadius.circular(14)),
+            duration: const Duration(milliseconds: 350),
+            decoration: BoxDecoration(
+              color: selected
+                  ? cs.primaryContainer.withValues(alpha: 0.6)
+                  : flash == 'in'
+                      ? Brand.green.withValues(alpha: 0.14)
+                      : flash == 'out'
+                          ? const Color(0xFF475569).withValues(alpha: 0.12)
+                          : Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+              border: flash == null ? null : Border.all(color: (flash == 'in' ? Brand.green : const Color(0xFF475569)).withValues(alpha: 0.5), width: 1.4),
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 9),
             child: row,
           ),

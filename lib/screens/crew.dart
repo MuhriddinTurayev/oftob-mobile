@@ -10,6 +10,7 @@ import '../theme.dart';
 import '../motion.dart';
 import '../widgets.dart';
 import '../l10n.dart';
+import '../sheet_select.dart';
 import 'tg_link.dart';
 
 const _months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
@@ -184,7 +185,7 @@ class _CrewScreenState extends State<CrewScreen> {
                   const SizedBox(height: 8),
                   Row(children: [
                     _Sum('Hisoblangan', sum['accrued'], _cur, cs.onPrimaryContainer),
-                    _Sum('To\'langan', sum['paid'], _cur, Colors.green.shade800),
+                    _Sum('To\'langan', sum['paid'], _cur, Brand.green),
                     _Sum('Qoldi', sum['due'], _cur, ((sum['due'] as num?) ?? 0) > 0 ? cs.error : cs.onPrimaryContainer),
                   ]),
                 ]),
@@ -290,7 +291,7 @@ class _WorkerRow extends StatelessWidget {
           if (money)
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text(_fmtMoney(month['accrued'] as num?), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
-              Text(due != null && due > 0 ? 'qoldi ${_fmtMoney(due)}' : (((month['accrued'] as num?) ?? 0) > 0 ? 'to\'langan' : ''), style: TextStyle(color: due != null && due > 0 ? cs.error : Colors.green.shade700, fontSize: 11.5, fontWeight: FontWeight.w600)),
+              Text(due != null && due > 0 ? 'qoldi ${_fmtMoney(due)}' : (((month['accrued'] as num?) ?? 0) > 0 ? 'to\'langan' : ''), style: TextStyle(color: due != null && due > 0 ? cs.error : Brand.green, fontSize: 11.5, fontWeight: FontWeight.w600)),
             ]),
           const SizedBox(width: 2),
           Icon(Icons.chevron_right, color: cs.outline, size: 20),
@@ -378,13 +379,13 @@ class _WorkerSheet extends StatelessWidget {
           if (money) ...[
             if (m['base'] != null) _kv(context, 'Ishlagani (asos)', '${_fmtMoney(m['base'] as num?)} $cur'),
             for (final k in ((m['kpis'] as List?) ?? const []).whereType<Map>())
-              _kv(context, 'KPI: ${k['name']} (${k['fact']}/${k['plan']})', k['reached'] == true ? '+${_fmtMoney(k['bonus'] as num?)} $cur' : tr('reja bajarilmadi'), color: k['reached'] == true ? Colors.green.shade700 : null),
+              _kv(context, 'KPI: ${k['name']} (${k['fact']}/${k['plan']})', k['reached'] == true ? '+${_fmtMoney(k['bonus'] as num?)} $cur' : tr('reja bajarilmadi'), color: k['reached'] == true ? Brand.green : null),
             if (((m['late_count'] as num?) ?? 0) > 0)
               _kv(context, '${tr('Kechikish')}: ${m['late_count']} ${tr('marta')}, ${m['late_minutes']} ${tr('daq')}', '−${_fmtMoney(m['late_sum'] as num?)} $cur', color: cs.error),
             for (final f in ((m['fines'] as List?) ?? const []).whereType<Map>())
               _kv(context, '${tr('Ushlab qolindi')}: ${f['reason']}', '−${_fmtMoney(f['amount'] as num?)} $cur', color: cs.error),
             _kv(context, 'Hisoblangan', '${_fmtMoney(m['accrued'] as num?)} $cur'),
-            _kv(context, 'To\'langan', '${_fmtMoney(m['paid'] as num?)} $cur', color: Colors.green.shade700),
+            _kv(context, 'To\'langan', '${_fmtMoney(m['paid'] as num?)} $cur', color: Brand.green),
             _kv(context, 'Qoldi', '${_fmtMoney(due)} $cur', color: due > 0 ? cs.error : null),
             if (session.me != null && !session.me!.readOnly && const ['foreman', 'admin', 'accountant', 'cashier'].contains(session.me!.role)) ...[
               const SizedBox(height: 14),
@@ -505,7 +506,7 @@ class _HireSheetState extends State<_HireSheet> {
           Text('Yangi xodim', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: 14),
           if (widget.objects.length > 1) ...[
-            DropdownButtonFormField<String>(
+            SheetDropdown<String>(
               initialValue: _object,
               decoration: dec('Obyekt'),
               items: [for (final o in widget.objects) DropdownMenuItem(value: '${o['id']}', child: Text('${o['name']}', overflow: TextOverflow.ellipsis))],
@@ -524,7 +525,7 @@ class _HireSheetState extends State<_HireSheet> {
           const SizedBox(height: 12),
           TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: dec('Telefon (ixtiyoriy)')),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
+          SheetDropdown<String>(
             initialValue: _pay,
             decoration: dec('Ish haqi turi'),
             items: [for (final e in _payTypes.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],

@@ -78,7 +78,7 @@ class _PartiesScreenState extends State<PartiesScreen> {
 
   Widget _statusChip(String st) {
     final (label, color) = switch (st) {
-      'ok' => ('Tekshirilgan', Colors.green.shade700),
+      'ok' => ('Tekshirilgan', Brand.green),
       'suspicious' => ('Shubhali', Colors.orange.shade800),
       'blocked' => ('Bloklangan', Colors.red.shade700),
       _ => ('Tekshiruvda', Colors.blueGrey),
@@ -250,7 +250,7 @@ class _PaymentRequestsScreenState extends State<PaymentRequestsScreen> {
   static const _statuses = {'pending': 'Kutilmoqda', 'approved': 'Tasdiqlangan', 'paid': "To'langan", 'rejected': 'Rad etilgan', 'cancelled': 'Bekor qilingan'};
 
   static Color _color(String s) => switch (s) {
-        'paid' => Colors.green.shade700,
+        'paid' => Brand.green,
         'approved' => Brand.blue,
         'rejected' => Colors.red.shade700,
         'cancelled' => Colors.blueGrey,

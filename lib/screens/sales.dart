@@ -165,10 +165,10 @@ class _SalesScreenState extends State<SalesScreen> {
         child: ListTile(
         dense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-        leading: CircleAvatar(backgroundColor: Colors.green.withValues(alpha: 0.12), foregroundColor: Colors.green.shade700, child: const Icon(Icons.south_west, size: 18)),
+        leading: CircleAvatar(backgroundColor: Brand.green.withValues(alpha: 0.12), foregroundColor: Brand.green, child: const Icon(Icons.south_west, size: 18)),
         title: Text('${buyer['name'] ?? ''}'.isEmpty ? 'Xaridor' : '${buyer['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text('kv. ${p['apartment_number']} · ${_objectNames['${p['object_id']}'] ?? ''}${p['method'] != null && '${p['method']}'.isNotEmpty ? ' · ${p['method']}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
-        trailing: Text('+${money(p['amount'] as num?)}', style: TextStyle(fontWeight: FontWeight.w800, color: Colors.green.shade700)),
+        trailing: Text('+${money(p['amount'] as num?)}', style: TextStyle(fontWeight: FontWeight.w800, color: Brand.green)),
       )));
     }
     return RefreshIndicator(

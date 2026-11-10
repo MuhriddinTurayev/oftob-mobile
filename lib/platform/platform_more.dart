@@ -212,9 +212,9 @@ class _MailSettingsScreenState extends State<MailSettingsScreen> {
       children: [
         GlassRow(
           margin: EdgeInsets.zero,
-          tint: (_on ? Colors.green : Colors.orange).withValues(alpha: 0.12),
+          tint: (_on ? Brand.green : Colors.orange).withValues(alpha: 0.12),
           child: Row(children: [
-            Icon(_on ? Icons.mark_email_read_rounded : Icons.mail_lock_rounded, color: _on ? Colors.green.shade700 : Colors.orange.shade800),
+            Icon(_on ? Icons.mark_email_read_rounded : Icons.mail_lock_rounded, color: _on ? Brand.green : Colors.orange.shade800),
             const SizedBox(width: 10),
             Expanded(child: Text(_on ? tr('Pochta ulangan — parolni tiklash kodlari emailga boradi') : tr('Pochta ulanmagan — parolni tiklash email orqali ishlamaydi'), style: const TextStyle(fontWeight: FontWeight.w700))),
           ]),

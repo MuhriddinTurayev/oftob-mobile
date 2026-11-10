@@ -110,8 +110,8 @@ class _TgSheetState extends State<_TgSheet> {
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: (_linked ? Colors.green : Colors.orange).withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
-            child: Text(_linked ? tr('Ulangan') : tr('Ulanmagan'), style: TextStyle(color: _linked ? Colors.green.shade700 : Colors.orange.shade800, fontWeight: FontWeight.w800, fontSize: 12)),
+            decoration: BoxDecoration(color: (_linked ? Brand.green : Colors.orange).withValues(alpha: 0.14), borderRadius: BorderRadius.circular(20)),
+            child: Text(_linked ? tr('Ulangan') : tr('Ulanmagan'), style: TextStyle(color: _linked ? Brand.green : Colors.orange.shade800, fontWeight: FontWeight.w800, fontSize: 12)),
           ),
         ]),
         const SizedBox(height: 16),

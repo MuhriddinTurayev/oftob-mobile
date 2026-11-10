@@ -10,6 +10,7 @@ import '../platform/platform_home.dart';
 import '../l10n.dart';
 import '../widgets.dart';
 import '../theme.dart';
+import '../login_info.dart';
 
 /// Kirish: foydalanuvchi faqat korxonani tanlaydi (kod yozadi yoki oxirgilaridan bosadi).
 /// Server manzili, port va boshqa texnik narsalar ko'rsatilmaydi.
@@ -223,7 +224,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 12),
                     _CompanyTile(_found!, onTap: () => _open(_found!), highlight: true),
                   ],
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 22),
+                  // platforma admini sozlagan «Kirish uchun bog'laning» (telefon, Telegram); bo'sh bo'lsa — ko'rinmaydi
+                  LoginInfoCard(serverUrl: s.serverUrl),
+                  const SizedBox(height: 18),
                   Text(
                     'Korxona kodini rahbaringizdan oling. U korxona havolasining boshidagi so\'z.',
                     textAlign: TextAlign.center,

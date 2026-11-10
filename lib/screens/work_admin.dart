@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../format.dart';
 import '../l10n.dart';
+import '../sheet_select.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -207,7 +208,7 @@ class _WorkScreenState extends State<WorkScreen> {
                   margin: EdgeInsets.zero,
                   onTap: o['can_set'] == true ? () => _setSite(o) : null,
                   child: Row(children: [
-                    IconTile(icon: o['site'] != null ? Icons.location_on_rounded : Icons.location_off_rounded, color: o['site'] != null ? Colors.green : Colors.orange, size: 42),
+                    IconTile(icon: o['site'] != null ? Icons.location_on_rounded : Icons.location_off_rounded, color: o['site'] != null ? Brand.green : Colors.orange, size: 42),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -293,7 +294,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
             HeroGlass(
               child: Row(children: [
                 Expanded(child: _stat(context, 'Hisoblangan', '${money(tot('sum'))} $cur', context.ink)),
-                Expanded(child: _stat(context, 'KPI bonus', '+${money(tot('bonus'))}', Colors.green.shade700)),
+                Expanded(child: _stat(context, 'KPI bonus', '+${money(tot('bonus'))}', Brand.green)),
                 Expanded(child: _stat(context, 'Ushlab qolindi', '−${money(tot('deduct'))}', cs.error)),
               ]),
             ),
@@ -331,7 +332,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
                       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                         Text(money(x['sum'] as num?), style: const TextStyle(fontWeight: FontWeight.w900)),
                         if (((x['deduct'] as num?) ?? 0) > 0) Text('−${money(x['deduct'] as num?)}', style: TextStyle(color: cs.error, fontSize: 12, fontWeight: FontWeight.w700)),
-                        if (((x['bonus'] as num?) ?? 0) > 0) Text('+${money(x['bonus'] as num?)}', style: TextStyle(color: Colors.green.shade700, fontSize: 12, fontWeight: FontWeight.w700)),
+                        if (((x['bonus'] as num?) ?? 0) > 0) Text('+${money(x['bonus'] as num?)}', style: TextStyle(color: Brand.green, fontSize: 12, fontWeight: FontWeight.w700)),
                       ]),
                     ]),
                   ),
@@ -396,7 +397,7 @@ class _StaffSheetState extends State<_StaffSheet> {
           title: const Text("KPI qo'shish"),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              DropdownButtonFormField<String>(
+              SheetDropdown<String>(
                 initialValue: metric,
                 isExpanded: true,
                 decoration: InputDecoration(labelText: tr("Ko'rsatkich")),
@@ -497,12 +498,12 @@ class _StaffSheetState extends State<_StaffSheet> {
               child: Column(children: [
                 kv(tr('Ish kunlari / soat'), '${x['days']} · ${x['hours']}'),
                 kv(tr('Asos (ishlagani)'), '${money(x['base'] as num?)} $cur'),
-                kv(tr('KPI bonus'), '+${money(x['bonus'] as num?)} $cur', c: Colors.green.shade700),
+                kv(tr('KPI bonus'), '+${money(x['bonus'] as num?)} $cur', c: Brand.green),
                 if (((late['count'] as num?) ?? 0) > 0) kv('${tr('Kechikish')} (${late['count']} ${tr('marta')}, ${late['minutes']} ${tr('daq')})', '−${money(late['sum'] as num?)} $cur', c: cs.error),
                 if (fines.isNotEmpty) kv(tr("Qo'lda ushlab qolish"), '−${money((x['fines'] as Map?)?['sum'] as num?)} $cur', c: cs.error),
                 const Divider(),
                 kv(tr('Hisoblangan'), '${money(x['sum'] as num?)} $cur', bold: true),
-                kv(tr("Berildi"), '${money(x['paid'] as num?)} $cur', c: Colors.green.shade700),
+                kv(tr("Berildi"), '${money(x['paid'] as num?)} $cur', c: Brand.green),
                 kv(tr('Qoldi'), '${money(x['due'] as num?)} $cur', c: ((x['due'] as num?) ?? 0) > 0 ? cs.error : null, bold: true),
               ]),
             ),
@@ -545,7 +546,7 @@ class _StaffSheetState extends State<_StaffSheet> {
                       const SizedBox(height: 6),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(9),
-                        child: LinearProgressIndicator(value: (pct / 100).clamp(0, 1), minHeight: 7, color: reached ? Colors.green : Brand.blue, backgroundColor: cs.outline.withValues(alpha: 0.15)),
+                        child: LinearProgressIndicator(value: (pct / 100).clamp(0, 1), minHeight: 7, color: reached ? Brand.green : Brand.blue, backgroundColor: cs.outline.withValues(alpha: 0.15)),
                       ),
                     ]),
                   ),

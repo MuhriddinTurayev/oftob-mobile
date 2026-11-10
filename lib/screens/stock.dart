@@ -189,14 +189,14 @@ class _StockScreenState extends State<StockScreen> {
                     child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                     leading: CircleAvatar(
-                      backgroundColor: (inc ? Colors.green : cs.error).withValues(alpha: 0.12),
-                      foregroundColor: inc ? Colors.green.shade700 : cs.error,
+                      backgroundColor: (inc ? Brand.green : cs.error).withValues(alpha: 0.12),
+                      foregroundColor: inc ? Brand.green : cs.error,
                       child: Icon(inc ? Icons.south_west : Icons.north_east, size: 20),
                     ),
                     title: Text('${item['name'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
                     subtitle: Text('${_moveName('${m['type']}')} · ${formatDate('${m['date']}')} · ${wh['name'] ?? ''}${'${m['note'] ?? ''}'.isEmpty ? '' : '\n${m['note']}'}', maxLines: 3, overflow: TextOverflow.ellipsis),
                     isThreeLine: '${m['note'] ?? ''}'.isNotEmpty,
-                    trailing: Text('${inc ? '+' : ''}${area(qty)} ${item['unit'] ?? ''}', style: TextStyle(fontWeight: FontWeight.w800, color: inc ? Colors.green.shade700 : cs.error)),
+                    trailing: Text('${inc ? '+' : ''}${area(qty)} ${item['unit'] ?? ''}', style: TextStyle(fontWeight: FontWeight.w800, color: inc ? Brand.green : cs.error)),
                   ));
                 },
               ),

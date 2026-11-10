@@ -171,14 +171,14 @@ class _LeadSourcesScreenState extends State<LeadSourcesScreen> {
             leading: IconTile(icon: icon, color: color, size: 44),
             title: Text('${x['title']}', style: const TextStyle(fontWeight: FontWeight.w800)),
             subtitle: Row(children: [
-              Icon(on ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, size: 15, color: on ? Colors.green.shade600 : cs.outline),
+              Icon(on ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, size: 15, color: on ? Brand.green : cs.outline),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
                   '${on ? tr('Ulangan') : tr('Ulanmagan')}${count != null ? ' · ${tr('30 kunda')}: $count' : ''}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: on ? Colors.green.shade700 : cs.outline, fontSize: 12.5, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: on ? Brand.green : cs.outline, fontSize: 12.5, fontWeight: FontWeight.w600),
                 ),
               ),
             ]),

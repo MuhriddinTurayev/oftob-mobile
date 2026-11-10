@@ -8,6 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../format.dart';
 import '../session.dart';
 import '../l10n.dart';
+import '../theme.dart';
 
 /// Bildirishnomalar markazi: serverdan voqealar lentasini har 10 soniyada (ilova ochiq turganda) so'raydi,
 /// o'qilmaganlarni sanaydi va yangi voqea kelganda [onFresh] orqali xabar beradi.
@@ -160,14 +161,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   (IconData, Color) _look(String type) => switch (type) {
         'task' => (Icons.checklist, Colors.blue.shade700),
         'late' => (Icons.alarm, Colors.red.shade700),
-        'money' => (Icons.payments_outlined, Colors.green.shade700),
-        'receipt' => (Icons.receipt_long, Colors.teal.shade700),
-        'ok' => (Icons.check_circle_outline, Colors.green.shade700),
+        'money' => (Icons.payments_outlined, Brand.green),
+        'receipt' => (Icons.receipt_long, Brand.teal),
+        'ok' => (Icons.check_circle_outline, Brand.green),
         'alert' => (Icons.error_outline, Colors.red.shade700),
         'lead' => (Icons.person_add_alt, Colors.orange.shade800),
-        'shift' => (Icons.how_to_reg, Colors.teal.shade700),
+        'shift' => (Icons.how_to_reg, Brand.teal),
         'report' => (Icons.outgoing_mail, Colors.deepPurple.shade400),
-        'support' => (Icons.support_agent, Colors.teal.shade600),
+        'support' => (Icons.support_agent, Brand.teal),
         'ai' => (Icons.auto_awesome, Colors.purple.shade400),
         _ => (Icons.notifications_none, Colors.blueGrey),
       };

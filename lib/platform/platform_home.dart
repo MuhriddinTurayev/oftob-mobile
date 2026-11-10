@@ -4,8 +4,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../api.dart';
+import '../login_info.dart';
 import '../format.dart';
 import '../l10n.dart';
+import '../sheet_select.dart';
 import '../motion.dart';
 import '../session.dart';
 import '../theme.dart';
@@ -182,7 +184,7 @@ String curName(Object? c) {
 }
 
 Color stateColor(String st, ColorScheme cs) => switch (st) {
-      'active' => Colors.green.shade600,
+      'active' => Brand.green,
       'trial' => Brand.blue,
       'expired' => Colors.orange.shade700,
       'suspended' => cs.error,
@@ -309,7 +311,7 @@ class _OverviewState extends State<_Overview> {
               Row(children: [
                 stat(tr('Jami'), d['total'] ?? 0, cs.primary, onTap: () => widget.onTab(1)),
                 const SizedBox(width: 8),
-                stat(tr('Faol'), d['active'] ?? 0, Colors.green.shade600, onTap: () => widget.onTab(1)),
+                stat(tr('Faol'), d['active'] ?? 0, Brand.green, onTap: () => widget.onTab(1)),
                 const SizedBox(width: 8),
                 stat(tr('Sinov'), d['trial'] ?? 0, Brand.blue, onTap: () => widget.onTab(1)),
                 const SizedBox(width: 8),
@@ -544,7 +546,7 @@ class _CompanyPageState extends State<CompanyPage> {
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text("To'lov yozish va muddatni uzaytirish", style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
               const SizedBox(height: 14),
-              DropdownButtonFormField<int>(
+              SheetDropdown<int>(
                 initialValue: plan,
                 decoration: InputDecoration(labelText: tr('Tarif')),
                 items: [for (final p in plans) DropdownMenuItem(value: (p['id'] as num).toInt(), child: Text('${p['title']} · ${money(p['price_month'] as num?)} ${curName(p['currency'])}'))],
@@ -690,7 +692,7 @@ class _CompanyPageState extends State<CompanyPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
+              SheetDropdown<int>(
                 initialValue: _plan,
                 decoration: InputDecoration(labelText: tr('Tarif')),
                 items: [for (final p in plans) DropdownMenuItem(value: (p['id'] as num).toInt(), child: Text('${p['title']}'))],
@@ -719,7 +721,7 @@ class _CompanyPageState extends State<CompanyPage> {
                 ),
               ]),
               const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
+              SheetDropdown<String>(
                 initialValue: _currency,
                 decoration: InputDecoration(labelText: tr('Kompaniya valyutasi')),
                 items: [
@@ -729,14 +731,14 @@ class _CompanyPageState extends State<CompanyPage> {
                 onChanged: (v) => setState(() => _currency = v),
               ),
               const SizedBox(height: 10),
-              DropdownButtonFormField<int?>(
+              SheetDropdown<int?>(
                 initialValue: _aiProvider,
                 decoration: InputDecoration(labelText: tr('AI ulanishi')),
                 items: [DropdownMenuItem<int?>(value: null, child: Text(tr('Platforma bo\'yicha standart'))), for (final p in provs) DropdownMenuItem<int?>(value: (p['id'] as num).toInt(), child: Text('${p['name']}'))],
                 onChanged: (v) => setState(() => _aiProvider = v),
               ),
               const SizedBox(height: 10),
-              DropdownButtonFormField<int?>(
+              SheetDropdown<int?>(
                 initialValue: provs.any((p) => (p['id'] as num).toInt() == _aiVoice && p['voice'] == true) ? _aiVoice : null,
                 decoration: InputDecoration(labelText: tr('Ovoz uchun ulanish'), helperText: tr('Ovozni faqat Gemini va ChatGPT tushunadi')),
                 items: [
@@ -804,7 +806,7 @@ class _PayRow extends StatelessWidget {
       child: GlassRow(
         margin: EdgeInsets.zero,
         child: Row(children: [
-          const IconTile(icon: Icons.south_west_rounded, color: Colors.green, size: 38),
+          const IconTile(icon: Icons.south_west_rounded, color: Brand.green, size: 38),
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -812,7 +814,7 @@ class _PayRow extends StatelessWidget {
               Text('${formatDate('${p['paid_at']}')} · ${p['method'] ?? ''}${showCompany ? ' · ${p['plan'] ?? ''} · ${p['months']} ${tr('oy')}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12.5)),
             ]),
           ),
-          Text('+${money(p['amount'] as num?)} ${curName(p['currency'])}', style: TextStyle(color: Colors.green.shade600, fontWeight: FontWeight.w800)),
+          Text('+${money(p['amount'] as num?)} ${curName(p['currency'])}', style: TextStyle(color: Brand.green, fontWeight: FontWeight.w800)),
           if (onDelete != null) IconButton(onPressed: onDelete, icon: Icon(Icons.delete_outline_rounded, color: cs.error, size: 20), visualDensity: VisualDensity.compact),
         ]),
       ),
@@ -1060,6 +1062,9 @@ class _More extends StatelessWidget {
         if (can('payments')) row(Icons.credit_card_rounded, Brand.blue, "To'lov rekvizitlari", "Kompaniyalar tarifni shu karta/hisobga to'laydi", () => push(tr("To'lov rekvizitlari"), PayDetailsScreen(session: s))),
         if (can('settings')) row(Icons.alternate_email_rounded, Brand.purple, 'Pochta (SMTP)', 'Parolni tiklash kodlari emailga', () => push(tr('Pochta (SMTP)'), MailSettingsScreen(session: s))),
         if (can('settings')) row(Icons.pin_rounded, Brand.teal, 'Kirish kodi', "Ilovada administrator kirishi uchun kod", () => changeGateCode(context, s)),
+        if (can('settings'))
+          row(Icons.support_agent_rounded, Brand.blue, 'Kirish oynasi', "Yangi foydalanuvchiga ko'rinadigan telefon va matn",
+              () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LoginInfoSettingsScreen(session: s)))),
         Padding(padding: const EdgeInsets.fromLTRB(4, 8, 4, 8), child: Text("To'liq panel (sayt bo'limlari)", style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))),
         for (final (perm, path, icon, color, title) in [
           ('', '/admin', Icons.space_dashboard_rounded, Brand.blue, 'Bosh panel'),

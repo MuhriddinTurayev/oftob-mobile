@@ -30,7 +30,7 @@ import 'lead_sources.dart';
       return (icon: Icons.api, color: Colors.blueGrey, name: 'API');
     case 'phone':
     case 'call':
-      return (icon: Icons.call_outlined, color: Colors.teal, name: 'Qo\'ng\'iroq');
+      return (icon: Icons.call_outlined, color: Brand.teal, name: 'Qo\'ng\'iroq');
     case '':
       return (icon: Icons.inbox_outlined, color: Colors.blueGrey, name: 'Boshqa');
     default:

@@ -9,6 +9,7 @@ import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../l10n.dart';
+import '../sheet_select.dart';
 import 'objects.dart';
 
 enum _Kind { foreman, sales, company }
@@ -243,9 +244,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Row(children: [
-                  Icon(Icons.check_circle_rounded, size: 16, color: Colors.green.shade600),
+                  Icon(Icons.check_circle_rounded, size: 16, color: Brand.green),
                   const SizedBox(width: 4),
-                  Text('${tr('Direktorga yuborilgan')}: ${formatDateTime(sent)}', style: TextStyle(color: Colors.green.shade600, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                  Text('${tr('Direktorga yuborilgan')}: ${formatDateTime(sent)}', style: TextStyle(color: Brand.green, fontSize: 12.5, fontWeight: FontWeight.w700)),
                 ]),
               ),
             const SizedBox(height: 10),
@@ -405,20 +406,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
     // holat qatori: topshirilgan / hali topshirilmagan
     final status = Row(children: [
-      Icon(sent ? Icons.check_circle_rounded : Icons.schedule_rounded, size: 18, color: sent ? Colors.green.shade600 : Colors.orange.shade700),
+      Icon(sent ? Icons.check_circle_rounded : Icons.schedule_rounded, size: 18, color: sent ? Brand.green : Colors.orange.shade700),
       const SizedBox(width: 6),
       Expanded(
         child: Text(sent ? '${tr('Topshirilgan')}: $sentAt' : tr('Hali topshirilmagan'),
-            maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: sent ? Colors.green.shade600 : Colors.orange.shade700)),
+            maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: sent ? Brand.green : Colors.orange.shade700)),
       ),
     ]);
     if (canSubmit) {
       out.add(HeroGlass(
-        tint: sent ? Colors.green : Brand.blue,
+        tint: sent ? Brand.green : Brand.blue,
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            IconTile(icon: Icons.outgoing_mail, color: sent ? Colors.green : Brand.blue, size: 42),
+            IconTile(icon: Icons.outgoing_mail, color: sent ? Brand.green : Brand.blue, size: 42),
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -504,7 +505,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (_kind != _Kind.company && people.length > 1)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: DropdownButtonFormField<int>(
+          child: SheetDropdown<int>(
             key: ValueKey(_kind),
             initialValue: selected,
             isDense: true,
@@ -587,7 +588,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       _pdfBar('${(d['foreman'] as Map?)?['name'] ?? ''}'),
       _Hero(title: '${(d['foreman'] as Map?)?['name'] ?? ''}', sub: '${formatDate('${d['from']}')} – ${formatDate('${d['to']}')}', rows: [
         _Pair('Boshida', m['opening']),
-        _Pair('Berilgan', m['received'], color: Colors.green.shade700),
+        _Pair('Berilgan', m['received'], color: Brand.green),
         _Pair('Qaytarilgan', m['returned']),
         _Pair('Sarflangan', m['spent'], color: cs.error),
         _Pair('Oxirida (qoldiq)', m['closing'], bold: true),
@@ -661,7 +662,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ..._actionCard(d, cs, sales: true),
       _pdfBar('${(d['seller'] as Map?)?['name'] ?? ''}'),
       _Hero(title: '${(d['seller'] as Map?)?['name'] ?? ''}', sub: '${formatDate('${d['from']}')} – ${formatDate('${d['to']}')}', rows: [
-        _Pair('Davr ichida tushum', k['collectedPeriod'], color: Colors.green.shade700, bold: true),
+        _Pair('Davr ichida tushum', k['collectedPeriod'], color: Brand.green, bold: true),
         _Pair('Sotilgan (${k['soldN'] ?? 0} ta)', k['soldSum']),
         _Pair('Bron (${k['bookedN'] ?? 0} ta), birinchi to\'lov', k['bookedSum']),
         _Pair('Muddati o\'tgan (${k['overdueN'] ?? 0} ta)', k['overdueSum'], color: ((k['overdueN'] as num?) ?? 0) > 0 ? cs.error : null),

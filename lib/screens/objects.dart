@@ -15,7 +15,7 @@ import 'tour.dart';
 import '../l10n.dart';
 
 Color statusColor(String? s) => switch (s) {
-      'free' => Colors.green,
+      'free' => Brand.green,
       'booked' => Colors.orange,
       'sold' => Colors.red,
       _ => Colors.blueGrey,
@@ -66,7 +66,7 @@ class ObjectsScreen extends StatelessWidget {
                       ]),
                       const SizedBox(height: 12),
                       Wrap(spacing: 8, runSpacing: 4, children: [
-                        StatusChip('Bo\'sh ${a['free'] ?? 0}', Colors.green),
+                        StatusChip('Bo\'sh ${a['free'] ?? 0}', Brand.green),
                         StatusChip('Bron ${a['booked'] ?? 0}', Colors.orange),
                         StatusChip('Sotilgan ${a['sold'] ?? 0}', Colors.red),
                         StatusChip('Jami ${a['total'] ?? 0}', Colors.blueGrey),
@@ -497,7 +497,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
                 ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: (paid / owed).clamp(0, 1).toDouble(), minHeight: 8)),
                 const SizedBox(height: 8),
                 Row(children: [
-                  Expanded(child: Text('To\'langan ${money(paid)}', style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.w700, fontSize: 13))),
+                  Expanded(child: Text('To\'langan ${money(paid)}', style: TextStyle(color: Brand.green, fontWeight: FontWeight.w700, fontSize: 13))),
                   Text('Qarz ${money(debt)}', style: TextStyle(color: debt > 0 ? cs.error : cs.onPrimaryContainer, fontWeight: FontWeight.w700, fontSize: 13)),
                 ]),
               ],
@@ -573,7 +573,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(children: [
-                  Icon(r['paid'] == true ? Icons.check_circle : Icons.radio_button_unchecked, size: 20, color: r['paid'] == true ? Colors.green.shade700 : cs.outline),
+                  Icon(r['paid'] == true ? Icons.check_circle : Icons.radio_button_unchecked, size: 20, color: r['paid'] == true ? Brand.green : cs.outline),
                   const SizedBox(width: 10),
                   Expanded(child: Text(formatDate('${r['date']}'), style: TextStyle(color: r['paid'] == true ? cs.outline : null, fontWeight: (a['next'] as Map?)?['date'] == r['date'] ? FontWeight.w800 : FontWeight.w500))),
                   Text(money(r['amount'] as num?), style: TextStyle(fontWeight: FontWeight.w700, color: r['paid'] == true ? cs.outline : null)),
@@ -587,7 +587,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
               ListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(radius: 16, backgroundColor: Colors.green.withValues(alpha: 0.12), foregroundColor: Colors.green.shade700, child: const Icon(Icons.south_west, size: 16)),
+                leading: CircleAvatar(radius: 16, backgroundColor: Brand.green.withValues(alpha: 0.12), foregroundColor: Brand.green, child: const Icon(Icons.south_west, size: 16)),
                 title: Text('+${money(p['amount'] as num?)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text('${formatDate('${p['date']}')}${p['method'] != null && '${p['method']}'.isNotEmpty ? ' · ${p['method']}' : ''}'),
                 trailing: _canWrite && !_foreign

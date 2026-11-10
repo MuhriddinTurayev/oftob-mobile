@@ -588,6 +588,13 @@ class AiBubble extends StatefulWidget {
     _scrollTimer = Timer(const Duration(milliseconds: 1200), () => scrolling.value = false);
   }
 
+  /// Pastdan xabar (SnackBar) chiqqanda tugma uni yopmasin: shu vaqtga chetga yashirinadi
+  static void tuck(Duration d) {
+    scrolling.value = true;
+    _scrollTimer?.cancel();
+    _scrollTimer = Timer(d, () => scrolling.value = false);
+  }
+
   final AssistantController controller;
   final GlobalKey<NavigatorState> navigatorKey;
 

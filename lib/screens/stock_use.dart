@@ -8,6 +8,7 @@ import '../api.dart';
 import '../format.dart';
 import '../keyboard.dart';
 import '../l10n.dart';
+import '../sheet_select.dart';
 import '../session.dart';
 import '../theme.dart';
 
@@ -346,7 +347,7 @@ class _StockUseSheetState extends State<_StockUseSheet> {
         ),
         if (!_foreman && _objects.isNotEmpty) ...[
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
+          SheetDropdown<String>(
             initialValue: _objects.any((o) => '${o['id']}' == _object) ? _object : null,
             isExpanded: true,
             decoration: InputDecoration(labelText: tr('Obyekt')),

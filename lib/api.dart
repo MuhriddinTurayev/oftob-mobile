@@ -561,6 +561,19 @@ class ApiClient {
     }
   }
 
+  /// Kirish oynasi uchun «Kirish uchun bog'laning» ma'lumoti (kirishsiz). Xato yoki internet yo'q — null
+  static Future<Map<String, dynamic>?> loginInfo(String serverUrl) async {
+    final c = ApiClient(serverUrl: serverUrl, apiKey: '');
+    try {
+      final b = await c._send(() => c._http.get(c._uri('/app/info'), headers: {'Accept': 'application/json', 'Accept-Language': ApiClient.lang}), timeout: const Duration(seconds: 10));
+      return b is Map && b['data'] is Map ? Map<String, dynamic>.from(b['data'] as Map) : null;
+    } catch (_) {
+      return null;
+    } finally {
+      c.close();
+    }
+  }
+
   /// Platforma: kirishsiz so'rov (parolni tiklash) → `data`
   static Future<dynamic> platformPublic(String serverUrl, String path, Map<String, dynamic> body) async {
     final c = ApiClient(serverUrl: serverUrl, apiKey: '');

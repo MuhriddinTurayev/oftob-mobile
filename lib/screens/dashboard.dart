@@ -475,7 +475,7 @@ class _WorkingRow extends StatelessWidget {
     return Row(children: [
       Stack(clipBehavior: Clip.none, children: [
         IconTile(icon: office ? Icons.engineering_rounded : Icons.construction_rounded, color: office ? Brand.blue : Brand.teal, size: 42),
-        Positioned(right: -2, bottom: -2, child: Container(width: 13, height: 13, decoration: BoxDecoration(color: Colors.green.shade500, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
+        Positioned(right: -2, bottom: -2, child: Container(width: 13, height: 13, decoration: BoxDecoration(color: Brand.green, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)))),
       ]),
       const SizedBox(width: 12),
       Expanded(
@@ -697,7 +697,7 @@ class _OpRow extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final inc = o['type'] == 'in';
     final amount = (o['amount'] as num?) ?? 0;
-    final c = inc ? Colors.green.shade700 : cs.error;
+    final c = inc ? Brand.green : cs.error;
     return ListTile(
       dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 6),
@@ -785,7 +785,7 @@ class _WorkerNowSheetState extends State<_WorkerNowSheet> {
                 Text([if ('${x['role'] ?? ''}'.isNotEmpty) '${x['role']}', if (x['site'] != null) '${x['site']}'].join(' · '), style: TextStyle(color: cs.outline, fontSize: 13)),
               ]),
             ),
-            StatusChip(tr('Ishda'), Colors.green.shade700),
+            StatusChip(tr('Ishda'), Brand.green),
           ]),
           const SizedBox(height: 18),
           if (dur != null)
@@ -810,7 +810,7 @@ class _WorkerNowSheetState extends State<_WorkerNowSheet> {
           if (_loading) const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator(minHeight: 3)),
           if (accrued != null) ...[
             _kv(Icons.payments_outlined, tr("Oy bo'yicha hisoblangan"), '${money(accrued)} $_cur'),
-            if (paid != null) _kv(Icons.check_circle_outline, tr("To'langan"), money(paid), color: Colors.green.shade700),
+            if (paid != null) _kv(Icons.check_circle_outline, tr("To'langan"), money(paid), color: Brand.green),
             if (due != null) _kv(Icons.pending_outlined, tr('Qoldi'), money(due), color: due > 0 ? cs.error : null),
           ],
           const SizedBox(height: 8),

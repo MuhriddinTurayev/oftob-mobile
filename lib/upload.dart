@@ -125,14 +125,14 @@ class _UploadDialog extends StatelessWidget {
                         value: st.total > 0 || st.done ? v : null, // hajmi noma'lum bo'lsa — aylanib turadi
                         strokeWidth: 8,
                         strokeCap: StrokeCap.round,
-                        color: st.done ? Colors.green.shade500 : cs.primary,
+                        color: st.done ? Brand.green : cs.primary,
                         backgroundColor: cs.primary.withValues(alpha: 0.12),
                       ),
                     ),
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 220),
                       child: st.done
-                          ? Icon(Icons.check_rounded, key: const ValueKey('ok'), size: 52, color: Colors.green.shade500)
+                          ? Icon(Icons.check_rounded, key: const ValueKey('ok'), size: 52, color: Brand.green)
                           : st.total > 0
                               ? Text('${(v * 100).round()}%', key: const ValueKey('pct'), style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: context.ink))
                               : Icon(download ? Icons.download_rounded : Icons.upload_rounded, key: const ValueKey('ic'), size: 34, color: cs.primary),

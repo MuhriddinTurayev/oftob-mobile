@@ -15,6 +15,7 @@ import '../widgets.dart';
 import '../theme.dart';
 import '../motion.dart';
 import '../l10n.dart';
+import '../sheet_select.dart';
 
 num _n(Object? v) => v is num ? v : (num.tryParse('$v') ?? 0);
 String _cur(Object? c) => '$c'.trim().toLowerCase() == 'сум' ? "so'm" : '${c ?? ''}';
@@ -300,7 +301,7 @@ class _FundsScreenState extends State<FundsScreen> {
     final st = '${r['status']}';
     final (label, color) = switch (st) {
       'new' => ('Javob kutilmoqda', Colors.orange.shade800),
-      'issued' => ('Berildi', Colors.green.shade700),
+      'issued' => ('Berildi', Brand.green),
       _ => ('Rad etildi', Colors.red.shade700),
     };
     final obj = '${r['object'] ?? ''}';
@@ -382,10 +383,10 @@ class _FundsScreenState extends State<FundsScreen> {
     final spend = fund == 'spend';
     final salary = _isSalary(o);
     final isIn = '${o['type']}' == 'in';
-    final color = spend ? Colors.red.shade700 : Colors.green.shade700;
+    final color = spend ? Colors.red.shade700 : Brand.green;
     final st = o['status'];
     final (stLabel, stColor) = switch (st) {
-      'checked' => ('Tekshirildi', Colors.green.shade700),
+      'checked' => ('Tekshirildi', Brand.green),
       'rejected' => ('Qaytarildi', Colors.red.shade700),
       'pending' => ('Tekshirilmagan', Colors.orange.shade800),
       _ => ('', Colors.grey),
@@ -422,7 +423,7 @@ class _FundsScreenState extends State<FundsScreen> {
                         StatusChip('Chek bor', Colors.blueGrey)
                       else
                         StatusChip("Chek yo'q", Colors.deepOrange),
-                      if (((o['photos'] as num?) ?? 0) > 0) StatusChip('${tr('Mahsulot surati')}: ${o['photos']}', Colors.teal),
+                      if (((o['photos'] as num?) ?? 0) > 0) StatusChip('${tr('Mahsulot surati')}: ${o['photos']}', Brand.teal),
                     ]),
                   ),
                 ),
@@ -474,7 +475,7 @@ class _FundsScreenState extends State<FundsScreen> {
               ),
               if (projects.length > 1) ...[
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
+                SheetDropdown<String>(
                   initialValue: object,
                   decoration: InputDecoration(labelText: tr('Qaysi obyekt uchun')),
                   items: [for (final p in projects) DropdownMenuItem(value: '${p['id']}', child: Text('${p['name']}'))],
@@ -595,14 +596,14 @@ class _FundsScreenState extends State<FundsScreen> {
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Text('Prorabga pul berish', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
               const SizedBox(height: 14),
-              DropdownButtonFormField<int>(
+              SheetDropdown<int>(
                 initialValue: who,
                 decoration: InputDecoration(labelText: tr('Prorab')),
                 items: [for (final h in holders) DropdownMenuItem(value: h['user_id'] as int, child: Text('${h['name']}'))],
                 onChanged: (v) => set(() => who = v),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
+              SheetDropdown<int>(
                 initialValue: from,
                 decoration: InputDecoration(labelText: tr('Qaysi kassadan')),
                 items: [for (final x in sources) DropdownMenuItem(value: x['id'] as int, child: Text('${x['name']}', overflow: TextOverflow.ellipsis))],
@@ -1108,7 +1109,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          icon: Icon(queued ? Icons.cloud_off : Icons.check_circle, color: queued ? Colors.orange : Colors.green, size: 48),
+          icon: Icon(queued ? Icons.cloud_off : Icons.check_circle, color: queued ? Colors.orange : Brand.green, size: 48),
           title: Text(queued ? 'Offline saqlandi' : 'Hisobot yuborildi'),
           content: Text(queued ? "Internet yo'q — hisobot va chek surati telefonda saqlandi. Internet paydo bo'lganda avtomatik yuboriladi va rahbar bilan buxgalterga xabar boradi. Balansdan hozirdan ayirib ko'rsatiladi." : 'Xarid hisobotingiz rahbar va buxgalterga yuborildi. Pul balansingizdan yechildi.'),
           actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Yaxshi'))],
@@ -1145,7 +1146,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           Text('Qo\'limdagi pul: naqd ${money(_n(me['cash']))}, karta ${money(_n(me['card']))} $cur', style: TextStyle(color: cs.outline)),
           const SizedBox(height: 14),
           if (_projects.length > 1)
-            DropdownButtonFormField<String>(
+            SheetDropdown<String>(
               initialValue: _object,
               decoration: InputDecoration(labelText: tr('Qaysi obyekt')),
               items: [for (final p in _projects) DropdownMenuItem(value: '${p['id']}', child: Text('${p['name']}'))],
@@ -1198,7 +1199,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           for (var i = 0; i < _lines.length; i++) _lineCard(i),
           if (_lines.isNotEmpty && _warehouses.isNotEmpty) ...[
             const SizedBox(height: 8),
-            DropdownButtonFormField<int>(
+            SheetDropdown<int>(
               initialValue: _wh,
               decoration: InputDecoration(labelText: tr('Qaysi omborga')),
               items: [for (final w in _warehouses) DropdownMenuItem(value: w['id'] as int, child: Text('${w['name']}'))],
@@ -1286,7 +1287,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                           ),
                         ),
                       ),
-                    if (g.upId != null) const Positioned(left: 4, bottom: 4, child: Icon(Icons.check_circle, color: Colors.lightGreenAccent, size: 20)),
+                    if (g.upId != null) const Positioned(left: 4, bottom: 4, child: Icon(Icons.check_circle, color: Colors.lightBlueAccent, size: 20)),
                     Positioned(
                       right: 2,
                       top: 2,
@@ -1370,7 +1371,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             const SizedBox(width: 8),
             SizedBox(
               width: 96,
-              child: DropdownButtonFormField<String>(
+              child: SheetDropdown<String>(
                 initialValue: _units.any((u) => '${u['value']}' == l.unit) ? l.unit : null,
                 isExpanded: true,
                 decoration: InputDecoration(labelText: tr('Birlik')),
@@ -1464,7 +1465,7 @@ class _ReceiptPreview extends StatelessWidget {
               duration: const Duration(milliseconds: 250),
               transitionBuilder: (c, a) => ScaleTransition(scale: a, child: FadeTransition(opacity: a, child: c)),
               child: done
-                  ? _badge(Icons.check_circle_rounded, 'Yuklandi', Colors.green.shade600, key: 'ok')
+                  ? _badge(Icons.check_circle_rounded, 'Yuklandi', Brand.green, key: 'ok')
                   : offline
                       ? _badge(Icons.cloud_off_rounded, "Internet yo'q — telefonda saqlanadi", Colors.orange.shade700, key: 'off')
                       : const SizedBox.shrink(key: ValueKey('none')),

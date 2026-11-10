@@ -9,6 +9,7 @@ import '../keyboard.dart';
 import '../api.dart';
 import '../format.dart';
 import '../l10n.dart';
+import '../sheet_select.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../upload.dart';
@@ -290,7 +291,7 @@ class _NewReportState extends State<_NewReport> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
         children: [
           if (widget.objects.length > 1)
-            DropdownButtonFormField<String>(
+            SheetDropdown<String>(
               initialValue: _object,
               isExpanded: true,
               decoration: InputDecoration(labelText: tr('Qaysi obyekt')),

@@ -8,9 +8,10 @@ import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import '../l10n.dart';
+import '../sheet_select.dart';
 
 Color _taskColor(String? s) => switch (s) {
-      'done' => Colors.green,
+      'done' => Brand.green,
       'doing' => Colors.blue,
       'review' => Colors.orange,
       _ => Colors.blueGrey,
@@ -371,7 +372,7 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
           const SizedBox(height: 12),
           TextField(controller: _desc, minLines: 2, maxLines: 4, textCapitalization: TextCapitalization.sentences, decoration: dec('Tafsilotlar (ixtiyoriy)')),
           const SizedBox(height: 12),
-          DropdownButtonFormField<int>(
+          SheetDropdown<int>(
             initialValue: _assignee,
             decoration: dec('Ijrochi'),
             items: [for (final u in _users) DropdownMenuItem(value: (u['id'] as num).toInt(), child: Text('${u['name']}', overflow: TextOverflow.ellipsis))],
@@ -379,7 +380,7 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
           ),
           if (widget.objects.isNotEmpty) ...[
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
+            SheetDropdown<String>(
               initialValue: _object,
               decoration: dec('Obyekt (ixtiyoriy)'),
               items: [for (final e in widget.objects.entries) DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))],

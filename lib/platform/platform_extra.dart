@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../api.dart';
 import '../format.dart';
 import '../l10n.dart';
+import '../sheet_select.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -161,7 +162,7 @@ class _ClaimsScreenState extends State<ClaimsScreen> {
     final st = '${c['status']}';
     final (stText, stColor) = switch (st) {
       'pending' => ('Kutilmoqda', Colors.orange.shade700),
-      'confirmed' => ('Tasdiqlangan', Colors.green.shade600),
+      'confirmed' => ('Tasdiqlangan', Brand.green),
       _ => ('Rad etilgan', cs.error),
     };
     return Padding(
@@ -245,7 +246,7 @@ class _PlatformAiScreenState extends State<PlatformAiScreen> {
               const SizedBox(height: 8),
               TextField(controller: limit, keyboardType: TextInputType.number, onChanged: (_) => set(() {}), decoration: InputDecoration(labelText: tr("Oylik limit (so'rov), 0 — cheklovsiz"))),
               const SizedBox(height: 10),
-              DropdownButtonFormField<int?>(
+              SheetDropdown<int?>(
                 initialValue: provider,
                 decoration: InputDecoration(labelText: tr('Ulanish')),
                 items: [
@@ -389,7 +390,7 @@ class _PlatformAiScreenState extends State<PlatformAiScreen> {
                   margin: EdgeInsets.zero,
                   child: Row(children: [
                     Expanded(child: Text('${r['company']} · ${formatDate('${r['at']}')}', style: const TextStyle(fontWeight: FontWeight.w700))),
-                    _Pill(r['status'] == 'approved' ? tr('Ulangan') : tr('Rad etilgan'), r['status'] == 'approved' ? Colors.green.shade600 : cs.error),
+                    _Pill(r['status'] == 'approved' ? tr('Ulangan') : tr('Rad etilgan'), r['status'] == 'approved' ? Brand.green : cs.error),
                   ]),
                 ),
               ),
@@ -407,7 +408,7 @@ class _PlatformAiScreenState extends State<PlatformAiScreen> {
   Widget _provider(BuildContext context, Map<String, dynamic> p, ColorScheme cs) {
     final l = p['limits'] is Map ? Map<String, dynamic>.from(p['limits'] as Map) : null;
     final st = '${l?['status'] ?? ''}';
-    final c = switch (st) { 'ok' => Colors.green.shade600, 'limit' => Colors.orange.shade700, 'error' => cs.error, _ => cs.outline };
+    final c = switch (st) { 'ok' => Brand.green, 'limit' => Colors.orange.shade700, 'error' => cs.error, _ => cs.outline };
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Glass(

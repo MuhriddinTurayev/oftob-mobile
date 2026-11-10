@@ -78,7 +78,7 @@ class _CurrenciesScreenState extends State<CurrenciesScreen> {
                       ? const Text('Kompaniya valyutasi')
                       : Text('1 ${i['code']} = ${money(i['rate'] as num?)} $baseCode'),
                   trailing: i['base'] == true
-                      ? const StatusChip('Asosiy', Colors.green)
+                      ? const StatusChip('Asosiy', Brand.green)
                       : Switch(value: i['enabled'] == true, onChanged: canManage && !_busy ? (v) => _toggle(items, '${i['code']}', v) : null),
                 ),
               ),

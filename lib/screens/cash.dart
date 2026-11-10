@@ -253,7 +253,7 @@ class _CashScreenState extends State<CashScreen> {
       fetch: (p) => widget.session.api!.cashOps(page: p, desk: _deskId),
       itemBuilder: (context, o) {
         final income = o['type'] == 'in';
-        final color = income ? Colors.green : Colors.red;
+        final color = income ? Brand.green : Colors.red;
         final title = '${o['category'] ?? (income ? 'Kirim' : 'Chiqim')}';
         final note = '${o['note'] ?? ''}'.trim();
         final tappable = (o['can_edit'] == true && _form != null) || o['can_delete'] == true;
@@ -301,7 +301,7 @@ class _OpButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = income ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+    final c = income ? Brand.green : const Color(0xFFDC2626);
     return Glass(
       radius: 18,
       shadow: false,

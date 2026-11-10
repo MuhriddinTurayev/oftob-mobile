@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' as w show Text;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
@@ -53,7 +54,7 @@ Widget _section(BuildContext context, String t, {Widget? trailing}) => Padding(
 /// To'lov holati rangi va nomi
 (String, Color) _claimSt(String s, ColorScheme cs) => switch (s) {
       'pending' => ('Tasdiq kutilmoqda', Colors.orange.shade700),
-      'confirmed' => ('Tasdiqlandi', Colors.green.shade600),
+      'confirmed' => ('Tasdiqlandi', Brand.green),
       'rejected' => ('Tasdiqlanmadi', cs.error),
       _ => (s, cs.outline),
     };
@@ -75,7 +76,7 @@ class InvoiceBar extends StatelessWidget {
       child: SizedBox(
         height: 12,
         child: Row(children: [
-          if (p > 0) Expanded(flex: (p * 1000).round(), child: Container(color: Colors.green.shade600)),
+          if (p > 0) Expanded(flex: (p * 1000).round(), child: Container(color: Brand.green)),
           if (q > 0) Expanded(flex: (q * 1000).round(), child: Container(color: Colors.orange.shade600)),
           if (1 - p - q > 0.0005) Expanded(flex: ((1 - p - q) * 1000).round(), child: Container(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.18))),
         ]),
@@ -260,7 +261,7 @@ class _BillingScreenState extends State<BillingScreen> {
                   if (f != null) set(() => photo = f.path);
                 },
                 child: Row(children: [
-                  IconTile(icon: photo == null ? Icons.add_a_photo_rounded : Icons.check_circle_rounded, color: photo == null ? Brand.orange : Colors.green, size: 40),
+                  IconTile(icon: photo == null ? Icons.add_a_photo_rounded : Icons.check_circle_rounded, color: photo == null ? Brand.orange : Brand.green, size: 40),
                   const SizedBox(width: 12),
                   Expanded(child: Text(photo == null ? tr('Chekni yuklang (majburiy)') : tr('Chek tanlandi'), style: const TextStyle(fontWeight: FontWeight.w700))),
                   if (photo != null) IconButton(onPressed: () => set(() => photo = null), icon: const Icon(Icons.close_rounded)),
@@ -317,7 +318,7 @@ class _BillingScreenState extends State<BillingScreen> {
         final methods = _maps(d['methods']);
         final usage = (d['usage'] is Map) ? d['usage'] as Map : const {};
         final st = '${d['state']}';
-        final stColor = switch (st) { 'active' => Colors.green.shade600, 'trial' => Brand.blue, 'expired' => Colors.orange.shade700, _ => cs.error };
+        final stColor = switch (st) { 'active' => Brand.green, 'trial' => Brand.blue, 'expired' => Colors.orange.shade700, _ => cs.error };
         return ListView(
           padding: EdgeInsets.fromLTRB(16, 8, 16, NavInset.listBottom(context)),
           children: [
@@ -361,7 +362,7 @@ class _BillingScreenState extends State<BillingScreen> {
                   InvoiceBar(amount: (inv['amount'] as num?) ?? 0, paid: (inv['paid'] as num?) ?? 0, pending: (inv['pending'] as num?) ?? 0),
                   const SizedBox(height: 10),
                   Row(children: [
-                    Expanded(child: _kv(context, "To'landi", _m(inv['paid'], inv['currency']), Colors.green.shade600)),
+                    Expanded(child: _kv(context, "To'landi", _m(inv['paid'], inv['currency']), Brand.green)),
                     Expanded(child: _kv(context, 'Qoldi', _m(inv['left'], inv['currency']), context.ink)),
                     Expanded(child: _kv(context, 'Jami', _m(inv['amount'], inv['currency']), context.inkSoft)),
                   ]),
@@ -391,9 +392,9 @@ class _BillingScreenState extends State<BillingScreen> {
               const SizedBox(height: 12),
               GlassRow(
                 margin: EdgeInsets.zero,
-                tint: Colors.green.withValues(alpha: 0.12),
+                tint: Brand.green.withValues(alpha: 0.12),
                 child: Row(children: [
-                  Icon(Icons.verified_rounded, color: Colors.green.shade600),
+                  Icon(Icons.verified_rounded, color: Brand.green),
                   const SizedBox(width: 10),
                   Expanded(child: Text("${tr("Oxirgi hisob to'liq to'langan — yopilgan")}: ${last['plan']} · ${_m(last['amount'], last['currency'])}", style: const TextStyle(fontWeight: FontWeight.w700))),
                 ]),
@@ -428,10 +429,10 @@ class _BillingScreenState extends State<BillingScreen> {
                 child: GlassRow(
                   margin: EdgeInsets.zero,
                   child: Row(children: [
-                    const IconTile(icon: Icons.check_rounded, color: Colors.green, size: 38),
+                    const IconTile(icon: Icons.check_rounded, color: Brand.green, size: 38),
                     const SizedBox(width: 10),
                     Expanded(child: Text('${formatDate('${p['paid_at']}')} · ${p['plan'] ?? ''} · ${(p['months'] ?? 0) == 0 ? tr('umrbod') : '${p['months']} ${tr('oy')}'}', style: const TextStyle(fontWeight: FontWeight.w700))),
-                    Text(_m(p['amount'], p['currency']), style: TextStyle(color: Colors.green.shade600, fontWeight: FontWeight.w800)),
+                    Text(_m(p['amount'], p['currency']), style: TextStyle(color: Brand.green, fontWeight: FontWeight.w800)),
                   ]),
                 ),
               ),
@@ -482,7 +483,7 @@ class _BillingScreenState extends State<BillingScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Icon(Icons.check_rounded, size: 16, color: Colors.green.shade600),
+                Icon(Icons.check_rounded, size: 16, color: Brand.green),
                 const SizedBox(width: 6),
                 Expanded(child: Text(f, style: const TextStyle(fontSize: 13))),
               ]),
@@ -730,7 +731,7 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  Icon(platform == 'approved' ? Icons.verified_rounded : Icons.cloud_outlined, color: platform == 'approved' ? Colors.green.shade600 : cs.outline),
+                  Icon(platform == 'approved' ? Icons.verified_rounded : Icons.cloud_outlined, color: platform == 'approved' ? Brand.green : cs.outline),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -773,7 +774,7 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
     final cs = Theme.of(context).colorScheme;
     final l = k['limits'] is Map ? Map<String, dynamic>.from(k['limits'] as Map) : null;
     final st = '${l?['status'] ?? ''}';
-    final c = switch (st) { 'ok' => Colors.green.shade600, 'limit' => Colors.orange.shade700, 'error' => cs.error, _ => cs.outline };
+    final c = switch (st) { 'ok' => Brand.green, 'limit' => Colors.orange.shade700, 'error' => cs.error, _ => cs.outline };
     final rows = _maps(l?['rows']);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -908,7 +909,7 @@ class _TeamScreenState extends State<TeamScreen> {
 
     var custom = u['modules'] is List;
     var mods = custom ? ((u['modules'] as List).map((e) => '$e').toSet()) : pagesOf(role).toSet();
-    final ok = await showModalBottomSheet<bool>(
+    final ok = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -961,16 +962,193 @@ class _TeamScreenState extends State<TeamScreen> {
                     ),
               ],
               const SizedBox(height: 16),
-              FilledButton(onPressed: () => Navigator.pop(c, true), style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)), child: const Text('Saqlash')),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(c, 'save'),
+                icon: const Icon(Icons.check_rounded),
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                label: const Text('Saqlash'),
+              ),
               const SizedBox(height: 6),
               Text("Rol o'zgarsa, xodim qayta kiradi — yangi huquqlar bilan.", textAlign: TextAlign.center, style: TextStyle(color: Theme.of(c).colorScheme.outline, fontSize: 12)),
+              const SizedBox(height: 18),
+              // login va parol: xodim parolni unutsa — rahbar yangisini beradi
+              Glass(
+                radius: 18,
+                blur: false,
+                shadow: false,
+                onTap: () => Navigator.pop(c, 'pw'),
+                padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+                child: Row(children: [
+                  const IconTile(icon: Icons.key_rounded, color: Brand.amber, size: 38),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('Parolni tiklash', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                      Text("Yangi parol beriladi, eskisi ishlamay qoladi", style: TextStyle(color: Theme.of(c).colorScheme.outline, fontSize: 12.5)),
+                    ]),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: Theme.of(c).colorScheme.outline),
+                ]),
+              ),
             ],
           ),
         ),
       ),
     );
-    if (ok != true) return;
+    if (ok == 'pw') return _password(u);
+    if (ok != 'save') return;
     await _save((u['id'] as num).toInt(), {'role': role, 'custom': custom && role != 'admin', 'modules': mods.toList()}, ok: tr('Saqlandi'));
+  }
+
+  /// Rahbar xodimga yangi parol beradi: o'zi yozadi yoki ilova yaratadi; keyin login va parol ko'rsatiladi (nusxa olish mumkin)
+  Future<void> _password(Map<String, dynamic> u) async {
+    final ctl = TextEditingController();
+    bool own = false, hide = true, busy = false;
+    String? err;
+    final res = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) {
+          final cs = Theme.of(c).colorScheme;
+          Future<void> go() async {
+            set(() {
+              busy = true;
+              err = null;
+            });
+            try {
+              final r = await s.api!.aSend('POST', '/team/${u['id']}/password', {if (own) 'password': ctl.text.trim()});
+              HapticFeedback.mediumImpact();
+              if (c.mounted) Navigator.pop(c, Map<String, dynamic>.from(r as Map));
+            } catch (e) {
+              await s.handleError(e);
+              set(() {
+                busy = false;
+                err = e is ApiException ? e.message : '$e';
+              });
+            }
+          }
+
+          return Padding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(c).viewInsets.bottom + MediaQuery.paddingOf(c).bottom),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Row(children: [
+                const IconTile(icon: Icons.key_rounded, color: Brand.amber, size: 44),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Parolni tiklash', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+                    w.Text('${u['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline)),
+                  ]),
+                ),
+              ]),
+              const SizedBox(height: 16),
+              SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(value: false, icon: const Icon(Icons.auto_awesome_rounded, size: 18), label: FittedBox(child: Text('Avtomatik'))),
+                  ButtonSegment(value: true, icon: const Icon(Icons.edit_rounded, size: 18), label: FittedBox(child: Text("O'zim yozaman"))),
+                ],
+                selected: {own},
+                showSelectedIcon: false,
+                onSelectionChanged: (v) => set(() => own = v.first),
+              ),
+              const SizedBox(height: 12),
+              if (own)
+                TextField(
+                  controller: ctl,
+                  obscureText: hide,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  onChanged: (_) => set(() {}),
+                  decoration: InputDecoration(
+                    labelText: tr('Yangi parol'),
+                    helperText: tr("Kamida 8 belgi: harf va raqam"),
+                    suffixIcon: IconButton(icon: Icon(hide ? Icons.visibility_rounded : Icons.visibility_off_rounded), onPressed: () => set(() => hide = !hide)),
+                  ),
+                )
+              else
+                Text("Ilova eslab qolish oson parol yaratadi, masalan: Abc-1234-xyz", style: TextStyle(color: cs.outline, fontSize: 13)),
+              if (err != null) Padding(padding: const EdgeInsets.only(top: 10), child: w.Text(err!, style: TextStyle(color: cs.error))),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Brand.amber.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Icon(Icons.info_outline_rounded, size: 18, color: Colors.orange.shade800),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text("Eski parol darhol ishlamay qoladi: xodim ilova va saytdan chiqariladi, yangi parol bilan qayta kiradi.", style: const TextStyle(fontSize: 12.5))),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: busy || (own && ctl.text.trim().length < 8) ? null : go,
+                icon: busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white)) : const Icon(Icons.key_rounded),
+                label: const Text('Yangi parol berish'),
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+              ),
+            ]),
+          );
+        },
+      ),
+    );
+    // varaq yopilish animatsiyasi tugaguncha maydon hali ekranda — controller'ni keyinroq yopamiz
+    Future<void>.delayed(const Duration(seconds: 1), ctl.dispose);
+    if (res == null || !mounted) return;
+    final login = '${res['login'] ?? ''}', pass = '${res['password'] ?? ''}', company = '${res['company'] ?? ''}';
+    final all = '${tr('Korxona kodi')}: $company\n${tr('Login')}: $login\n${tr('Parol')}: $pass';
+    await showDialog<void>(
+      context: context,
+      builder: (c) {
+        final cs = Theme.of(c).colorScheme;
+        Widget line(String k, String v) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+                decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(12)),
+                child: Row(children: [
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(k, style: TextStyle(color: cs.outline, fontSize: 12)),
+                      SelectableText(v, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                    ]),
+                  ),
+                  IconButton(
+                    tooltip: tr('Nusxa olish'),
+                    icon: const Icon(Icons.copy_rounded, size: 20),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: v));
+                      HapticFeedback.selectionClick();
+                    },
+                  ),
+                ]),
+              ),
+            );
+        return AlertDialog(
+          icon: const Icon(Icons.check_circle_rounded, color: Brand.green, size: 40),
+          title: const Text('Yangi parol tayyor'),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text("Xodimga bering — u shu login va parol bilan kiradi:", style: TextStyle(color: cs.outline, fontSize: 13)),
+            const SizedBox(height: 12),
+            if (company.isNotEmpty) line(tr('Korxona kodi'), company),
+            line(tr('Login'), login),
+            line(tr('Parol'), pass),
+          ]),
+          actions: [
+            TextButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: all));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Nusxa olindi'))));
+              },
+              icon: const Icon(Icons.copy_all_rounded),
+              label: const Text('Hammasini nusxalash'),
+            ),
+            FilledButton(onPressed: () => Navigator.pop(c), child: const Text('Tayyor')),
+          ],
+        );
+      },
+    );
+    setState(() => _k = UniqueKey());
   }
 
   @override
@@ -1015,7 +1193,7 @@ class _TeamScreenState extends State<TeamScreen> {
                   ]),
                 ),
                 if (!self && canEdit)
-                  Switch(value: active, onChanged: (_) => _toggle(u), activeTrackColor: Colors.green.shade400)
+                  Switch(value: active, onChanged: (_) => _toggle(u), activeTrackColor: Brand.green)
                 else if (!active)
                   _Pill(tr('Bloklangan'), cs.error),
               ]),
@@ -1031,7 +1209,7 @@ class _TeamScreenState extends State<TeamScreen> {
               child: Row(children: [
                 const IconTile(icon: Icons.admin_panel_settings_rounded, color: Brand.blue, size: 40),
                 const SizedBox(width: 12),
-                Expanded(child: Text(tr("Kalitcha — kirishni bloklash/yoqish (ilova, sayt va bot darhol yopiladi). Xodimni bosing — rolni o'zgartirish va bo'limlarni cheklash."), style: const TextStyle(fontSize: 12.5))),
+                Expanded(child: Text(tr("Kalitcha — kirishni bloklash/yoqish (ilova, sayt va bot darhol yopiladi). Xodimni bosing — rol, bo'limlar va parolni tiklash."), style: const TextStyle(fontSize: 12.5))),
               ]),
             ),
             _section(context, '${tr('Faol')} (${on.length})'),

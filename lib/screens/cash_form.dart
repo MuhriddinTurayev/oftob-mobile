@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../api.dart';
 import '../format.dart';
 import '../l10n.dart';
+import '../sheet_select.dart';
 import '../session.dart';
 import '../theme.dart';
 
@@ -138,7 +139,7 @@ class _CashOpSheetState extends State<_CashOpSheet> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final income = _type == 'in';
-    final color = income ? Colors.green : Colors.red;
+    final color = income ? Brand.green : Colors.red;
     final cur = '${_deskRow?['currency'] ?? op?['currency'] ?? ''}';
     // tanlangan modda/obyekt ro'yxatda bo'lmasa (o'chirilgan yoki boshqa tur) — bo'sh qoldiramiz
     final catIds = _cats.map((c) => (c['id'] as num).toInt()).toSet();
@@ -214,7 +215,7 @@ class _CashOpSheetState extends State<_CashOpSheet> {
             decoration: InputDecoration(labelText: tr('Summa'), suffixText: cur),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<int?>(
+          SheetDropdown<int?>(
             key: ValueKey('cat$_type'),
             initialValue: cat,
             isExpanded: true,
@@ -227,7 +228,7 @@ class _CashOpSheetState extends State<_CashOpSheet> {
           ),
           const SizedBox(height: 12),
           if (widget.form.objects.isNotEmpty) ...[
-            DropdownButtonFormField<String?>(
+            SheetDropdown<String?>(
               initialValue: obj,
               isExpanded: true,
               decoration: InputDecoration(labelText: tr('Obyekt (ixtiyoriy)')),
@@ -308,7 +309,7 @@ IconData deskIcon(Map d) => switch ('${d['kind']}') {
 Color deskColor(Map d) => switch ('${d['kind']}') {
       'bank' => const Color(0xFF6366F1),
       'card' => const Color(0xFF0EA5E9),
-      _ => d['object_id'] != null ? const Color(0xFFF59E0B) : const Color(0xFF16A34A),
+      _ => d['object_id'] != null ? const Color(0xFFF59E0B) : Brand.green,
     };
 
 /// Kassa qatori: turi belgisi, nomi va qoldig'i

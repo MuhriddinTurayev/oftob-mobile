@@ -10,6 +10,7 @@ import '../format.dart';
 import '../session.dart';
 import '../widgets.dart';
 import '../l10n.dart';
+import '../theme.dart';
 
 num _n(Object? v) => v is num ? v : (num.tryParse('$v') ?? 0);
 num? _parse(String s) => num.tryParse(s.replaceAll(RegExp(r'[^0-9.]'), ''));
@@ -139,7 +140,7 @@ class _DealScreenState extends State<DealScreen> {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          icon: Icon(queued ? Icons.cloud_off : Icons.check_circle, color: queued ? Colors.orange : Colors.green, size: 48),
+          icon: Icon(queued ? Icons.cloud_off : Icons.check_circle, color: queued ? Colors.orange : Brand.green, size: 48),
           title: Text(queued ? 'Offline saqlandi' : (booking ? 'Bron qilindi' : 'Sotuv rasmiylashtirildi')),
           content: Text(queued ? "Internet yo'q — amal telefonda saqlandi va internet paydo bo'lganda avtomatik yuboriladi. Boshlang'ich to'lov kassaga va shartnoma o'sha payt tuziladi. Kvartira ro'yxatda hozirdan yangi holatda ko'rinadi." : [
             if (!booking && down > 0) 'Boshlang\'ich to\'lov kassaga o\'tkazildi.',
