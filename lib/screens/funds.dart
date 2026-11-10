@@ -345,7 +345,7 @@ class _FundsScreenState extends State<FundsScreen> {
             Row(children: [
               Expanded(child: OutlinedButton(onPressed: () => _declineDialog(r), child: const Text('Rad etish'))),
               const SizedBox(width: 10),
-              Expanded(child: FilledButton(onPressed: () => _issueSheet(context, _lastData!, holder: r['user_id'] as int?, amount: _n(r['amount']), kind: '${r['kind']}'), child: const Text('Pul berish'))),
+              Expanded(child: FilledButton(onPressed: () => _issueSheet(context, _lastData!, holder: r['user_id'] as int?, amount: _n(r['amount']), kind: '${r['kind']}', requestId: r['id'] as int?), child: const Text('Pul berish'))),
             ]),
       ]),
     );
@@ -576,7 +576,7 @@ class _FundsScreenState extends State<FundsScreen> {
     );
   }
 
-  Future<void> _issueSheet(BuildContext context, Map<String, dynamic> d, {int? holder, num? amount, String? kind}) async {
+  Future<void> _issueSheet(BuildContext context, Map<String, dynamic> d, {int? holder, num? amount, String? kind, int? requestId}) async {
     final holders = _list(d['holders']);
     final sources = _list(d['sources']);
     final amountC = TextEditingController(text: amount != null ? fmtInput(amount) : '');
@@ -626,7 +626,12 @@ class _FundsScreenState extends State<FundsScreen> {
                   if (who == null || from == null || a == null || a < 1) return;
                   try {
                     final name = holders.where((h) => h['user_id'] == who).map((h) => '${h['name']}').firstOrNull ?? '';
-                    queuedIssue = await s.api!.fundsAct('f_issue', '/funds/issue', {'user_id': who, 'kind': k, 'from_desk': from, 'amount': a, if (noteC.text.trim().isNotEmpty) 'note': noteC.text.trim()}, label: 'Pul berish — $name ${a.round()}');
+                    queuedIssue = await s.api!.fundsAct('f_issue', '/funds/issue', {
+                      'user_id': who, 'kind': k, 'from_desk': from, 'amount': a,
+                      if (noteC.text.trim().isNotEmpty) 'note': noteC.text.trim(),
+                      // so'rov orqali berilsa — faqat o'sha so'rov yopiladi (prorabning boshqa so'rovlari kutishda qoladi)
+                      if (requestId != null && who == holder) 'request_id': requestId,
+                    }, label: 'Pul berish — $name ${a.round()}');
                     if (ctx.mounted) Navigator.pop(ctx, true);
                   } catch (e) {
                     if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('$e')));

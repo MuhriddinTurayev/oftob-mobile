@@ -604,6 +604,9 @@ class AiBubble extends StatefulWidget {
 
 class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin {
   static const _size = 58.0;
+  static const _gesture = MethodChannel('oftob/gesture');
+  String _excluded = '';
+  static const _tabW = 26.0, _tabH = 50.0; // chetdagi yorliq: kartochka chetidagi bo'sh joyga sig'adi (matn ~29dp dan boshlanadi)
   static const _store = FlutterSecureStorage();
   late final AnimationController _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))..repeat(count: 2); // bir necha marta pulsatsiya qilib to'xtaydi: cheksiz animatsiya batareyani yeydi
   Offset? _pos; // yuqori-chap burchak (mantiqiy piksel)
@@ -633,6 +636,7 @@ class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin
 
   @override
   void dispose() {
+    if (_excluded.isNotEmpty) _gesture.invokeMethod('exclude', null).catchError((_) => null);
     _pulse.dispose();
     widget.controller.openRequest.removeListener(_openReq);
     super.dispose();
@@ -677,6 +681,31 @@ class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin
     _store.write(key: 'ai_bubble', value: '${_frac.dx},${_frac.dy}').catchError((_) {});
   }
 
+  /// Yorliq turgan joyda Android «orqaga» imosi o'chadi — yorliqni chetdan sudrasa ilova yopilib qolmaydi
+  void _exclude(Rect? r, double dpr) {
+    if (!Platform.isAndroid) return;
+    final v = r == null ? '' : [r.left, r.top, r.right, r.bottom].map((x) => (x * dpr).round()).join(',');
+    if (v == _excluded) return;
+    _excluded = v;
+    _gesture.invokeMethod('exclude', r == null ? null : v.split(',').map(int.parse).toList()).catchError((_) => null);
+  }
+
+  /// Ekran chetidagi yorliq: tashqi tomoni ekran chetiga yopishgan, ichki tomoni yumaloq
+  Widget _tab(bool right) {
+    const r = Radius.circular(_tabH / 2);
+    return Container(
+      width: _tabW,
+      height: _tabH,
+      decoration: BoxDecoration(
+        borderRadius: right ? const BorderRadius.only(topLeft: r, bottomLeft: r) : const BorderRadius.only(topRight: r, bottomRight: r),
+        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Brand.green, Brand.teal]),
+        boxShadow: [BoxShadow(color: Brand.green.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      alignment: right ? const Alignment(0.2, 0) : const Alignment(-0.2, 0),
+      child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
@@ -685,21 +714,33 @@ class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin
     return ValueListenableBuilder<int>(
       valueListenable: ModalWatcher.open,
       builder: (context, modals, _) {
-        if (modals > 0 || mq.viewInsets.bottom > 0) return const SizedBox.shrink();
+        if (modals > 0 || mq.viewInsets.bottom > 0) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => _exclude(null, mq.devicePixelRatio));
+          return const SizedBox.shrink();
+        }
         final o = _resolve(size, mq.padding);
+        {
+          final right = o.dx + _size / 2 > size.width / 2;
+          final top = o.dy + (_size - _tabH) / 2 - 8;
+          final ex = right ? Rect.fromLTWH(size.width - _tabW - 14, top, _tabW + 14, _tabH + 16) : Rect.fromLTWH(0, top, _tabW + 14, _tabH + 16);
+          WidgetsBinding.instance.addPostFrameCallback((_) => _exclude(_dragging ? null : ex, mq.devicePixelRatio));
+        }
         return ValueListenableBuilder<bool>(
           valueListenable: AiBubble.scrolling,
           builder: (context, scrolling, _) {
-        final tuck = scrolling && !_dragging;
+        // dam olishda — ekran chetidagi ixcham yorliq (kartochkalardagi matn va summalarni yopmaydi);
+        // bosilsa yordamchi ochiladi, sudralsa — to'liq tugma bo'lib joyi o'zgartiriladi; aylantirish paytida xira
+        final docked = !_dragging;
+        final faded = scrolling && !_dragging;
         final right = o.dx + _size / 2 > size.width / 2;
         return AnimatedPositioned(
           duration: _dragging ? Duration.zero : const Duration(milliseconds: 320),
-          curve: tuck ? Curves.easeOutCubic : Curves.easeOutBack,
-          left: tuck ? (right ? size.width - _size * 0.38 : -_size * 0.62) : o.dx,
-          top: o.dy,
+          curve: Curves.easeOutCubic,
+          left: docked ? (right ? size.width - _tabW : 0) : o.dx,
+          top: docked ? o.dy + (_size - _tabH) / 2 : o.dy,
           child: AnimatedOpacity(
             duration: const Duration(milliseconds: 220),
-            opacity: tuck ? 0.55 : 1,
+            opacity: faded ? 0.55 : 1,
             child: GestureDetector(
             onTap: _show,
             onLongPress: () => _show(listen: true),
@@ -713,7 +754,9 @@ class _AiBubbleState extends State<AiBubble> with SingleTickerProviderStateMixin
             onPanUpdate: (d) => setState(() => _pos = _clamp((_pos ?? o) + d.delta, size, mq.padding)),
             onPanEnd: (_) => _dragEnd(size, mq.padding),
             onPanCancel: () => _dragEnd(size, mq.padding),
-            child: AnimatedScale(
+            child: docked
+                ? _tab(right)
+                : AnimatedScale(
               scale: _dragging ? 1.14 : 1,
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
