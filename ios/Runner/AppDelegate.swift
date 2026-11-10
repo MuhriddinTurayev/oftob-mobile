@@ -1,6 +1,8 @@
 import Flutter
 import UIKit
+import UserNotifications
 import WebKit
+import workmanager_apple
 
 /// Tortib yangilash (pull-to-refresh): iOS'ning o'z `UIRefreshControl`i WKWebView'ning scrollView'iga ulanadi.
 /// Butun sahifa qayta yuklanmaydi: saytdagi `window.__oftobRefresh()` joriy ekranni yumshoq (pjax) yangilaydi,
@@ -91,6 +93,13 @@ final class WebRefresh: NSObject {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Ilova ochiq bo'lganda ham bildirishnoma tepada ko'rinsin (flutter_local_notifications)
+    UNUserNotificationCenter.current().delegate = self
+    // Fonda yangi voqealarni tekshirish (iOS BGAppRefresh; vaqtni iPhone o'zi tanlaydi)
+    WorkmanagerPlugin.setPluginRegistrantCallback { registry in
+      GeneratedPluginRegistrant.register(with: registry)
+    }
+    WorkmanagerPlugin.registerPeriodicTask(withIdentifier: "uz.oftob.notify", earliestBeginInSeconds: NSNumber(value: 15 * 60))
     let ok = super.application(application, didFinishLaunchingWithOptions: launchOptions)
     // WebRefresh (sayt uchun tortib yangilash) o'chirilgan: ilova endi sayt rejimini ochmaydi, 3D ko'rgichga xalaqit bermasligi uchun
     return ok

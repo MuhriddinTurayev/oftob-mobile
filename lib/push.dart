@@ -29,6 +29,7 @@ class Push {
   static final _ln = FlutterLocalNotificationsPlugin();
   static const _store = FlutterSecureStorage();
   static const _task = 'oftob-notify';
+  static const _iosTask = 'uz.oftob.notify';
   static bool _ready = false;
 
   /// Bildirishnoma bosilib ilova ochilgan bo'lsa — qaysi bo'limga o'tish (funds, tasks, ...)
@@ -68,8 +69,8 @@ class Push {
         final p = launch!.notificationResponse?.payload ?? '';
         openGo.value = p.isEmpty ? 'notifications' : p;
       }
+      await Workmanager().initialize(pushBackgroundDispatcher);
       if (Platform.isAndroid) {
-        await Workmanager().initialize(pushBackgroundDispatcher);
         await Workmanager().registerPeriodicTask(
           _task,
           _task,
@@ -77,6 +78,10 @@ class Push {
           existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
           constraints: Constraints(networkType: NetworkType.connected),
         );
+      } else {
+        // iPhone: BGAppRefresh (AppDelegate va Info.plist'da «uz.oftob.notify»). Qachon ishga tushishini iPhone o'zi hal qiladi —
+        // odatda ilova tez-tez ishlatilsa, kuniga bir necha marta. Darhol xabar uchun — Telegram bot.
+        await Workmanager().registerPeriodicTask(_iosTask, _iosTask, frequency: const Duration(minutes: 15), initialDelay: const Duration(minutes: 15));
       }
     } catch (e) {
       debugPrint('push init: $e');
@@ -124,7 +129,7 @@ class Push {
   static Future<void> stop() async {
     if (!supported) return;
     try {
-      if (Platform.isAndroid) await Workmanager().cancelAll();
+      await Workmanager().cancelAll();
       await _ln.cancelAll();
     } catch (_) {}
   }

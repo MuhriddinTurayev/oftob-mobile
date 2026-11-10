@@ -81,5 +81,14 @@
 	<string>Chek va hisobot uchun rasmga olish.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Chek va hisobot uchun rasm tanlash.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>uz.oftob.notify</string>
+	</array>
 </dict>
 </plist>
