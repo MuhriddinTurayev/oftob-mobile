@@ -11,6 +11,7 @@ import 'screens/login.dart';
 import 'session.dart';
 import 'l10n.dart';
 import 'assistant.dart';
+import 'fcm.dart';
 import 'push.dart';
 import 'splash.dart';
 import 'theme.dart';
@@ -20,6 +21,7 @@ Future<void> main() async {
   await L.load(); // saqlangan (yoki telefon) tili birinchi kadrdan to'g'ri bo'lsin
   await ThemeController.load();
   await Push.init(); // telefon bildirishnomalari va ilova yopiq paytdagi tekshiruv (Android)
+  await Fcm.init(); // Firebase push (sozlangan bo'lsa): ilova yopiq / telefon qulflangan bo'lsa ham darhol
   final session = Session()..restore();
   L.notifier.addListener(session.refreshMe); // til o'zgarsa — rol nomi kabi server matnlari yangi tilda olinadi
   if (_fpsLog) _startFpsLog();

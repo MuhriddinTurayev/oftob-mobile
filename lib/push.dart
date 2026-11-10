@@ -35,6 +35,17 @@ class Push {
   /// Bildirishnoma bosilib ilova ochilgan bo'lsa — qaysi bo'limga o'tish (funds, tasks, ...)
   static final ValueNotifier<String?> openGo = ValueNotifier(null);
 
+  /// Ilova ochiq paytda Firebase push keldi — lentani darhol yangilash uchun
+  static final ValueNotifier<int> foregroundPing = ValueNotifier(0);
+
+  /// Server Firebase orqali push yubora oladi (bu telefon ro'yxatdan o'tgan) — fondagi tekshiruv takror ko'rsatmaydi
+  static bool fcmOn = false;
+
+  static Future<void> setFcmOn(bool v) async {
+    fcmOn = v;
+    await _bgWrite('fcm_on', v ? '1' : '0');
+  }
+
   static bool get supported => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
   static const _channel = AndroidNotificationDetails(
@@ -64,6 +75,13 @@ class Push {
     if (!supported) return;
     try {
       await _initPlugin();
+      // Firebase push shu kanal orqali chiqadi (oldindan yaratiladi: ovoz, yuqori muhimlik)
+      if (Platform.isAndroid) {
+        await _ln.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(const AndroidNotificationChannel(
+            'oftob_main', 'Bildirishnomalar',
+            description: "Pul so'rovlari, hisobotlar, vazifalar", importance: Importance.high));
+      }
+      fcmOn = (await _bgRead('fcm_on')) == '1';
       final launch = await _ln.getNotificationAppLaunchDetails();
       if (launch?.didNotificationLaunchApp == true) {
         final p = launch!.notificationResponse?.payload ?? '';
@@ -211,6 +229,7 @@ class Push {
       }
     }
 
+    if ((await _bgRead('fcm_on')) == '1') return 0; // Firebase push o'zi keladi — takrorlamaymiz
     final server = await rd('server');
     final key = await rd('key');
     final uid = await rd('uid') ?? '0';

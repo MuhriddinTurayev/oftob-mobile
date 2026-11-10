@@ -8,6 +8,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'offline.dart';
 import 'webcache.dart';
 
+import 'fcm.dart';
 import 'push.dart';
 import 'api.dart';
 import 'company.dart';
@@ -210,6 +211,7 @@ class Session extends ChangeNotifier {
   }
 
   Future<void> _signOut() async {
+    await Fcm.unregister(this); // bu telefonga endi push kelmasin
     await Push.stop(); // boshqa odam kirsa — oldingi foydalanuvchining xabarlari chiqmasin
     // platforma administratori
     final p = papi;

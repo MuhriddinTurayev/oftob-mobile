@@ -34,6 +34,7 @@ import '../assistant.dart';
 import '../avatar.dart';
 import '../motion.dart';
 import 'profile.dart';
+import '../fcm.dart';
 import '../push.dart';
 import '../tg_connect.dart';
 import 'journal.dart';
@@ -75,6 +76,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _syncTimer = Timer.periodic(const Duration(seconds: 30), (_) => _tickSync());
     TgLink.load(s); // Telegram ulanganmi — ulanmagan bo'lsa bosh sahifada eslatma
     Push.syncCreds(); // fondagi tekshiruv qulflangan iPhone'da ham kirish ma'lumotini o'qiy olsin
+    Fcm.register(s); // Firebase push manzilini serverga (sozlangan bo'lsa)
+    Push.foregroundPing.addListener(_nc.refresh);
     Push.openGo.addListener(_pushGo);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _pushGo(); // ilova bildirishnoma bosilib ochilgan bo'lsa — o'sha bo'limga
@@ -90,6 +93,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Timer? _syncTimer;
+
+  /// Ilova oxirgi marta ekranga chiqqan payt (Firebase push bilan takrorni oldini olish uchun)
+  DateTime _fgSince = DateTime.now().toUtc();
 
   /// Offline navbatni yuborish, kerak bo'lsa ma'lumotni telefonga yangilash (kirganda va har 6 soatda), internet qaytganini bilish
   Future<void> _tickSync({bool first = false}) async {
@@ -114,6 +120,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void dispose() {
     if (AppNav.open == _open) AppNav.open = null;
     Push.openGo.removeListener(_pushGo);
+    Push.foregroundPing.removeListener(_nc.refresh);
     if (ApiClient.onExpired == _expired) ApiClient.onExpired = null;
     WidgetsBinding.instance.removeObserver(this);
     _syncTimer?.cancel();
@@ -124,6 +131,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _fgSince = DateTime.now().toUtc();
       _dashRefresh.value++;
       _nc.refresh();
       _tickSync();
@@ -147,6 +155,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// bildirishnomaga ruxsat berilmagan bo'lsa — ilova ichida pastda xabar
   Future<void> _fresh(List<Map<String, dynamic>> fresh) async {
     if (!mounted) return;
+    // Firebase push yoqilgan: ilova fonda turganda kelganlari telefonga allaqachon chiqqan — qayta ko'rsatmaymiz
+    if (Push.fcmOn) {
+      fresh = fresh.where((e) => (DateTime.tryParse('${e['at']}')?.toUtc() ?? DateTime(2000)).isAfter(_fgSince.subtract(const Duration(seconds: 5)))).toList();
+      if (fresh.isEmpty) return;
+    }
     HapticFeedback.mediumImpact();
     if (await Push.showItems(fresh, uid: '${s.userId}')) return;
     if (!mounted) return;
