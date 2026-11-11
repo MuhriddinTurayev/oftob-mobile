@@ -83,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    HardwareKeyboard.instance.addHandler(_hotkey);
     _nc.start();
     AppNav.open = _open;
     ApiClient.onExpired = _expired;
@@ -136,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     Push.openGo.removeListener(_pushGo);
     Push.foregroundPing.removeListener(_nc.refresh);
     if (ApiClient.onExpired == _expired) ApiClient.onExpired = null;
+    HardwareKeyboard.instance.removeHandler(_hotkey);
     WidgetsBinding.instance.removeObserver(this);
     _syncTimer?.cancel();
     _nc.dispose();
@@ -791,64 +793,193 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Kompyuter (keng oyna): pastki panel o'rniga chap tomonda yon menyu, tarkib markazda keng ustunda
   static const _wide = 900.0;
 
+  /// Yon menyudagi ochiq yon panel nomi (faol bo'limni belgilash uchun)
+  String? _panelLabel;
+
+  /// Yon menyuda yig'ilgan guruhlar
+  final Set<String> _railClosed = {};
+
+  /// Bo'limni ochish (yon menyudan, qidiruvdan, tez tugmalardan): asosiy tab — almashadi, qolgani — yon panelda
+  void _openSection(String label) {
+    if (_primary.any((e) => e.label == label) || label == 'Yana') {
+      _panelLabel = null;
+      _open(label);
+      return;
+    }
+    final m = _more.where((e) => e.label == label);
+    if (m.isEmpty) return;
+    setState(() => _panelLabel = label);
+    _push(m.first);
+  }
+
+  /// Yon menyu: logotip, «Bosh», bo'lim guruhlari (yig'iladigan) — hammasi bir bosishda; pastda ko'rinish va profil
   Widget _rail(int i, List<_Tab> tabs) {
     final cs = Theme.of(context).colorScheme;
-    final items = <NavItem>[
-      for (final t in tabs) NavItem(t.label, t.icon, t.activeIcon),
-      const NavItem('Yana', Icons.grid_view_outlined, Icons.grid_view_rounded),
+    final me = s.me!;
+    final name = s.userName.isEmpty ? me.company : s.userName;
+    final byLabel = {for (final t in [..._primary, ..._more]) t.label: t};
+    final curTab = i < tabs.length ? tabs[i].label : 'Yana';
+
+    bool active(String label) => _panelLabel != null ? _panelLabel == label : curTab == label;
+
+    Widget item(IconData icon, Color color, String label, {Widget? trailing, VoidCallback? onTap}) {
+      final on = active(label);
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Stack(children: [
+          Material(
+            color: on ? cs.primary.withValues(alpha: 0.13) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              hoverColor: cs.primary.withValues(alpha: 0.07),
+              onTap: onTap ?? () => _openSection(label),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+                child: Row(children: [
+                  Icon(icon, size: 19, color: on ? cs.primary : color),
+                  const SizedBox(width: 11),
+                  Expanded(child: Text(navLabel(label), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: on ? FontWeight.w800 : FontWeight.w600, fontSize: 13.5, color: on ? cs.primary : null))),
+                  if (trailing != null) trailing,
+                ]),
+              ),
+            ),
+          ),
+          if (on) Positioned(left: 0, top: 9, bottom: 9, child: Container(width: 3.5, decoration: BoxDecoration(color: cs.primary, borderRadius: const BorderRadius.horizontal(right: Radius.circular(4))))),
+        ]),
+      );
+    }
+
+    final used = <String>{'Bosh'};
+    final children = <Widget>[
+      item(Icons.home_rounded, Brand.blue, 'Bosh'),
+      const SizedBox(height: 6),
     ];
+    for (final (title, _, color, labels) in _groups) {
+      final ts = [for (final l in labels) if (byLabel[l] != null) byLabel[l]!];
+      used.addAll(ts.map((e) => e.label));
+      if (ts.isEmpty) continue;
+      final closed = _railClosed.contains(title);
+      children.add(InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => setState(() => closed ? _railClosed.remove(title) : _railClosed.add(title)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 6, 5),
+          child: Row(children: [
+            Expanded(child: Text(tr(title).toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 10.8, fontWeight: FontWeight.w800, letterSpacing: 0.7))),
+            AnimatedRotation(turns: closed ? -0.25 : 0, duration: const Duration(milliseconds: 180), child: Icon(Icons.expand_more_rounded, size: 18, color: cs.outline)),
+          ]),
+        ),
+      ));
+      if (!closed) {
+        for (final t in ts) {
+          children.add(item(t.icon, _colors[t.label] ?? color, t.label));
+        }
+      }
+    }
+    // hech bir guruhga kirmagan bo'limlar va sinxronlash
+    final rest = [for (final t in _more) if (!used.contains(t.label)) t];
+    children.add(Padding(
+      padding: const EdgeInsets.fromLTRB(10, 12, 6, 5),
+      child: Text(tr('Boshqa').toUpperCase(), style: TextStyle(color: cs.outline, fontSize: 10.8, fontWeight: FontWeight.w800, letterSpacing: 0.7)),
+    ));
+    for (final t in rest) {
+      children.add(item(t.icon, _colors[t.label] ?? Brand.blue, t.label));
+    }
+    children.add(ListenableBuilder(
+      listenable: Listenable.merge([Offline.pending, Offline.failed, Offline.online]),
+      builder: (context, _) {
+        final n = Offline.pending.value + Offline.failed.value;
+        return item(
+          Icons.cloud_sync_outlined,
+          Brand.blue,
+          'Sinxronlash',
+          trailing: n > 0
+              ? Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1), decoration: BoxDecoration(color: Colors.orange.shade700, borderRadius: BorderRadius.circular(10)), child: Text('$n', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)))
+              : (Offline.online.value ? null : Icon(Icons.cloud_off_outlined, size: 16, color: Colors.orange.shade800)),
+          onTap: () {
+            setState(() => _panelLabel = 'Sinxronlash');
+            if (_isWide) _nav.popUntil((r) => r.isFirst);
+            _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s))).then((_) {
+              if (mounted && _panelLabel == 'Sinxronlash') setState(() => _panelLabel = null);
+            });
+          },
+        );
+      },
+    ));
+    children.add(item(Icons.dashboard_customize_outlined, Brand.purple, 'Yana', onTap: () => _openSection('Yana')));
+
     return SizedBox(
-      width: 232,
+      width: 262,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 14, 0, 14),
         child: Glass(
           radius: 26,
-          padding: const EdgeInsets.fromLTRB(10, 16, 10, 12),
+          padding: const EdgeInsets.fromLTRB(10, 14, 10, 10),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 14),
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
               child: Row(children: [
                 Container(
-                  width: 38,
-                  height: 38,
+                  width: 40,
+                  height: 40,
                   padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Brand.green, Brand.teal])),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(13), gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Brand.green, Brand.teal]), boxShadow: [BoxShadow(color: Brand.green.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4))]),
                   child: Image.asset('assets/brand/mark_white.png', fit: BoxFit.contain),
                 ),
-                const SizedBox(width: 10),
-                const Expanded(child: Text('Oftob Building', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16))),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Oftob Building', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15.5, letterSpacing: -0.2)),
+                    Text(me.company, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                  ]),
+                ),
               ]),
             ),
-            Expanded(
-              child: ListView(children: [
-                for (var k = 0; k < items.length; k++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Material(
-                      color: k == i ? cs.primary.withValues(alpha: 0.14) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(14),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(14),
-                        onTap: () {
-                          _deskNav.currentState?.popUntil((r) => r.isFirst);
-                          _setTab(k);
-                          if (k == 0) _dashRefresh.value++;
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                          child: Row(children: [
-                            Icon(k == i ? items[k].activeIcon : items[k].icon, size: 22, color: k == i ? cs.primary : cs.onSurfaceVariant),
-                            const SizedBox(width: 12),
-                            Expanded(child: Text(navLabel(items[k].label), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: k == i ? FontWeight.w800 : FontWeight.w600, fontSize: 14.5, color: k == i ? cs.primary : null))),
-                          ]),
-                        ),
+            // tez qidiruv
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Material(
+                color: cs.primary.withValues(alpha: 0.07),
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: _palette,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    child: Row(children: [
+                      Icon(Icons.search_rounded, size: 18, color: cs.outline),
+                      const SizedBox(width: 9),
+                      Expanded(child: Text(tr('Qidirish…'), style: TextStyle(color: cs.outline, fontSize: 13))),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), border: Border.all(color: cs.outline.withValues(alpha: 0.35))),
+                        child: Text('Ctrl K', style: TextStyle(color: cs.outline, fontSize: 10, fontWeight: FontWeight.w700)),
                       ),
-                    ),
+                    ]),
                   ),
-              ]),
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
+            Expanded(child: ListView(padding: EdgeInsets.zero, children: children)),
+            const SizedBox(height: 6),
             Divider(height: 1, color: cs.outline.withValues(alpha: 0.18)),
+            const SizedBox(height: 8),
+            // kun / tun / avto
+            ValueListenableBuilder<ThemeMode>(
+              valueListenable: ThemeController.mode,
+              builder: (context, tm, _) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(children: [
+                  Expanded(child: Text(tr("Ko'rinish"), style: TextStyle(color: cs.outline, fontSize: 12, fontWeight: FontWeight.w700))),
+                  _ThemeDot(icon: Icons.brightness_auto_rounded, tip: 'Avto', on: tm == ThemeMode.system, onTap: () => ThemeController.set(ThemeMode.system), size: 30),
+                  const SizedBox(width: 5),
+                  _ThemeDot(icon: Icons.light_mode_rounded, tip: 'Kun', on: tm == ThemeMode.light, onTap: () => ThemeController.set(ThemeMode.light), size: 30),
+                  const SizedBox(width: 5),
+                  _ThemeDot(icon: Icons.dark_mode_rounded, tip: 'Tun', on: tm == ThemeMode.dark, onTap: () => ThemeController.set(ThemeMode.dark), size: 30),
+                ]),
+              ),
+            ),
             const SizedBox(height: 8),
             Material(
               color: Colors.transparent,
@@ -857,22 +988,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 borderRadius: BorderRadius.circular(14),
                 onTap: _openProfile,
                 child: Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.fromLTRB(6, 6, 2, 6),
                   child: ListenableBuilder(
                     listenable: s,
-                    builder: (_, _) {
-                      final nm = s.userName.isEmpty ? s.me!.company : s.userName;
-                      return Row(children: [
-                        UserAvatar(session: s, name: nm, size: 36),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(nm, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
-                            Text(s.me!.company, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 11.5)),
-                          ]),
-                        ),
-                      ]);
-                    },
+                    builder: (_, _) => Row(children: [
+                      UserAvatar(session: s, name: name, size: 36),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                          Text(me.roleName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 11.5)),
+                        ]),
+                      ),
+                      IconButton(tooltip: tr('Chiqish'), visualDensity: VisualDensity.compact, onPressed: _logout, icon: Icon(Icons.logout_rounded, size: 19, color: cs.outline)),
+                    ]),
                   ),
                 ),
               ),
@@ -880,6 +1009,108 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ]),
         ),
       ),
+    );
+  }
+
+  bool _paletteOpen = false;
+
+  /// Ctrl+K — qayerda fokus bo'lmasin (matn maydonida ham) bo'lim qidirish oynasi ochiladi
+  bool _hotkey(KeyEvent e) {
+    if (e is KeyDownEvent && e.logicalKey == LogicalKeyboardKey.keyK && HardwareKeyboard.instance.isControlPressed && mounted && _isWide && !_paletteOpen) {
+      _palette();
+      return true;
+    }
+    return false;
+  }
+
+  /// Bo'lim qidirish oynasi (Ctrl+K): nomi bo'yicha filtrlanadi, strelkalar bilan tanlanadi, Enter — ochadi
+  Future<void> _palette() async {
+    final all = <(String, IconData, Color)>[
+      for (final t in [..._primary, ..._more]) (t.label, t.icon, _colors[t.label] ?? Brand.blue),
+      ('Sinxronlash', Icons.cloud_sync_outlined, Brand.blue),
+      ('Yana', Icons.dashboard_customize_outlined, Brand.purple),
+    ];
+    if (_paletteOpen) return;
+    _paletteOpen = true;
+    final picked = await showDialog<String>(context: context, builder: (_) => _PaletteDialog(items: all));
+    _paletteOpen = false;
+    if (picked == null || !mounted) return;
+    if (picked == 'Sinxronlash') {
+      _nav.popUntil((r) => r.isFirst);
+      _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s)));
+    } else {
+      _openSection(picked);
+    }
+  }
+
+  /// Kompyuter sarlavhasi: katta nom (Bosh'da — salomlashuv), tagida kompaniya va sana; o'ngda qidiruv, sinxronlash va bildirishnoma
+  Widget _deskHeader(int i, int moreIndex, List<_Tab> tabs) {
+    final cs = Theme.of(context).colorScheme;
+    final me = s.me!;
+    final name = s.userName.isEmpty ? me.company : s.userName;
+    final first = name.trim().split(' ').first;
+    final now = DateTime.now();
+    const months = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+    final date = '${now.day}-${tr(months[now.month - 1])}, ${now.year}';
+    final home = i == 0;
+    final title = home ? '${tr(_greeting)}, $first' : (i == moreIndex ? tr('Yana') : tr(tabs[i].label));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(26, 12, 24, 6),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: -0.7, height: 1.1)),
+            const SizedBox(height: 3),
+            Text('${me.company} · $date', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 13, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+        // qidiruv
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: _palette,
+            child: Glass(
+              radius: 16,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              child: SizedBox(
+                width: 240,
+                child: Row(children: [
+                  Icon(Icons.search_rounded, size: 19, color: cs.outline),
+                  const SizedBox(width: 9),
+                  Expanded(child: Text(tr("Bo'lim qidirish…"), style: TextStyle(color: cs.outline, fontSize: 13.5))),
+                  Text('Ctrl K', style: TextStyle(color: cs.outline.withValues(alpha: 0.8), fontSize: 10.5, fontWeight: FontWeight.w700)),
+                ]),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        ListenableBuilder(
+          listenable: Listenable.merge([Offline.online, Offline.pending, Offline.failed]),
+          builder: (context, _) {
+            final n = Offline.pending.value + Offline.failed.value;
+            if (Offline.online.value && n == 0) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: GlassIconButton(
+                badge: n,
+                onTap: () => _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s))),
+                icon: Icon(Offline.online.value ? Icons.cloud_sync_outlined : Icons.cloud_off_outlined, size: 22, color: Offline.online.value ? cs.primary : Colors.orange.shade800),
+              ),
+            );
+          },
+        ),
+        ListenableBuilder(
+          listenable: _nc,
+          builder: (context, _) => GlassIconButton(
+            badge: _nc.unread,
+            tooltip: tr('Bildirishnomalar'),
+            onTap: _openNotifications,
+            icon: Icon(_nc.unread > 0 ? Icons.notifications_active : Icons.notifications_none, size: 24, color: cs.onSurface),
+          ),
+        ),
+      ]),
     );
   }
 
@@ -893,7 +1124,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           // Bosh va Kassa — o'z keng maketi bor; qolgan bo'limlar (sarlavhasi bilan) markazda qulay kenglikda
           final broad = i >= tabs.length || const {'Bosh', 'Kassa', 'Obyektlar', 'Lidlar'}.contains(tabs[i].label);
           final col = Column(children: [
-            _header(i, moreIndex, tabs),
+            _deskHeader(i, moreIndex, tabs),
             OfflineBar(onTap: () => _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s)))),
             Expanded(child: NavInset(inset: 0, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTabDesktop()]))),
           ]);
@@ -915,7 +1146,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       Expanded(child: NavInset(inset: wide ? 0 : NavInset.bar, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()]))),
     ]);
     if (wide) {
-      return DeskShell(child: Scaffold(
+      return DeskShell(child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyK, control: true): _palette,
+          const SingleActivator(LogicalKeyboardKey.escape): () {
+            final n = _deskNav.currentState;
+            if (n != null && n.canPop()) {
+              n.pop();
+              if (_panelLabel != null) setState(() => _panelLabel = null);
+            }
+          },
+          for (var k = 0; k < tabs.length && k < 4; k++)
+            SingleActivator(const [LogicalKeyboardKey.digit1, LogicalKeyboardKey.digit2, LogicalKeyboardKey.digit3, LogicalKeyboardKey.digit4][k], control: true): () {
+              _deskNav.currentState?.popUntil((r) => r.isFirst);
+              _panelLabel = null;
+              _setTab(k);
+            },
+        },
+        child: Focus(autofocus: true, child: Scaffold(
         body: SafeArea(
           child: Row(children: [
             ValueListenableBuilder<int>(valueListenable: _deskIdx, builder: (_, v, _) => _rail(v.clamp(0, tabs.length), tabs)),
@@ -929,7 +1177,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ]),
         ),
-      ));
+      ))));
     }
     return Scaffold(
       extendBody: true, // tarkib suzuvchi panel ostidan o'tadi (xira ko'rinadi)
@@ -951,8 +1199,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
 /// Kun/Tun/Avto uchun kichik dumaloq tugma
 class _ThemeDot extends StatelessWidget {
-  const _ThemeDot({required this.icon, required this.tip, required this.on, required this.onTap});
+  const _ThemeDot({required this.icon, required this.tip, required this.on, required this.onTap, this.size = 40});
 
+  final double size;
   final IconData icon;
   final String tip;
   final bool on;
@@ -969,14 +1218,118 @@ class _ThemeDot extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutCubic,
-          width: 40,
-          height: 40,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: on ? cs.primary.withValues(alpha: 0.2) : context.pill,
             border: Border.all(color: on ? cs.primary.withValues(alpha: 0.55) : context.pillBorder, width: 1.2),
           ),
-          child: Icon(icon, size: 20, color: on ? cs.primary : cs.outline),
+          child: Icon(icon, size: size * 0.5, color: on ? cs.primary : cs.outline),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Bo'lim qidirish oynasi (Ctrl+K)
+class _PaletteDialog extends StatefulWidget {
+  const _PaletteDialog({required this.items});
+
+  final List<(String, IconData, Color)> items;
+
+  @override
+  State<_PaletteDialog> createState() => _PaletteDialogState();
+}
+
+class _PaletteDialogState extends State<_PaletteDialog> {
+  final _q = TextEditingController();
+  int _sel = 0;
+  late final FocusNode _focus = FocusNode(onKeyEvent: _key);
+
+  List<(String, IconData, Color)> get _list {
+    final q = _q.text.trim().toLowerCase();
+    return [for (final e in widget.items) if (q.isEmpty || tr(e.$1).toLowerCase().contains(q) || e.$1.toLowerCase().contains(q)) e];
+  }
+
+  KeyEventResult _key(FocusNode n, KeyEvent e) {
+    if (e is! KeyDownEvent && e is! KeyRepeatEvent) return KeyEventResult.ignored;
+    final l = _list;
+    if (e.logicalKey == LogicalKeyboardKey.arrowDown) {
+      setState(() => _sel = l.isEmpty ? 0 : (_sel + 1) % l.length);
+      return KeyEventResult.handled;
+    }
+    if (e.logicalKey == LogicalKeyboardKey.arrowUp) {
+      setState(() => _sel = l.isEmpty ? 0 : (_sel - 1 + l.length) % l.length);
+      return KeyEventResult.handled;
+    }
+    if (e.logicalKey == LogicalKeyboardKey.enter || e.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      if (l.isNotEmpty) Navigator.pop(context, l[_sel.clamp(0, l.length - 1)].$1);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  @override
+  void dispose() {
+    _q.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final l = _list;
+    return Align(
+      alignment: const Alignment(0, -0.45),
+      child: Material(
+        color: Colors.transparent,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560, maxHeight: 520),
+          child: Glass(
+            radius: 24,
+            blur: true,
+            shadow: true,
+            tint: Theme.of(context).brightness == Brightness.dark ? const Color(0xF0111A33) : const Color(0xF2FFFFFF),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              TextField(
+                controller: _q,
+                focusNode: _focus,
+                autofocus: true,
+                onChanged: (_) => setState(() => _sel = 0),
+                decoration: InputDecoration(hintText: tr("Bo'lim qidirish…"), prefixIcon: const Icon(Icons.search_rounded), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, filled: false),
+              ),
+              Divider(height: 1, color: cs.outline.withValues(alpha: 0.2)),
+              const SizedBox(height: 6),
+              Flexible(
+                child: l.isEmpty
+                    ? Padding(padding: const EdgeInsets.all(24), child: Center(child: Text(tr('Hech narsa topilmadi'), style: TextStyle(color: cs.outline))))
+                    : ListView(shrinkWrap: true, children: [
+                        for (var k = 0; k < l.length; k++)
+                          Material(
+                            color: k == _sel ? cs.primary.withValues(alpha: 0.13) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => Navigator.pop(context, l[k].$1),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                                child: Row(children: [
+                                  IconTile(icon: l[k].$2, color: l[k].$3, size: 32),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: Text(tr(l[k].$1), style: TextStyle(fontWeight: k == _sel ? FontWeight.w800 : FontWeight.w600, fontSize: 14.5))),
+                                  if (k == _sel) Icon(Icons.keyboard_return_rounded, size: 16, color: cs.outline),
+                                ]),
+                              ),
+                            ),
+                          ),
+                      ]),
+              ),
+            ]),
+          ),
         ),
       ),
     );

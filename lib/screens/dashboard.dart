@@ -205,24 +205,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _desktop(BuildContext context, {required List<Widget> stats, required List<DashSection> services, required bool searching, required String cur}) {
     final cs = Theme.of(context).colorScheme;
     final me = s.me!;
-    Widget search() => ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
-          child: Glass(
-            radius: 16,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(children: [
-              Icon(Icons.search_rounded, color: cs.outline),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  onChanged: (v) => setState(() => _q = v),
-                  decoration: InputDecoration(hintText: tr("Bo'lim qidirish…"), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, filled: false, isDense: true, contentPadding: const EdgeInsets.symmetric(vertical: 14)),
-                ),
-              ),
-            ]),
-          ),
-        );
-
     Widget statRow() {
       final cols = stats.length <= 4 ? stats.length : (stats.length == 5 ? 3 : 4);
       return Column(children: [
@@ -295,9 +277,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         padding: const EdgeInsets.fromLTRB(24, 6, 24, 40),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          Align(alignment: Alignment.centerLeft, child: search()),
-          if (!searching) Padding(padding: const EdgeInsets.only(top: 12), child: TgConnectBanner(session: s)),
-          const SizedBox(height: 16),
+          if (!searching) TgConnectBanner(session: s),
+          const SizedBox(height: 4),
           if (!searching) ...[
             if (stats.isNotEmpty) statRow(),
             if (left.isNotEmpty || right.isNotEmpty)
