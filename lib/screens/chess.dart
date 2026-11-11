@@ -186,11 +186,17 @@ class _ChessTabState extends State<ChessTab> {
           else if (_apts.isEmpty)
             const Padding(padding: EdgeInsets.all(48), child: Center(child: Text("Xonadonlar yo'q")))
           else
-            Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 0), child: _board(cs)),
-          if (!_loading && _apts.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-              child: Text(tr("Xonadon pastidagi chiziq — qancha to'langani. Qizil ramka — to'lov kechikkan. Bron qilish, sotish yoki to'lov qabul qilish uchun xonadonni bosing."), style: TextStyle(color: cs.outline, fontSize: 12.5)),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Glass(
+                radius: 26,
+                padding: EdgeInsets.all(MediaQuery.sizeOf(context).width >= 900 ? 18 : 10),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  _board(cs),
+                  const SizedBox(height: 14),
+                  Text(tr("Xonadonni bosing — 3D da bino ichidagi joyi ko'rinadi, u yerdan sotish, bron qilish va to'lov qabul qilish mumkin. Pastki chiziq — qancha to'langani, qizil ramka — to'lov kechikkan."), style: TextStyle(color: cs.outline, fontSize: 12.5)),
+                ]),
+              ),
             ),
         ],
       ),
@@ -211,8 +217,7 @@ class _ChessTabState extends State<ChessTab> {
         return (int.tryParse(a[1]) ?? 0).compareTo(int.tryParse(b[1]) ?? 0);
       });
     final wide = MediaQuery.sizeOf(context).width >= 900;
-    final gap = wide ? 7.0 : 5.0, sp = wide ? 44.0 : 24.0;
-    // katak o'lchami: keng oynada podyezdlar bo'sh joyni to'ldiradi (62–92 px), telefonda — ixcham
+    final gap = wide ? 8.0 : 5.0, sp = wide ? 22.0 : 12.0;
     final cols = groups.values.map((l) {
       final per = <int, int>{};
       for (final a in l) {
@@ -221,92 +226,152 @@ class _ChessTabState extends State<ChessTab> {
       return per.values.fold<int>(1, (m, v) => v > m ? v : m);
     }).fold<int>(1, (m, v) => v > m ? v : m);
     return LayoutBuilder(builder: (context, bc) {
-      var cw = wide ? 62.0 : 54.0;
+      var cw = 52.0;
       if (wide) {
+        // podyezdlar bo'sh joyni to'ldiradi, lekin kataklar ixcham qoladi (60–74 px)
         final n = keys.length.clamp(1, 3);
-        cw = ((((bc.maxWidth - sp * (n - 1)) / n) - 30) / cols - gap).clamp(62.0, 92.0).toDouble();
+        cw = ((((bc.maxWidth - sp * (n - 1)) / n) - 76) / cols - gap).clamp(60.0, 74.0).toDouble();
       }
-      final ch = wide ? (cw * 0.77).clamp(48.0, 70.0).toDouble() : 44.0;
-      return Wrap(spacing: sp, runSpacing: 28, children: [
+      final ch = wide ? (cw * 0.76).clamp(46.0, 56.0).toDouble() : 42.0;
+      return Wrap(spacing: sp, runSpacing: sp, children: [
         for (final k in keys) _entrance(cs, k.split('\u0000'), groups[k]!, cw, ch, gap),
       ]);
     });
   }
 
   Widget _entrance(ColorScheme cs, List<String> key, List<Map<String, dynamic>> list, double cw, double ch, double gap) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final byFloor = <int, List<Map<String, dynamic>>>{};
     for (final a in list) {
       byFloor.putIfAbsent((a['floor'] as num?)?.toInt() ?? 1, () => []).add(a);
     }
+    int numOf(Map x) => int.tryParse('${x['number']}'.replaceAll(RegExp(r'\D'), '')) ?? 0;
     for (final f in byFloor.values) {
-      f.sort((x, y) => (int.tryParse('${x['number']}'.replaceAll(RegExp(r'\D'), '')) ?? 0).compareTo(int.tryParse('${y['number']}'.replaceAll(RegExp(r'\D'), '')) ?? 0));
+      f.sort((x, y) => numOf(x).compareTo(numOf(y)));
     }
     final floors = byFloor.keys.toList()..sort((a, b) => b.compareTo(a));
     final title = [if (key[0].isNotEmpty) key[0], if (key[1].isNotEmpty) '${tr('Podyezd')} ${key[1]}'].join(' · ');
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-      if (title.isNotEmpty) Padding(padding: const EdgeInsets.only(bottom: 10, left: 2), child: Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: cs.onSurface.withValues(alpha: 0.8)))),
-      for (final f in floors)
+    final free = list.where((a) => a['status'] == 'free').length;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 16, 8),
+      decoration: BoxDecoration(
+        color: dark ? Colors.white.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cs.outline.withValues(alpha: dark ? 0.18 : 0.16)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
         Padding(
-          padding: EdgeInsets.only(bottom: gap),
+          padding: const EdgeInsets.only(bottom: 12, left: 2),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            SizedBox(width: 22, child: Text('$f', textAlign: TextAlign.center, style: TextStyle(color: cs.outline, fontSize: 12, fontWeight: FontWeight.w600))),
-            const SizedBox(width: 8),
-            for (final a in byFloor[f]!)
-              Padding(padding: EdgeInsets.only(right: gap), child: _cell(cs, a, cw, ch)),
+            Text(title.isEmpty ? tr('Xonadonlar') : title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+              decoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+              child: Text("$free ${tr("bo'sh")}", style: TextStyle(color: cs.primary, fontWeight: FontWeight.w800, fontSize: 11.5)),
+            ),
           ]),
         ),
-    ]);
+        for (final f in floors)
+          Padding(
+            padding: EdgeInsets.only(bottom: gap),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              SizedBox(width: 24, child: Text('$f', textAlign: TextAlign.center, style: TextStyle(color: cs.outline, fontSize: 12, fontWeight: FontWeight.w800))),
+              const SizedBox(width: 8),
+              for (final a in byFloor[f]!) Padding(padding: EdgeInsets.only(right: gap), child: _ChessCell(a: a, w: cw, h: ch, on: _match(a), onTap: () => _open(a))),
+            ]),
+          ),
+      ]),
+    );
   }
+}
 
-  Widget _cell(ColorScheme cs, Map<String, dynamic> a, double w, double h) {
-    final st = '${a['status']}';
+/// Bitta katak: holat rangi, to'langan ulush chizig'i, kechikkan to'lov ramkasi; ustiga kelinsa ko'tariladi.
+class _ChessCell extends StatefulWidget {
+  const _ChessCell({required this.a, required this.w, required this.h, required this.on, required this.onTap});
+
+  final Map<String, dynamic> a;
+  final double w;
+  final double h;
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  State<_ChessCell> createState() => _ChessCellState();
+}
+
+class _ChessCellState extends State<_ChessCell> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final (bg, fg) = switch (st) {
-      'sold' => (dark ? const Color(0xFF1E3A78) : const Color(0xFFD3E2FF), dark ? const Color(0xFFBFD6FF) : const Color(0xFF1D4FD8)),
-      'booked' => (dark ? const Color(0xFF5A3A12) : const Color(0xFFFFE6C8), dark ? const Color(0xFFFFD2A1) : const Color(0xFFB45309)),
-      'reserve' => (cs.outline.withValues(alpha: 0.16), cs.onSurface.withValues(alpha: 0.6)),
-      _ => (dark ? Colors.white.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.92), cs.onSurface),
+    final a = widget.a;
+    final st = '${a['status']}';
+    final (g1, g2, border, fg) = switch (st) {
+      'sold' => (dark ? const Color(0xFF284A94) : const Color(0xFFE6EFFF), dark ? const Color(0xFF1E3A78) : const Color(0xFFCADBFF), dark ? const Color(0xFF3F66C2) : const Color(0xFFA9C4FF), dark ? const Color(0xFFCFE0FF) : const Color(0xFF1D4FD8)),
+      'booked' => (dark ? const Color(0xFF6B4516) : const Color(0xFFFFF0DC), dark ? const Color(0xFF5A3A12) : const Color(0xFFFFDDB8), dark ? const Color(0xFF9A6A2A) : const Color(0xFFFFC184), dark ? const Color(0xFFFFD9AC) : const Color(0xFFB45309)),
+      'reserve' => (cs.outline.withValues(alpha: 0.16), cs.outline.withValues(alpha: 0.24), cs.outline.withValues(alpha: 0.3), cs.onSurface.withValues(alpha: 0.55)),
+      _ => (dark ? Colors.white.withValues(alpha: 0.10) : Colors.white, dark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF4F7FC), cs.outline.withValues(alpha: dark ? 0.3 : 0.26), cs.onSurface),
     };
     final rooms = (a['rooms'] as num?)?.toInt() ?? 0;
     final ar = (a['area'] as num?)?.round() ?? 0;
     final no = '${a['number']}';
-    final sub = rooms > 0 ? '$rooms·$ar' : 'K·$ar';
+    final sub = rooms > 0 ? '$rooms · $ar' : 'K · $ar';
     final owed = (a['owed'] as num?) ?? 0;
     final paid = (a['paid'] as num?) ?? 0;
     final ratio = owed > 0 ? (paid / owed).clamp(0, 1).toDouble() : 0.0;
     final overdue = ((a['overdue'] as num?) ?? 0) > 0;
-    final on = _match(a);
     final price = (a['price'] as num?) ?? 0;
-    final tip = '${tr('Kv.')} $no · ${rooms > 0 ? '$rooms ${tr('xona')}' : tr('Tijorat')} · ${area(a['area'] as num?)} m²\n${money(price)} ${tr("so'm")} · ${aptStatus(st)}${(a['buyer'] as Map?)?['name'] != null ? '\n${(a['buyer'] as Map)['name']}' : ''}';
+    final buyer = (a['buyer'] as Map?)?['name'];
+    final tip = '${tr('Kv.')} $no · ${rooms > 0 ? '$rooms ${tr('xona')}' : tr('Tijorat')} · ${area(a['area'] as num?)} m²\n${money(price)} ${tr("so'm")} · ${aptStatus(st)}${buyer != null ? '\n$buyer' : ''}';
+    final lift = _hover && widget.on;
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 160),
-      opacity: on ? 1 : 0.22,
+      opacity: widget.on ? 1 : 0.2,
       child: Tooltip(
         message: tip,
-        waitDuration: const Duration(milliseconds: 350),
-        child: Material(
-          color: bg,
-          borderRadius: BorderRadius.circular(10),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: on ? () => _open(a) : null,
-            child: Container(
-              width: w,
-              height: h,
+        waitDuration: const Duration(milliseconds: 400),
+        child: MouseRegion(
+          cursor: widget.on ? SystemMouseCursors.click : MouseCursor.defer,
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: GestureDetector(
+            onTap: widget.on ? widget.onTap : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 130),
+              curve: Curves.easeOut,
+              width: widget.w,
+              height: widget.h,
+              transform: Matrix4.translationValues(0, lift ? -2 : 0, 0),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: overdue ? Colors.red.shade600 : (st == 'free' ? cs.outline.withValues(alpha: 0.28) : Colors.transparent), width: overdue ? 2 : 1),
+                gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [g1, g2]),
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(color: overdue ? Colors.red.shade500 : (lift ? cs.primary : border), width: overdue || lift ? 1.8 : 1),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: lift ? 0.18 : 0.05), blurRadius: lift ? 14 : 3, offset: Offset(0, lift ? 6 : 1))],
               ),
               child: Stack(children: [
                 Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(no, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: no.length > 3 ? 12 : (w > 75 ? 17 : 14.5), height: 1.1)),
+                    Text(no, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: fg, fontWeight: FontWeight.w900, fontSize: no.length > 3 ? 12 : 15, height: 1.1)),
                     const SizedBox(height: 2),
-                    Text(sub, style: TextStyle(color: fg.withValues(alpha: 0.7), fontSize: w > 75 ? 11.5 : 10.5, fontWeight: FontWeight.w600, height: 1.1)),
+                    Text(sub, style: TextStyle(color: fg.withValues(alpha: 0.68), fontSize: 10.5, fontWeight: FontWeight.w700, height: 1.1)),
                   ]),
                 ),
                 if (ratio > 0)
-                  Positioned(left: 6, right: 6, bottom: 3, child: ClipRRect(borderRadius: BorderRadius.circular(2), child: Align(alignment: Alignment.centerLeft, child: FractionallySizedBox(widthFactor: ratio, child: Container(height: 3, color: Brand.blue))))),
+                  Positioned(
+                    left: 7,
+                    right: 7,
+                    bottom: 4,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: Stack(children: [
+                        Container(height: 3, color: fg.withValues(alpha: 0.16)),
+                        FractionallySizedBox(widthFactor: ratio < 0.06 ? 0.06 : ratio, child: Container(height: 3, color: fg)),
+                      ]),
+                    ),
+                  ),
               ]),
             ),
           ),

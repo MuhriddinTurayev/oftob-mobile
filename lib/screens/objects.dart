@@ -6,10 +6,12 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../desktop_web.dart';
 import '../documents.dart';
 import '../format.dart';
 import '../session.dart';
 import '../theme.dart';
+import '../webcache.dart';
 import '../widgets.dart';
 import 'deal.dart';
 import 'tour.dart';
@@ -233,6 +235,40 @@ class _ApartmentsScreenState extends State<ApartmentsScreen> {
 void showApartmentSheet(BuildContext context, Session session, String objectId, String objectName, Map<String, dynamic> apt, {VoidCallback? onChanged}) {
   HapticFeedback.selectionClick();
   // kompyuter: pastdan chiqadigan varaq o'rniga ekran o'rtasidagi chiroyli oyna
+  if (Platform.isWindows && MediaQuery.sizeOf(context).width >= 1120) {
+    // keng oyna: chapda — 3D da bino ichidagi joyi (saytdagidek), o'ngda — xonadon kartochkasi
+    showDialog<void>(
+      context: context,
+      useRootNavigator: false,
+      barrierColor: Colors.black.withValues(alpha: 0.42),
+      builder: (dc) {
+        final sz = MediaQuery.sizeOf(dc);
+        return Dialog(
+          insetPadding: const EdgeInsets.all(24),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            width: (sz.width - 48).clamp(0, 1280).toDouble(),
+            height: (sz.height - 48).clamp(0, 800).toDouble(),
+            child: Row(children: [
+              Expanded(flex: 11, child: _LocatePane(session: session, objectId: objectId, apartmentId: '${apt['id']}')),
+              Container(width: 1, color: Theme.of(dc).colorScheme.outline.withValues(alpha: 0.2)),
+              Expanded(
+                flex: 8,
+                child: Stack(children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: ApartmentSheet(session: session, objectId: objectId, objectName: objectName, apt: apt, onChanged: onChanged ?? () {}, desk: true),
+                  ),
+                  Positioned(top: 10, right: 10, child: IconButton.filledTonal(onPressed: () => Navigator.of(dc).pop(), icon: const Icon(Icons.close_rounded), tooltip: tr('Yopish'))),
+                ]),
+              ),
+            ]),
+          ),
+        );
+      },
+    );
+    return;
+  }
   if (Platform.isWindows && MediaQuery.sizeOf(context).width >= 900) {
     showDialog<void>(
       context: context,
@@ -263,6 +299,56 @@ void showApartmentSheet(BuildContext context, Session session, String objectId, 
     showDragHandle: true,
     builder: (_) => ApartmentSheet(session: session, objectId: objectId, objectName: objectName, apt: apt, onChanged: onChanged ?? () {}),
   );
+}
+
+/// Xonadon oynasining chap tomoni: «Uyda joyi» — bino 3D modelida xonadon belgilangan (saytdagi bilan bir xil sahifa; kesh orqali internetsiz ham ochiladi).
+class _LocatePane extends StatefulWidget {
+  const _LocatePane({required this.session, required this.objectId, required this.apartmentId});
+
+  final Session session;
+  final String objectId;
+  final String apartmentId;
+
+  @override
+  State<_LocatePane> createState() => _LocatePaneState();
+}
+
+class _LocatePaneState extends State<_LocatePane> {
+  String? _url;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final u = await WebCache.viewUrl(widget.session, widget.objectId, 'locate', apartment: widget.apartmentId);
+      if (mounted) setState(() => _url = u);
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    if (_url != null) return DesktopWeb(url: _url!);
+    return ColoredBox(
+      color: const Color(0xFF111418),
+      child: Center(
+        child: _error != null
+            ? Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.apartment_rounded, size: 44, color: cs.outline),
+                const SizedBox(height: 10),
+                Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: cs.outline))),
+              ])
+            : const CircularProgressIndicator(),
+      ),
+    );
+  }
 }
 
 class ApartmentSheet extends StatefulWidget {
