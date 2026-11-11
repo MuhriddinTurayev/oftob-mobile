@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Text;
@@ -231,6 +232,31 @@ class _ApartmentsScreenState extends State<ApartmentsScreen> {
 /// Xonadon kartasi (pastdan chiqadigan varaq): narx, xaridor, to'lovlar, bron/sotuv/bo'shatish.
 void showApartmentSheet(BuildContext context, Session session, String objectId, String objectName, Map<String, dynamic> apt, {VoidCallback? onChanged}) {
   HapticFeedback.selectionClick();
+  // kompyuter: pastdan chiqadigan varaq o'rniga ekran o'rtasidagi chiroyli oyna
+  if (Platform.isWindows && MediaQuery.sizeOf(context).width >= 900) {
+    showDialog<void>(
+      context: context,
+      useRootNavigator: false,
+      barrierColor: Colors.black.withValues(alpha: 0.38),
+      builder: (dc) => Dialog(
+        insetPadding: const EdgeInsets.all(28),
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          width: 760,
+          // bo'sh xonadon — ixcham oyna; sotilgan/bron — to'lovlar jadvali uchun balandroq
+          height: ('${apt['status']}' == 'free' ? 500.0 : 4000.0).clamp(0, MediaQuery.sizeOf(dc).height * 0.88).toDouble(),
+          child: Stack(children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: ApartmentSheet(session: session, objectId: objectId, objectName: objectName, apt: apt, onChanged: onChanged ?? () {}, desk: true),
+            ),
+            Positioned(top: 10, right: 10, child: IconButton.filledTonal(onPressed: () => Navigator.of(dc).pop(), icon: const Icon(Icons.close_rounded), tooltip: tr('Yopish'))),
+          ]),
+        ),
+      ),
+    );
+    return;
+  }
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -240,7 +266,10 @@ void showApartmentSheet(BuildContext context, Session session, String objectId, 
 }
 
 class ApartmentSheet extends StatefulWidget {
-  const ApartmentSheet({super.key, required this.session, required this.objectId, required this.objectName, required this.apt, required this.onChanged});
+  const ApartmentSheet({super.key, required this.session, required this.objectId, required this.objectName, required this.apt, required this.onChanged, this.desk = false});
+
+  /// Kompyuter oynasi ichida (surib yuqoriga chiqariladigan varaq emas)
+  final bool desk;
 
   final Session session;
   final String objectId;
@@ -470,9 +499,9 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
     final phone = '${buyer?['phone'] ?? ''}'.trim();
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.8,
-      maxChildSize: 0.95,
-      minChildSize: 0.45,
+      initialChildSize: widget.desk ? 1 : 0.8,
+      maxChildSize: widget.desk ? 1 : 0.95,
+      minChildSize: widget.desk ? 1 : 0.45,
       builder: (ctx, ctl) => ListView(
         controller: ctl,
         padding: EdgeInsets.fromLTRB(20, 0, 20, 28 + MediaQuery.of(context).viewInsets.bottom),
@@ -481,6 +510,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
             Expanded(child: Text('Kvartira ${a['number']}', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800))),
             if (a['pending'] == true) const Padding(padding: EdgeInsets.only(right: 6), child: StatusChip('Yuborilmagan', Colors.orange)),
             StatusChip(aptStatus(st), statusColor(st)),
+            if (widget.desk) const SizedBox(width: 46), // yopish tugmasi uchun joy
           ]),
           Text('${widget.objectName} · ${a['floor']}-qavat · ${roomsLabel(a['rooms'])} · ${area(a['area'] as num?)} m²', style: TextStyle(color: cs.outline, fontSize: 13)),
           const SizedBox(height: 16),

@@ -278,12 +278,12 @@ class _FundsScreenState extends State<FundsScreen> {
         if (reqs.isNotEmpty) ...[
           const SizedBox(height: 22),
           const _Title('So\'rovlarim'),
-          for (var i = 0; i < reqs.length; i++) Reveal(index: i.clamp(0, 9), child: _requestTile(context, reqs[i], cur, mine: true)),
+          DeskGrid(minColumn: 480, gap: 12, children: [for (var i = 0; i < reqs.length; i++) Reveal(index: i.clamp(0, 9), child: _requestTile(context, reqs[i], cur, mine: true))]),
         ],
         const SizedBox(height: 22),
         const _Title('Berilgan va sarflangan pul'),
         if (ops.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('Hali operatsiya yo\'q'))),
-        for (var i = 0; i < ops.length; i++) Reveal(index: i.clamp(0, 9), child: _opTile(context, ops[i], cur, boss: false)),
+        DeskGrid(minColumn: 480, gap: 12, children: [for (var i = 0; i < ops.length; i++) Reveal(index: i.clamp(0, 9), child: _opTile(context, ops[i], cur, boss: false))]),
       ],
     );
   }
@@ -538,11 +538,11 @@ class _FundsScreenState extends State<FundsScreen> {
         if (reqs.isNotEmpty) ...[
           const SizedBox(height: 20),
           _Title('Pul so\'rovlari (${reqs.length})'),
-          for (var i = 0; i < reqs.length; i++) Reveal(index: i.clamp(0, 9), child: _requestTile(context, reqs[i], cur, mine: false, manage: manage)),
+          DeskGrid(minColumn: 480, gap: 12, children: [for (var i = 0; i < reqs.length; i++) Reveal(index: i.clamp(0, 9), child: _requestTile(context, reqs[i], cur, mine: false, manage: manage))]),
         ],
         const SizedBox(height: 20),
         const _Title('Prorablar'),
-        for (final h in holders)
+        DeskGrid(minColumn: 480, gap: 12, children: [for (final h in holders)
           Card(
             color: _user == h['user_id'] ? cs.primaryContainer : null,
             child: ListTile(
@@ -555,7 +555,7 @@ class _FundsScreenState extends State<FundsScreen> {
               isThreeLine: true,
               trailing: Text(money(_n(h['total'])), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: cs.primary)),
             ),
-          ),
+          )]),
         const SizedBox(height: 16),
         const _Title('Operatsiyalar'),
         Wrap(spacing: 8, children: [
@@ -571,7 +571,7 @@ class _FundsScreenState extends State<FundsScreen> {
         ]),
         const SizedBox(height: 8),
         if (ops.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('Operatsiya topilmadi'))),
-        for (var i = 0; i < ops.length; i++) Reveal(index: i.clamp(0, 9), child: _opTile(context, ops[i], cur, boss: true)),
+        DeskGrid(minColumn: 480, gap: 12, children: [for (var i = 0; i < ops.length; i++) Reveal(index: i.clamp(0, 9), child: _opTile(context, ops[i], cur, boss: true))]),
       ],
     );
   }

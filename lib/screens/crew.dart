@@ -164,9 +164,11 @@ class _CrewScreenState extends State<CrewScreen> {
           Text('${workers.length} kishi', style: TextStyle(color: cs.outline, fontWeight: FontWeight.w600)),
         ]),
       ));
-      for (final w in workers) {
-        tiles.add(Reveal(index: (tiles.length ~/ 2).clamp(0, 9), child: _WorkerRow(w: w, money: _money, cur: _cur, onTap: () => _open(w, '${o['name']}', '${o['id']}'))));
-      }
+      // kompyuterda xodimlar 2–3 ustunda
+      tiles.add(DeskGrid(minColumn: 440, gap: 0, children: [
+        for (var k = 0; k < workers.length; k++)
+          Reveal(index: k.clamp(0, 9), child: _WorkerRow(w: workers[k], money: _money, cur: _cur, onTap: () => _open(workers[k], '${o['name']}', '${o['id']}'))),
+      ]));
     }
     return RefreshIndicator(
       onRefresh: () => _load(quiet: true),

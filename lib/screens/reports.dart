@@ -212,6 +212,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ));
     }
     if (items.isEmpty) out.add(const Padding(padding: EdgeInsets.all(40), child: Center(child: Text("Oxirgi 30 kunda hisobot yo'q"))));
+    final cards = <Widget>[]; // kompyuterda hisobotlar 2 ustunda
     for (final x in items) {
       final kind = '${x['kind']}';
       final (icon, color) = switch (kind) {
@@ -222,7 +223,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       final who = '${x['who'] ?? ''}';
       final file = '${who.isEmpty ? 'Kompaniya' : who}-${x['date']}';
       final sent = '${x['sent_at'] ?? ''}';
-      out.add(Padding(
+      cards.add(Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: GlassRow(
           margin: EdgeInsets.zero,
@@ -264,6 +265,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
       ));
     }
+    if (cards.isNotEmpty) out.add(DeskGrid(minColumn: 480, gap: 12, children: cards));
     return out;
   }
 

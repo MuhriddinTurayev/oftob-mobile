@@ -240,19 +240,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           )
         : null;
 
-    final left = <Widget>[
-      if (cash != null) ...[cash, const SizedBox(height: 14)],
-      if (me.can('objects:read') && _objs.isNotEmpty) objectsGrid(),
-    ];
-    final right = <Widget>[
-      if (me.can('shift:write')) ...[ShiftCard(session: s), const SizedBox(height: 14)],
-      if (me.can('attendance:read') && _now.isNotEmpty) ...[
-        _Section(title: 'Hozir ishda', trailing: '${_now.length} kishi', onTap: () => widget.onOpen?.call('Davomat')),
-        for (var i = 0; i < _now.take(5).length; i++) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11), onTap: () => _openWorker(_now[i]), child: _WorkingRow(_now[i])),
-        if (_now.length > 5) Padding(padding: const EdgeInsets.only(left: 6), child: Text('+${_now.length - 5} ${tr('kishi yana')}', style: TextStyle(color: cs.outline, fontSize: 12.5))),
-      ],
-    ];
-
     Widget leadsCol() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _Section(title: 'Yangi lidlar', trailing: '$_leadsTotal ta', onTap: () => widget.onOpen?.call('Lidlar')),
           if (_leads.isEmpty) const _Empty("Hozircha lid yo'q"),
@@ -263,6 +250,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (_ops.isEmpty) const _Empty("Operatsiya yo'q"),
           for (final o in _ops) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), child: _OpRow(o)),
         ]);
+    // Chap: kassa + obyektlar + oxirgi operatsiyalar; o'ng: smena + hozir ishda + yangi lidlar (ikkala ustun to'lib turadi, bo'sh joy qolmaydi)
+    final left = <Widget>[
+      if (cash != null) ...[cash, const SizedBox(height: 14)],
+      if (me.can('objects:read') && _objs.isNotEmpty) ...[objectsGrid(), const SizedBox(height: 22)],
+      if (me.can('cash:read')) opsCol(),
+    ];
+    final right = <Widget>[
+      if (me.can('shift:write')) ...[ShiftCard(session: s), const SizedBox(height: 14)],
+      if (me.can('attendance:read') && _now.isNotEmpty) ...[
+        _Section(title: 'Hozir ishda', trailing: '${_now.length} kishi', onTap: () => widget.onOpen?.call('Davomat')),
+        for (var i = 0; i < _now.take(5).length; i++) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11), onTap: () => _openWorker(_now[i]), child: _WorkingRow(_now[i])),
+        if (_now.length > 5) Padding(padding: const EdgeInsets.only(left: 6, bottom: 8), child: Text('+${_now.length - 5} ${tr('kishi yana')}', style: TextStyle(color: cs.outline, fontSize: 12.5))),
+        const SizedBox(height: 14),
+      ],
+      if (me.can('leads:read')) leadsCol(),
+    ];
+
 
     final tiles = LayoutBuilder(builder: (context, bc) {
       final cols = (bc.maxWidth / 118).floor().clamp(4, 9);
@@ -283,18 +287,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             if (stats.isNotEmpty) statRow(),
             if (left.isNotEmpty || right.isNotEmpty)
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if (left.isNotEmpty) Expanded(flex: 6, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: left)),
+                if (left.isNotEmpty) Expanded(flex: 11, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: left)),
                 if (left.isNotEmpty && right.isNotEmpty) const SizedBox(width: 20),
-                if (right.isNotEmpty) Expanded(flex: 5, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: right)),
+                if (right.isNotEmpty) Expanded(flex: 9, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: right)),
               ]),
-            if (me.can('leads:read') || me.can('cash:read')) ...[
-              const SizedBox(height: 24),
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if (me.can('leads:read')) Expanded(child: leadsCol()),
-                if (me.can('leads:read') && me.can('cash:read')) const SizedBox(width: 20),
-                if (me.can('cash:read')) Expanded(child: opsCol()),
-              ]),
-            ],
           ],
           if (services.isNotEmpty) ...[
             const SizedBox(height: 24),

@@ -148,8 +148,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   List<Map<String, dynamic>> get _office => ((_data?['office'] as List?) ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 
   /// «Men ishga keldim» bosgan prorablar va ofis xodimlari: kelgan/ketgan vaqt va joylashuv (xaritada ochiladi).
-  Widget _officeBlock(ColorScheme cs) {
-    final came = _office.where((o) => o['status'] != 'none').length;
+  /// Kengligi yetarli bo'lsa qatorlar 2–3 ustunda (kompyuter), aks holda bitta ro'yxat (ajratgichlar bilan)
+  Widget _cols(List<Widget> items, ColorScheme cs) => LayoutBuilder(builder: (context, bc) {
+        final cols = ((bc.maxWidth + 28) / (380 + 28)).floor().clamp(1, 3);
+        if (cols == 1) {
+          return Column(children: [
+            for (var k = 0; k < items.length; k++) ...[
+              if (k > 0) Divider(height: 1, color: cs.outline.withValues(alpha: 0.12)),
+              items[k],
+            ],
+          ]);
+        }
+        final w = (bc.maxWidth - 28 * (cols - 1)) / cols;
+        return Wrap(spacing: 28, children: [for (final i in items) SizedBox(width: w, child: i)]);
+      });
+
+  Widget _officeBlock(ColorScheme cs) {    final came = _office.where((o) => o['status'] != 'none').length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Glass(
@@ -166,7 +180,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             final all = _officeAll || _focused || list.length <= _peek + 1;
             final shown = all ? list : list.take(_peek).toList();
             return [
-              for (final o in shown) _officeRow(o, cs),
+              _cols([for (final o in shown) _officeRow(o, cs)], cs),
               if (!all) _moreButton(list.length - shown.length, cs, () => setState(() => _officeAll = true)),
             ];
           }(),
@@ -428,6 +442,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ('Ketgan', Colors.blueGrey, ws.where((w) => w['status'] == 'left').toList()),
         ('Kelmagan', cs.error, ws.where((w) => w['status'] == 'absent').toList()),
       ];
+      final cards = <Widget>[]; // kompyuterda guruhlar yonma-yon (Ishda | Ketgan | Kelmagan)
       for (final g in groups) {
         if (g.$3.isEmpty) continue;
         final gk = '$sid|${g.$1}';
@@ -469,7 +484,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               : null,
         )));
         }
-        rows.add(Padding(
+        cards.add(Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
           child: Glass(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
@@ -481,15 +496,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 Text('${g.$3.length}', style: TextStyle(color: g.$2, fontWeight: FontWeight.w800)),
               ]),
               const SizedBox(height: 4),
-              for (var k = 0; k < tiles.length; k++) ...[
-                if (k > 0) Divider(height: 1, color: cs.outline.withValues(alpha: 0.12)),
-                tiles[k],
-              ],
+              _cols(tiles, cs),
               if (!all) _moreButton(g.$3.length - list.length, cs, () => setState(() => _openGroups.add(gk))),
             ]),
           ),
         ));
       }
+      if (cards.isNotEmpty) rows.addAll(cards);
     }
     return RefreshIndicator(
       onRefresh: () => _load(quiet: true),
