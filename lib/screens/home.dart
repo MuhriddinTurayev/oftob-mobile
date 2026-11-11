@@ -1134,7 +1134,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             }
           }
           // Bosh va Kassa — o'z keng maketi bor; qolgan bo'limlar (sarlavhasi bilan) markazda qulay kenglikda
-          final broad = i >= tabs.length || const {'Bosh', 'Kassa', 'Obyektlar', 'Lidlar'}.contains(tabs[i].label);
+          final broad = i >= tabs.length || const {'Bosh', 'Kassa', 'Obyektlar', 'Lidlar', 'Sotuv'}.contains(tabs[i].label);
           final col = Column(children: [
             _deskHeader(i, moreIndex, tabs),
             OfflineBar(onTap: () => _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s)))),

@@ -6,12 +6,13 @@ import '../format.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'chess.dart';
 import 'objects.dart';
 import '../l10n.dart';
 
 const _months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
 
-enum _Tab { payments, debtors }
+enum _Tab { chess, payments, debtors }
 
 /// Sotuv: xaridorlardan tushgan to'lovlar (oy bo'yicha) va qarzdorlar (sotilgan xonadonlar bo'yicha qolgan qarz).
 class SalesScreen extends StatefulWidget {
@@ -24,9 +25,9 @@ class SalesScreen extends StatefulWidget {
 }
 
 class _SalesScreenState extends State<SalesScreen> {
-  _Tab _tab = _Tab.payments;
+  _Tab _tab = _Tab.chess;
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
-  bool _loading = true;
+  bool _loading = false;
   String? _error;
   List<Map<String, dynamic>> _pays = const [];
   num _sum = 0;
@@ -43,7 +44,6 @@ class _SalesScreenState extends State<SalesScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
   }
 
   Future<void> _load() async {
@@ -115,11 +115,11 @@ class _SalesScreenState extends State<SalesScreen> {
           width: double.infinity,
           child: SegmentedButton<_Tab>(
             showSelectedIcon: false,
-            segments: const [ButtonSegment(value: _Tab.payments, label: Text('To\'lovlar')), ButtonSegment(value: _Tab.debtors, label: Text('Qarzdorlar'))],
+            segments: const [ButtonSegment(value: _Tab.chess, label: Text('Shaxmatka')), ButtonSegment(value: _Tab.payments, label: Text('To\'lovlar')), ButtonSegment(value: _Tab.debtors, label: Text('Qarzdorlar'))],
             selected: {_tab},
             onSelectionChanged: (v) {
               setState(() => _tab = v.first);
-              if (_tab == _Tab.payments || !_debtorsLoaded) _load();
+              if (_tab == _Tab.payments || (_tab == _Tab.debtors && !_debtorsLoaded)) _load();
             },
           ),
         ),
@@ -140,7 +140,7 @@ class _SalesScreenState extends State<SalesScreen> {
             IconButton(onPressed: _isCurrent ? null : () => _shift(1), icon: const Icon(Icons.chevron_right)),
           ]),
         ),
-      Expanded(child: _body(cs)),
+      Expanded(child: _tab == _Tab.chess ? ChessTab(session: s) : _body(cs)),
     ]);
   }
 
