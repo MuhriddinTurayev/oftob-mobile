@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -18,9 +19,10 @@ class OftobSplash extends StatefulWidget {
 }
 
 class _OftobSplashState extends State<OftobSplash> with TickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 3000));
+  late final AnimationController _c = AnimationController(vsync: this, duration: Duration(milliseconds: _desk ? 900 : 3000)); // kompyuterda ochilish tez: 0,9 s
   late final AnimationController _loop = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))..repeat();
   bool _fired = false;
+  static final bool _desk = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   @override
   void initState() {
@@ -37,7 +39,7 @@ class _OftobSplashState extends State<OftobSplash> with TickerProviderStateMixin
   void _maybeDone() {
     if (_fired || !widget.ready || _c.status != AnimationStatus.completed) return;
     _fired = true;
-    Future.delayed(const Duration(milliseconds: 250), () {
+    Future.delayed(Duration(milliseconds: _desk ? 0 : 250), () {
       if (mounted) widget.onDone();
     });
   }

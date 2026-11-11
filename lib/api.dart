@@ -797,6 +797,18 @@ class ApiClient {
     }
   }
 
+  /// Davrdagi bitimlar + jami (nechta, qancha summaga sotilgan, qancha to'lov yig'ilgan). Sotuvchi — faqat o'zinikini oladi; rahbar/buxgalter [seller] bo'yicha.
+  Future<({List<Map<String, dynamic>> items, Map<String, dynamic> meta})> salesDeals({String? from, String? to, String? seller}) async {
+    final m = await _getMap('/sales/deals', {'from': from, 'to': to, 'seller': seller});
+    return (items: _list(m['data']), meta: Map<String, dynamic>.from((m['meta'] as Map?) ?? const {}));
+  }
+
+  /// Rahbar/buxgalter: har sotuvchi bo'yicha sotuv ko'rsatkichlari
+  Future<({List<Map<String, dynamic>> items, Map<String, dynamic> meta})> salesTeam({String? from, String? to}) async {
+    final m = await _getMap('/sales/team', {'from': from, 'to': to});
+    return (items: _list(m['data']), meta: Map<String, dynamic>.from((m['meta'] as Map?) ?? const {}));
+  }
+
   Future<({List<Map<String, dynamic>> items, num sum})> salesPayments({String? from, String? to, String? object}) async {
     final m = await _getMap('/sales/payments', {'from': from, 'to': to, 'object': object});
     final meta = (m['meta'] as Map?) ?? const {};

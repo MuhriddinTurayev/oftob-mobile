@@ -1,5 +1,6 @@
 import 'keyboard.dart';
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'dart:ui' show PointerDeviceKind;
 
@@ -33,6 +34,7 @@ Future<void> main() async {
 /// Faqat sinov qurilmasida (--dart-define=OFTOB_FPSLOG=true): har soniyada nechta kadr chizilgani va eng sekin kadr.
 /// Ilova tinch turganda kadr 0 bo'lishi kerak — aks holda nimadir bekorga to'xtovsiz chizilyapti.
 const _fpsLog = bool.fromEnvironment('OFTOB_FPSLOG');
+final bool _desktopOs = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
 void _startFpsLog() {
   var n = 0, worstBuild = 0, worstRaster = 0;
@@ -151,7 +153,7 @@ class _OftobAppState extends State<OftobApp> {
           },
         ),
         home: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 550),
+          duration: Duration(milliseconds: _desktopOs ? 200 : 550),
           switchInCurve: Curves.easeOut,
           child: !_splashDone
               ? ListenableBuilder(

@@ -8,11 +8,12 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'chess.dart';
 import 'objects.dart';
+import 'sales_deals.dart';
 import '../l10n.dart';
 
 const _months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
 
-enum _Tab { chess, payments, debtors }
+enum _Tab { chess, deals, payments, debtors }
 
 /// Sotuv: xaridorlardan tushgan to'lovlar (oy bo'yicha) va qarzdorlar (sotilgan xonadonlar bo'yicha qolgan qarz).
 class SalesScreen extends StatefulWidget {
@@ -25,7 +26,7 @@ class SalesScreen extends StatefulWidget {
 }
 
 class _SalesScreenState extends State<SalesScreen> {
-  _Tab _tab = _Tab.chess;
+  late _Tab _tab = _team ? _Tab.deals : _Tab.chess;
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   bool _loading = false;
   String? _error;
@@ -38,6 +39,9 @@ class _SalesScreenState extends State<SalesScreen> {
   bool _debtorsLoaded = false;
 
   Session get s => widget.session;
+
+  /// Rahbar/buxgalter/kuzatuvchi — barcha sotuvchilar bo'yicha; sotuvchi — faqat o'z sotuvlari
+  bool get _team => const {'admin', 'accountant', 'viewer'}.contains(s.me?.role);
   bool get _isCurrent => _month.year == DateTime.now().year && _month.month == DateTime.now().month;
   String _d(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -111,18 +115,40 @@ class _SalesScreenState extends State<SalesScreen> {
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-        child: SizedBox(
-          width: double.infinity,
-          child: SegmentedButton<_Tab>(
-            showSelectedIcon: false,
-            segments: const [ButtonSegment(value: _Tab.chess, label: Text('Shaxmatka')), ButtonSegment(value: _Tab.payments, label: Text('To\'lovlar')), ButtonSegment(value: _Tab.debtors, label: Text('Qarzdorlar'))],
-            selected: {_tab},
-            onSelectionChanged: (v) {
-              setState(() => _tab = v.first);
-              if (_tab == _Tab.payments || (_tab == _Tab.debtors && !_debtorsLoaded)) _load();
-            },
-          ),
-        ),
+        child: LayoutBuilder(builder: (context, bc) {
+          final tabs = <(_Tab, String)>[
+            (_Tab.chess, 'Shaxmatka'),
+            (_Tab.deals, _team ? 'Sotuvchilar' : 'Sotuvlarim'),
+            (_Tab.payments, "To'lovlar"),
+            (_Tab.debtors, 'Qarzdorlar'),
+          ];
+          void pick(_Tab t) {
+            HapticFeedback.selectionClick();
+            setState(() => _tab = t);
+            if (t == _Tab.payments || (t == _Tab.debtors && !_debtorsLoaded)) _load();
+          }
+
+          // telefon (tor ekran): 4 ta tab sig'maydi — surib o'tkaziladigan chiplar; kompyuter/planshet: bitta segment qatori
+          if (bc.maxWidth < 560) {
+            return SizedBox(
+              height: 44,
+              child: ListView(scrollDirection: Axis.horizontal, children: [
+                for (final t in tabs)
+                  Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(t.$2), selected: _tab == t.$1, showCheckmark: false, onSelected: (_) => pick(t.$1))),
+              ]),
+            );
+          }
+          return SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<_Tab>(
+              showSelectedIcon: false,
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+              segments: [for (final t in tabs) ButtonSegment(value: t.$1, label: Text(t.$2))],
+              selected: {_tab},
+              onSelectionChanged: (v) => pick(v.first),
+            ),
+          );
+        }),
       ),
       if (_tab == _Tab.payments)
         Padding(
@@ -140,7 +166,13 @@ class _SalesScreenState extends State<SalesScreen> {
             IconButton(onPressed: _isCurrent ? null : () => _shift(1), icon: const Icon(Icons.chevron_right)),
           ]),
         ),
-      Expanded(child: _tab == _Tab.chess ? ChessTab(session: s) : _body(cs)),
+      Expanded(
+        child: switch (_tab) {
+          _Tab.chess => ChessTab(session: s),
+          _Tab.deals => _team ? SellersView(session: s) : DealsView(session: s),
+          _ => _body(cs),
+        },
+      ),
     ]);
   }
 
@@ -151,25 +183,36 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   Widget _paymentsView(ColorScheme cs) {
+    // kunlar bo'yicha guruh: sana sarlavhasi + (kompyuterda 2 ustun) to'lov kartochkalari
     final rows = <Widget>[];
-    String? last;
+    final days = <String, List<Map<String, dynamic>>>{};
     for (final p in _pays) {
-      final date = '${p['date']}';
-      if (date != last) {
-        last = date;
-        rows.add(Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 4), child: Text(formatDate(date), style: TextStyle(color: cs.outline, fontWeight: FontWeight.w700, fontSize: 13))));
-      }
-      final buyer = Map<String, dynamic>.from((p['buyer'] as Map?) ?? const {});
-      rows.add(GlassRow(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        child: ListTile(
-        dense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-        leading: CircleAvatar(backgroundColor: Brand.green.withValues(alpha: 0.12), foregroundColor: Brand.green, child: const Icon(Icons.south_west, size: 18)),
-        title: Text('${buyer['name'] ?? ''}'.isEmpty ? 'Xaridor' : '${buyer['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Text('kv. ${p['apartment_number']} · ${_objectNames['${p['object_id']}'] ?? ''}${p['method'] != null && '${p['method']}'.isNotEmpty ? ' · ${p['method']}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
-        trailing: Text('+${money(p['amount'] as num?)}', style: TextStyle(fontWeight: FontWeight.w800, color: Brand.green)),
-      )));
+      days.putIfAbsent('${p['date']}', () => []).add(p);
+    }
+    for (final e in days.entries) {
+      rows.add(Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 6), child: Text(formatDate(e.key), style: TextStyle(color: cs.outline, fontWeight: FontWeight.w800, fontSize: 13))));
+      rows.add(Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: DeskGrid(minColumn: 460, gap: 12, children: [
+          for (final p in e.value)
+            GlassRow(
+              margin: const EdgeInsets.only(bottom: 2),
+              padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
+              onTap: () => _openPayment(p),
+              child: Row(children: [
+                Container(width: 40, height: 40, decoration: BoxDecoration(color: Brand.blue.withValues(alpha: 0.13), borderRadius: BorderRadius.circular(13)), child: const Icon(Icons.south_west_rounded, size: 19, color: Brand.blue)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('${(p['buyer'] as Map?)?['name'] ?? ''}'.isEmpty ? 'Xaridor' : '${(p['buyer'] as Map)['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text('kv. ${p['apartment_number']} · ${_objectNames['${p['object_id']}'] ?? ''}${p['method'] != null && '${p['method']}'.isNotEmpty ? ' · ${p['method']}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12.5)),
+                  ]),
+                ),
+                Text('+${money(p['amount'] as num?)}', style: const TextStyle(fontWeight: FontWeight.w900, color: Brand.blue, fontSize: 15)),
+              ]),
+            ),
+        ]),
+      ));
     }
     return RefreshIndicator(
       onRefresh: _load,
@@ -202,6 +245,16 @@ class _SalesScreenState extends State<SalesScreen> {
     return o <= 0 ? 1 : o;
   }
 
+  /// To'lov qatori: xonadon kartochkasi ochiladi
+  Future<void> _openPayment(Map<String, dynamic> p) async {
+    try {
+      final full = await s.api!.apartment('${p['object_id']}', '${p['apartment_id']}');
+      if (!mounted) return;
+      showApartmentSheet(context, s, '${p['object_id']}', _objectNames['${p['object_id']}'] ?? '', full, onChanged: _load);
+    } catch (e) {
+      await s.handleError(e);
+    }
+  }
   /// Qarzdor qatori: to'liq kvartira ma'lumoti serverdan olinadi, keyin kartochka ochiladi
   Future<void> _openDebtor(Map<String, dynamic> a) async {
     var full = a;
@@ -242,8 +295,11 @@ class _SalesScreenState extends State<SalesScreen> {
             ),
           ),
           if (_debtors.isEmpty) const Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Qarzdor yo\'q'))),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: DeskGrid(minColumn: 460, gap: 12, children: [
           for (final a in _debtors)
-            GlassRow(onTap: () => _openDebtor(a), child: Row(children: [
+            GlassRow(margin: const EdgeInsets.only(bottom: 2), onTap: () => _openDebtor(a), child: Row(children: [
                   Container(
                     width: 46,
                     height: 46,
@@ -266,6 +322,8 @@ class _SalesScreenState extends State<SalesScreen> {
                     Text('qarz', style: TextStyle(color: cs.outline, fontSize: 11.5)),
                   ]),
                 ])),
+            ]),
+          ),
         ],
       ),
     );

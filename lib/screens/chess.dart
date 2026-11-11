@@ -349,7 +349,7 @@ class _ChessCellState extends State<_ChessCell> {
                 gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [g1, g2]),
                 borderRadius: BorderRadius.circular(11),
                 border: Border.all(color: overdue ? Colors.red.shade500 : (lift ? cs.primary : border), width: overdue || lift ? 1.8 : 1),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: lift ? 0.18 : 0.05), blurRadius: lift ? 14 : 3, offset: Offset(0, lift ? 6 : 1))],
+                boxShadow: lift ? [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 14, offset: const Offset(0, 6))] : null, // soya faqat ustiga kelganda (90+ katakda doim soya — qimmat)
               ),
               child: Stack(children: [
                 Center(

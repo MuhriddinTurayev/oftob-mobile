@@ -13,6 +13,7 @@ import '../session.dart';
 import '../widgets.dart';
 import '../theme.dart';
 import '../motion.dart';
+import 'sales_deals.dart';
 import 'shift_card.dart';
 import '../tg_connect.dart';
 import '../l10n.dart';
@@ -252,6 +253,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ]);
     // Chap: kassa + obyektlar + oxirgi operatsiyalar; o'ng: smena + hozir ishda + yangi lidlar (ikkala ustun to'lib turadi, bo'sh joy qolmaydi)
     final left = <Widget>[
+      if (me.role == 'manager' && me.can('sales:read')) ...[SalesGlance(session: s, onTap: () => widget.onOpen?.call('Sotuv')), const SizedBox(height: 14)],
       if (cash != null) ...[cash, const SizedBox(height: 14)],
       if (me.can('objects:read') && _objs.isNotEmpty) ...[objectsGrid(), const SizedBox(height: 22)],
       if (me.can('cash:read')) opsCol(),
@@ -371,6 +373,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (!searching) Padding(padding: const EdgeInsets.only(top: 12), child: TgConnectBanner(session: widget.session)),
           const SizedBox(height: 14),
           if (!searching) ...[
+            if (me.role == 'manager' && me.can('sales:read')) ...[SalesGlance(session: s, onTap: () => widget.onOpen?.call('Sotuv')), const SizedBox(height: 14)],
             if (me.can('objects:read') && _objs.isNotEmpty) ...[
               _ObjectCards(_objs, onTap: () => widget.onOpen?.call('Obyektlar')),
               const SizedBox(height: 14),
