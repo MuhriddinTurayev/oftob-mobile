@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../api.dart';
+import '../desktop_web.dart';
 import '../login_info.dart';
 import '../format.dart';
 import '../l10n.dart';
@@ -1422,6 +1423,7 @@ class _WebAdmin extends StatefulWidget {
 
 class _WebAdminState extends State<_WebAdmin> {
   WebViewController? _c;
+  String? _deskUrl; // kompyuter: dastur ichidagi WebView2
   String? _error;
   int _progress = 0;
 
@@ -1440,9 +1442,8 @@ class _WebAdminState extends State<_WebAdmin> {
       final d = await widget.session.papi!.pSend('POST', '/web-link', {'path': widget.path});
       final url = '${(d as Map)['url']}';
       if (Platform.isWindows) {
-        // kompyuterda — tizim brauzerida (bir martalik havola, parol so'ralmaydi)
-        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-        if (mounted) Navigator.of(context).maybePop();
+        // kompyuterda — dastur ichidagi WebView2 (bir martalik havola, parol so'ralmaydi)
+        if (mounted) setState(() { _deskUrl = url; });
         return;
       }
       final c = WebViewController()
@@ -1469,10 +1470,12 @@ class _WebAdminState extends State<_WebAdmin> {
       appBar: AppBar(title: Text(widget.title), actions: [IconButton(onPressed: _open, icon: const Icon(Icons.refresh))]),
       body: _error != null
           ? ErrorView(message: _error!, onRetry: _open)
-          : Stack(children: [
-              if (_c != null) WebViewWidget(controller: _c!),
-              if (_progress < 100) LinearProgressIndicator(value: _progress == 0 ? null : _progress / 100),
-            ]),
+          : _deskUrl != null
+              ? DesktopWeb(key: ValueKey(_deskUrl), url: _deskUrl!)
+              : Stack(children: [
+                  if (_c != null) WebViewWidget(controller: _c!),
+                  if (_progress < 100) LinearProgressIndicator(value: _progress == 0 ? null : _progress / 100),
+                ]),
     );
   }
 }

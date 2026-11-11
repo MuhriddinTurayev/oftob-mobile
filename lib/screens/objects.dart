@@ -354,6 +354,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
 
   void _tour(String view, String title) {
     Navigator.of(context).push(DeskRoute<void>(
+      full: true, // kompyuterda: yon panelda emas, butun ish maydonida
       builder: (_) => TourScreen(session: widget.session, objectId: widget.objectId, view: view, title: title, apartment: '${widget.apt['id']}'),
     ));
   }

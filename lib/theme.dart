@@ -294,7 +294,10 @@ class GlassIconButton extends StatelessWidget {
 /// YON PANEL: asosiy bo'lim (Bosh, Yana, Lidlar…) ko'rinib turadi, ochilgan sahifa o'ng tomonda qulay kenglikdagi panelda chiqadi;
 /// panel tashqarisi bosilsa yopiladi. Boshqa joyda (kirish oynalari) — markazda qulay kenglikda.
 class DeskRoute<T> extends MaterialPageRoute<T> {
-  DeskRoute({required super.builder, super.settings, super.fullscreenDialog});
+  DeskRoute({required super.builder, super.settings, super.fullscreenDialog, this.full = false});
+
+  /// Katta sahifa (3D, xarita): kompyuterda yon panelda emas, butun ish maydonida ochiladi
+  final bool full;
 
   bool? _panelCache;
 
@@ -302,7 +305,7 @@ class DeskRoute<T> extends MaterialPageRoute<T> {
   bool get isPanel {
     final nav = navigator;
     if (nav == null) return _panelCache ?? false;
-    return _panelCache ??= !isFirst && DeskShell.inside(nav.context) && MediaQuery.sizeOf(nav.context).width >= DesktopPageTransitions.wideFrom;
+    return _panelCache ??= !full && !isFirst && DeskShell.inside(nav.context) && MediaQuery.sizeOf(nav.context).width >= DesktopPageTransitions.wideFrom;
   }
 
   @override
@@ -342,11 +345,16 @@ class DesktopPageTransitions extends PageTransitionsBuilder {
   static const double maxWidth = 920;
   static const double wideFrom = 900;
 
+  static bool _isFull(PageRoute<dynamic> r) {
+    final x = r;
+    return x is DeskRoute && x.full;
+  }
+
   @override
   Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
     final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
     final inShell = DeskShell.inside(context);
-    final wide = MediaQuery.sizeOf(context).width >= wideFrom && !route.isFirst;
+    final wide = MediaQuery.sizeOf(context).width >= wideFrom && !route.isFirst && !_isFull(route);
     // yon panel
     final r = route;
     if (r is DeskRoute<T> && r.isPanel) {

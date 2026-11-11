@@ -72,6 +72,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _setTab(int v) {
     setState(() => _index = v);
+    _secN.value = null;
     _deskIdx.value = v;
   }
   final _dashRefresh = ValueNotifier<int>(0);
@@ -357,7 +358,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _push(_Tab t) {
     HapticFeedback.selectionClick();
-    if (_isWide) _nav.popUntil((r) => r.isFirst); // kompyuter: bo'lim almashtirilsa — avvalgi yon panel yopilib, yangisi ochiladi
+    if (_isWide) {
+      // kompyuter: bo'lim butun ish maydonida ochiladi (yon menyu qoladi); avvalgi ochiq yon panel yopiladi
+      _nav.popUntil((r) => r.isFirst);
+      _secN.value = t.label;
+      return;
+    }
     _nav
         .push(DeskRoute<void>(
           builder: (_) => Scaffold(appBar: AppBar(title: Text(t.label)), body: t.builder(s)),
@@ -793,23 +799,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Kompyuter (keng oyna): pastki panel o'rniga chap tomonda yon menyu, tarkib markazda keng ustunda
   static const _wide = 900.0;
 
-  /// Yon menyudagi ochiq yon panel nomi (faol bo'limni belgilash uchun)
-  String? _panelLabel;
+  /// Kompyuter: «Yana» dagi bo'limlar (Vazifalar, Davomat…) tab kabi butun ish maydonida ochiladi — shu yerda uning nomi
+  /// (null — oddiy tab). Ichkaridan ochiladigan tafsilotlar (xonadon, hujjat…) esa yon panelda.
+  final _secN = ValueNotifier<String?>(null);
 
   /// Yon menyuda yig'ilgan guruhlar
   final Set<String> _railClosed = {};
 
   /// Bo'limni ochish (yon menyudan, qidiruvdan, tez tugmalardan): asosiy tab — almashadi, qolgani — yon panelda
   void _openSection(String label) {
-    if (_primary.any((e) => e.label == label) || label == 'Yana') {
-      _panelLabel = null;
-      _open(label);
+    if (label == 'Sinxronlash') {
+      _deskNav.currentState?.popUntil((r) => r.isFirst);
+      _secN.value = 'Sinxronlash';
       return;
     }
-    final m = _more.where((e) => e.label == label);
-    if (m.isEmpty) return;
-    setState(() => _panelLabel = label);
-    _push(m.first);
+    _open(label);
   }
 
   /// Yon menyu: logotip, «Bosh», bo'lim guruhlari (yig'iladigan) — hammasi bir bosishda; pastda ko'rinish va profil
@@ -820,7 +824,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final byLabel = {for (final t in [..._primary, ..._more]) t.label: t};
     final curTab = i < tabs.length ? tabs[i].label : 'Yana';
 
-    bool active(String label) => _panelLabel != null ? _panelLabel == label : curTab == label;
+    bool active(String label) => _secN.value != null ? _secN.value == label : curTab == label;
 
     Widget item(IconData icon, Color color, String label, {Widget? trailing, VoidCallback? onTap}) {
       final on = active(label);
@@ -897,13 +901,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           trailing: n > 0
               ? Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1), decoration: BoxDecoration(color: Colors.orange.shade700, borderRadius: BorderRadius.circular(10)), child: Text('$n', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)))
               : (Offline.online.value ? null : Icon(Icons.cloud_off_outlined, size: 16, color: Colors.orange.shade800)),
-          onTap: () {
-            setState(() => _panelLabel = 'Sinxronlash');
-            if (_isWide) _nav.popUntil((r) => r.isFirst);
-            _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s))).then((_) {
-              if (mounted && _panelLabel == 'Sinxronlash') setState(() => _panelLabel = null);
-            });
-          },
+          onTap: () => _openSection('Sinxronlash'),
         );
       },
     ));
@@ -1035,16 +1033,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final picked = await showDialog<String>(context: context, builder: (_) => _PaletteDialog(items: all));
     _paletteOpen = false;
     if (picked == null || !mounted) return;
-    if (picked == 'Sinxronlash') {
-      _nav.popUntil((r) => r.isFirst);
-      _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s)));
-    } else {
-      _openSection(picked);
-    }
+    _openSection(picked);
   }
 
   /// Kompyuter sarlavhasi: katta nom (Bosh'da — salomlashuv), tagida kompaniya va sana; o'ngda qidiruv, sinxronlash va bildirishnoma
-  Widget _deskHeader(int i, int moreIndex, List<_Tab> tabs) {
+  Widget _deskHeader(int i, int moreIndex, List<_Tab> tabs, {String? titleOverride}) {
     final cs = Theme.of(context).colorScheme;
     final me = s.me!;
     final name = s.userName.isEmpty ? me.company : s.userName;
@@ -1052,8 +1045,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final now = DateTime.now();
     const months = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
     final date = '${now.day}-${tr(months[now.month - 1])}, ${now.year}';
-    final home = i == 0;
-    final title = home ? '${tr(_greeting)}, $first' : (i == moreIndex ? tr('Yana') : tr(tabs[i].label));
+    final home = i == 0 && titleOverride == null;
+    final title = titleOverride != null ? tr(titleOverride) : home ? '${tr(_greeting)}, $first' : (i == moreIndex ? tr('Yana') : tr(tabs[i].label));
     return Padding(
       padding: const EdgeInsets.fromLTRB(26, 12, 24, 6),
       child: Row(children: [
@@ -1116,11 +1109,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// Kompyuter: sarlavha + ogohlantirish chizig'i + faol bo'lim (ichki navigatorning birinchi sahifasi)
   Widget _deskRoot() => ListenableBuilder(
-        listenable: Listenable.merge([_deskIdx, s]),
+        listenable: Listenable.merge([_deskIdx, _secN, s]),
         builder: (context, _) {
           final tabs = _primary;
           final moreIndex = tabs.length;
           final i = _deskIdx.value.clamp(0, moreIndex);
+          // «Yana» dagi bo'lim — tab kabi butun ish maydonida (sarlavha + sahifa), kengligi 1240 gacha
+          final sec = _secN.value;
+          if (sec != null) {
+            final found = _more.where((e) => e.label == sec);
+            if (sec == 'Sinxronlash' || found.isNotEmpty) {
+              final body = sec == 'Sinxronlash' ? SyncScreen(session: s) : found.first.builder(s);
+              return Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1240),
+                  child: Column(children: [
+                    _deskHeader(i, moreIndex, tabs, titleOverride: sec),
+                    OfflineBar(onTap: () => _openSection('Sinxronlash')),
+                    Expanded(child: NavInset(inset: 0, child: Scaffold(backgroundColor: Colors.transparent, body: body))),
+                  ]),
+                ),
+              );
+            }
+          }
           // Bosh va Kassa — o'z keng maketi bor; qolgan bo'limlar (sarlavhasi bilan) markazda qulay kenglikda
           final broad = i >= tabs.length || const {'Bosh', 'Kassa', 'Obyektlar', 'Lidlar'}.contains(tabs[i].label);
           final col = Column(children: [
@@ -1153,20 +1165,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             final n = _deskNav.currentState;
             if (n != null && n.canPop()) {
               n.pop();
-              if (_panelLabel != null) setState(() => _panelLabel = null);
             }
           },
           for (var k = 0; k < tabs.length && k < 4; k++)
             SingleActivator(const [LogicalKeyboardKey.digit1, LogicalKeyboardKey.digit2, LogicalKeyboardKey.digit3, LogicalKeyboardKey.digit4][k], control: true): () {
               _deskNav.currentState?.popUntil((r) => r.isFirst);
-              _panelLabel = null;
               _setTab(k);
             },
         },
         child: Focus(autofocus: true, child: Scaffold(
         body: SafeArea(
           child: Row(children: [
-            ValueListenableBuilder<int>(valueListenable: _deskIdx, builder: (_, v, _) => _rail(v.clamp(0, tabs.length), tabs)),
+            ListenableBuilder(listenable: Listenable.merge([_deskIdx, _secN]), builder: (_, _) => _rail(_deskIdx.value.clamp(0, tabs.length), tabs)),
             // keng ekranda tarkib cho'zilib ketmaydi: markazda qulay kenglikda; ochilgan sahifalar ham shu yerda (yon menyu yopilmaydi)
             Expanded(
               // navigator butun o'ng qismni egallaydi (yon panel oyna chetigacha chiqadi); asosiy tarkib esa markazda qulay kenglikda
