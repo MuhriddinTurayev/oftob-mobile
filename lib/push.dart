@@ -47,7 +47,10 @@ class Push {
     await _bgWrite('fcm_on', v ? '1' : '0');
   }
 
-  static bool get supported => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+  static bool get supported => !kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isWindows);
+
+  /// Kompyuter (Windows): fondagi tekshiruv yo'q — dastur ochiq turadi, lenta o'zi yangilanadi va Windows bildirishnomasi chiqadi
+  static bool get _mobile => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
   static const _channel = AndroidNotificationDetails(
     'oftob_main',
@@ -65,6 +68,7 @@ class Push {
       const InitializationSettings(
         android: AndroidInitializationSettings('ic_stat_oftob'),
         iOS: DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false),
+        windows: WindowsInitializationSettings(appName: 'Oftob Building', appUserModelId: 'uz.oftob.building', guid: '6f3a1c2e-8b4d-4e5f-9a7b-2c1d0e3f4a5b'),
       ),
       onDidReceiveNotificationResponse: (r) => openGo.value = (r.payload ?? '').isEmpty ? 'notifications' : r.payload,
     );
@@ -88,6 +92,7 @@ class Push {
         final p = launch!.notificationResponse?.payload ?? '';
         openGo.value = p.isEmpty ? 'notifications' : p;
       }
+      if (!_mobile) return;
       await Workmanager().initialize(pushBackgroundDispatcher);
       if (Platform.isAndroid) {
         await Workmanager().registerPeriodicTask(
@@ -110,6 +115,7 @@ class Push {
   /// Ruxsat so'rash (Android 13+ va iPhone). true — ruxsat bor
   static Future<bool> askPermission() async {
     if (!supported) return false;
+    if (Platform.isWindows) return true;   // Windows'da ruxsat so'ralmaydi
     try {
       await _initPlugin();
       if (Platform.isAndroid) {
@@ -148,7 +154,7 @@ class Push {
   static int _badge = -1;
 
   static Future<void> setBadge(int n) async {
-    if (!supported || n == _badge) return;
+    if (!_mobile || n == _badge) return;
     _badge = n;
     try {
       await AppBadgePlus.updateBadge(n < 0 ? 0 : n);
@@ -160,7 +166,9 @@ class Push {
     if (!supported) return;
     await setBadge(0);
     try {
-      await Workmanager().cancelAll();
+      if (_mobile) await Workmanager().cancelAll();
+    } catch (_) {}
+    try {
       await _ln.cancelAll();
     } catch (_) {}
   }
@@ -185,7 +193,7 @@ class Push {
 
   /// Ilova ochiq paytda chaqiriladi (kirgandan keyin va fonga o'tishda): server, kalit, foydalanuvchi, til nusxasi
   static Future<void> syncCreds() async {
-    if (!supported) return;
+    if (!_mobile) return;
     try {
       for (final k in const ['server', 'key', 'uid', 'lang']) {
         final v = await _store.read(key: k);
@@ -209,13 +217,15 @@ class Push {
           tr('${e['title']}'),
           '${e['body'] ?? ''}',
           NotificationDetails(
-              android: _channel, iOS: DarwinNotificationDetails(presentAlert: true, presentBanner: true, presentList: true, presentSound: true, presentBadge: true, badgeNumber: badge)),
+              android: _channel,
+              iOS: DarwinNotificationDetails(presentAlert: true, presentBanner: true, presentList: true, presentSound: true, presentBadge: true, badgeNumber: badge),
+              windows: const WindowsNotificationDetails()),
           payload: '${e['go'] ?? ''}',
         );
       }
       if (list.length > show.length) {
         await _ln.show(1, tr('Yangi bildirishnomalar'), '${list.length} ${tr('ta yangi voqea')}',
-            const NotificationDetails(android: _channel, iOS: DarwinNotificationDetails(presentAlert: true, presentBanner: true)), payload: 'notifications');
+            const NotificationDetails(android: _channel, iOS: DarwinNotificationDetails(presentAlert: true, presentBanner: true), windows: WindowsNotificationDetails()), payload: 'notifications');
       }
       if (uid.isNotEmpty) {
         final latest = list.last['at'].toString();
@@ -231,7 +241,7 @@ class Push {
 
   /// Serverdan yangi bildirishnomalarni olib, ko'rilmaganlarini telefonga chiqaradi (fonda — ilova yopiq bo'lsa ham)
   static Future<int> checkNow() async {
-    if (!supported) return 0;
+    if (!_mobile) return 0;
     // avval qulflangan telefonda ham o'qiladigan nusxa, bo'lmasa — oddiy kalitlar
     Future<String?> rd(String k) async {
       final v = await _bgRead(k);

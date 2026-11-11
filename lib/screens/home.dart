@@ -606,21 +606,94 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// Kompyuter (keng oyna): pastki panel o'rniga chap tomonda yon menyu, tarkib markazda keng ustunda
+  static const _wide = 900.0;
+
+  Widget _rail(int i, List<_Tab> tabs) {
+    final cs = Theme.of(context).colorScheme;
+    final items = <NavItem>[
+      for (final t in tabs) NavItem(t.label, t.icon, t.activeIcon),
+      const NavItem('Yana', Icons.grid_view_outlined, Icons.grid_view_rounded),
+    ];
+    return SizedBox(
+      width: 232,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 0, 14),
+        child: Glass(
+          radius: 26,
+          padding: const EdgeInsets.fromLTRB(10, 16, 10, 12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 14),
+              child: Row(children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(11), gradient: const LinearGradient(colors: [Brand.green, Brand.teal])),
+                  child: const Icon(Icons.apartment_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(child: Text('Oftob Building', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16))),
+              ]),
+            ),
+            Expanded(
+              child: ListView(children: [
+                for (var k = 0; k < items.length; k++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Material(
+                      color: k == i ? cs.primary.withValues(alpha: 0.14) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(14),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () {
+                          setState(() => _index = k);
+                          if (k == 0) _dashRefresh.value++;
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                          child: Row(children: [
+                            Icon(k == i ? items[k].activeIcon : items[k].icon, size: 22, color: k == i ? cs.primary : cs.onSurfaceVariant),
+                            const SizedBox(width: 12),
+                            Expanded(child: Text(navLabel(items[k].label), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: k == i ? FontWeight.w800 : FontWeight.w600, fontSize: 14.5, color: k == i ? cs.primary : null))),
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tabs = _primary;
     final moreIndex = tabs.length; // oxirgi — «Yana»
     final i = _index.clamp(0, moreIndex);
+    final wide = MediaQuery.sizeOf(context).width >= _wide;
+    final content = Column(children: [
+      _header(i, moreIndex, tabs),
+      OfflineBar(onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s)))),
+      Expanded(child: NavInset(inset: wide ? 0 : NavInset.bar, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()]))),
+    ]);
+    if (wide) {
+      return Scaffold(
+        body: SafeArea(
+          child: Row(children: [
+            _rail(i, tabs),
+            // keng ekranda tarkib cho'zilib ketmaydi: markazda qulay kenglikda
+            Expanded(child: Align(alignment: Alignment.topCenter, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1080), child: content))),
+          ]),
+        ),
+      );
+    }
     return Scaffold(
       extendBody: true, // tarkib suzuvchi panel ostidan o'tadi (xira ko'rinadi)
-      body: SafeArea(
-        bottom: false,
-        child: Column(children: [
-          _header(i, moreIndex, tabs),
-          OfflineBar(onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s)))),
-          Expanded(child: NavInset(inset: NavInset.bar, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()]))),
-        ]),
-      ),
+      body: SafeArea(bottom: false, child: content),
       bottomNavigationBar: GlassNavBar(
         index: i,
         onTap: (v) {

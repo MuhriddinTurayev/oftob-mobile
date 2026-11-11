@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter/material.dart' hide Text;
@@ -57,8 +58,8 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       refresh();
       _arm();
-    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
-      _timer?.cancel();
+    } else if ((state == AppLifecycleState.paused || state == AppLifecycleState.hidden) && !Platform.isWindows) {
+      _timer?.cancel();   // telefon: fonda to'xtaydi (batareya); kompyuter: oyna kichraytirilsa ham yangi voqealar keladi
     }
   }
 

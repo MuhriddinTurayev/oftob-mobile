@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' as w show Text;
@@ -1437,6 +1439,12 @@ class _WebAdminState extends State<_WebAdmin> {
     try {
       final d = await widget.session.papi!.pSend('POST', '/web-link', {'path': widget.path});
       final url = '${(d as Map)['url']}';
+      if (Platform.isWindows) {
+        // kompyuterda — tizim brauzerida (bir martalik havola, parol so'ralmaydi)
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        if (mounted) Navigator.of(context).maybePop();
+        return;
+      }
       final c = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setNavigationDelegate(NavigationDelegate(
