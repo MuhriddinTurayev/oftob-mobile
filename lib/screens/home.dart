@@ -18,6 +18,7 @@ import 'crew.dart';
 import 'currencies.dart';
 import 'dashboard.dart';
 import 'funds.dart';
+import 'lead_board.dart';
 import 'leads.dart';
 import 'notifications.dart';
 import 'objects.dart';
@@ -225,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (me.can('crew:read') && me.role == 'foreman') _Tab('Xodimlar', Icons.groups_outlined, Icons.groups, (x) => CrewScreen(session: x)),
       if (me.can('objects:read')) _Tab('Obyektlar', Icons.apartment_outlined, Icons.apartment, (x) => ObjectsScreen(session: x)),
       if (me.can('cash:read')) _Tab('Kassa', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, (x) => CashScreen(session: x)),
-      if (me.can('leads:read')) _Tab('Lidlar', Icons.people_alt_outlined, Icons.people_alt, (x) => LeadsScreen(session: x)),
+      if (me.can('leads:read')) _Tab('Lidlar', Icons.people_alt_outlined, Icons.people_alt, (x) => LeadBoardScreen(session: x)),
     ].take(4).toList();
   }
 
@@ -248,7 +249,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (me.can('stock:read')) _Tab('Ombor', Icons.inventory_2_outlined, Icons.inventory_2, (x) => StockScreen(session: x)),
       if (me.can('objects:read') && !primary.contains('Obyektlar')) _Tab('Obyektlar', Icons.apartment_outlined, Icons.apartment, (x) => ObjectsScreen(session: x)),
       if (me.can('cash:read') && !primary.contains('Kassa')) _Tab('Kassa', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, (x) => CashScreen(session: x)),
-      if (me.can('leads:read') && !primary.contains('Lidlar')) _Tab('Lidlar', Icons.people_alt_outlined, Icons.people_alt, (x) => LeadsScreen(session: x)),
+      if (me.can('leads:read') && !primary.contains('Lidlar')) _Tab('Lidlar', Icons.people_alt_outlined, Icons.people_alt, (x) => LeadBoardScreen(session: x)),
       // rahbar: jamoa (bloklash, rol), AI kalitlari va limit; rahbar va buxgalter: tarif va to'lov
       if (me.role == 'admin' || const ['accountant', 'foreman', 'viewer'].contains(me.role)) _Tab('Ish vaqti va joylashuv', Icons.share_location_outlined, Icons.share_location, (x) => WorkScreen(session: x)),
       if (me.role == 'admin' || const ['accountant', 'viewer'].contains(me.role)) _Tab('KPI va ushlab qolish', Icons.query_stats_outlined, Icons.query_stats, (x) => PayrollScreen(session: x)),

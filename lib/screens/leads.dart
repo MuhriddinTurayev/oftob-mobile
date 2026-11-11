@@ -116,7 +116,7 @@ class _LeadsScreenState extends State<LeadsScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _LeadForm(session: s),
+      builder: (_) => LeadForm(session: s),
     );
     if (created == true) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ariza qo\'shildi')));
@@ -369,16 +369,16 @@ class _LeadSheet extends StatelessWidget {
   }
 }
 
-class _LeadForm extends StatefulWidget {
-  const _LeadForm({required this.session});
+class LeadForm extends StatefulWidget {
+  const LeadForm({super.key, required this.session});
 
   final Session session;
 
   @override
-  State<_LeadForm> createState() => _LeadFormState();
+  State<LeadForm> createState() => _LeadFormState();
 }
 
-class _LeadFormState extends State<_LeadForm> {
+class _LeadFormState extends State<LeadForm> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _rooms = TextEditingController();

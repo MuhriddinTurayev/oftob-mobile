@@ -817,6 +817,23 @@ class ApiClient {
 
   /* ---------------- lidlar ---------------- */
 
+  /// Lid voronkasi (saytdagi «Лиды» bilan bir xil): bosqichlar, javob, kelish vaqti, tanlangan xonadon. null — eski server (oddiy ro'yxat ishlatiladi)
+  Future<({List<Map<String, dynamic>> items, Map<String, dynamic> meta})?> leadBoard() async {
+    try {
+      final m = await _getMap('/leads/board');
+      return (items: _list(m['data']), meta: Map<String, dynamic>.from((m['meta'] as Map?) ?? const {}));
+    } on ApiException catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// Lidni yangilash: status, reach, visitDate, visitTime, manager, nextDate, nextText, note, log, name, phone, apt, aptNum
+  Future<Map<String, dynamic>> leadBoardUpdate(String objectId, String id, Map<String, dynamic> body) async {
+    final b = await _send(() => _http.post(_uri('/leads/board/${Uri.encodeComponent(objectId)}/${Uri.encodeComponent(id)}'), headers: _headers, body: jsonEncode(body)));
+    return Map<String, dynamic>.from(((b as Map)['data'] as Map?) ?? const {});
+  }
+
   Future<Paged> leads({int page = 1, int perPage = 30}) async {
     final m = await _getMap('/leads', {'page': page, 'per_page': perPage});
     return Paged(_list(m['data']), PageMeta.from(m['meta']));

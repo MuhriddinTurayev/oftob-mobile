@@ -25,7 +25,11 @@ num monthlyPayment(num rest, int months, num ratePercent) {
 
 /// Sotish / bron: xaridor, narx, boshlang'ich to'lov, muddat, foiz — saytdagi shakl bilan bir xil. Shartnoma serverning o'zida tuziladi.
 class DealScreen extends StatefulWidget {
-  const DealScreen({super.key, required this.session, required this.objectId, required this.apt, required this.onDone});
+  const DealScreen({super.key, required this.session, required this.objectId, required this.apt, required this.onDone, this.prefillName, this.prefillPhone});
+
+  /// Lidden o'tilganda: xaridor ismi va telefoni avtomatik yoziladi (o'zgartirsa bo'ladi)
+  final String? prefillName;
+  final String? prefillPhone;
 
   final Session session;
   final String objectId;
@@ -38,13 +42,15 @@ class DealScreen extends StatefulWidget {
 
 class _DealScreenState extends State<DealScreen> {
   late final bool _wasBooked = '${widget.apt['status']}' == 'booked';
-  late final _name = TextEditingController(text: '${(widget.apt['buyer'] as Map?)?['name'] ?? ''}');
-  late final _phone = TextEditingController(text: '${(widget.apt['buyer'] as Map?)?['phone'] ?? ''}');
+  late final _name = TextEditingController(text: _firstNonEmpty('${(widget.apt['buyer'] as Map?)?['name'] ?? ''}', widget.prefillName));
+  late final _phone = TextEditingController(text: _firstNonEmpty('${(widget.apt['buyer'] as Map?)?['phone'] ?? ''}', widget.prefillPhone));
   final _passport = TextEditingController();
   late final _price = TextEditingController(text: fmtInput(_n(widget.apt['price'])));
   final _down = TextEditingController();
   final _rate = TextEditingController();
   final _note = TextEditingController();
+  static String _firstNonEmpty(String a, String? b) => a.trim().isNotEmpty ? a : (b ?? '');
+
   Map<String, dynamic>? _terms;
   List<Map<String, dynamic>> _methods = const [];
   String? _loadError;
