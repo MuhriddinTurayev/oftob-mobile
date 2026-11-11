@@ -187,6 +187,15 @@ Win32Window::MessageHandler(HWND hwnd,
       }
       return 0;
 
+    case WM_GETMINMAXINFO: {
+      // oyna juda kichrayib, maket buzilib ketmasin
+      auto* mmi = reinterpret_cast<MINMAXINFO*>(lparam);
+      double scale = GetDpiForWindow(hwnd) / 96.0;
+      mmi->ptMinTrackSize.x = static_cast<LONG>(900 * scale);
+      mmi->ptMinTrackSize.y = static_cast<LONG>(600 * scale);
+      return 0;
+    }
+
     case WM_DPICHANGED: {
       auto newRectSize = reinterpret_cast<RECT*>(lparam);
       LONG newWidth = newRectSize->right - newRectSize->left;

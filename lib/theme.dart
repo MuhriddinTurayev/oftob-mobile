@@ -289,6 +289,23 @@ class GlassIconButton extends StatelessWidget {
   }
 }
 
+/// Kompyuter (keng oyna): ochiladigan sahifalar butun ekranga yoyilmasdan, markazda qulay kenglikda turadi
+class DesktopPageTransitions extends PageTransitionsBuilder {
+  const DesktopPageTransitions();
+
+  static const double maxWidth = 920;
+
+  @override
+  Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
+    // boshlang'ich sahifa (butun ekran / yon menyu bilan qobiq) kengligicha qoladi; ustidan ochilganlar — markazda
+    final wide = MediaQuery.sizeOf(context).width >= 900 && !route.isFirst;
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+      child: wide ? Align(alignment: Alignment.topCenter, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: maxWidth), child: child)) : child,
+    );
+  }
+}
+
 class NavItem {
   const NavItem(this.label, this.icon, this.activeIcon);
   final String label;
@@ -551,11 +568,14 @@ class AppTheme {
         ),
       ),
       snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: dark ? const Color(0xFF223156) : const Color(0xFF13234A), contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-      bottomSheetTheme: BottomSheetThemeData(backgroundColor: solid, surfaceTintColor: Colors.transparent, showDragHandle: true, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28)))),
+      bottomSheetTheme: BottomSheetThemeData(backgroundColor: solid, surfaceTintColor: Colors.transparent, showDragHandle: true, constraints: const BoxConstraints(maxWidth: 620), shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28)))),
       dialogTheme: DialogThemeData(backgroundColor: solid, surfaceTintColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26))),
       pageTransitionsTheme: const PageTransitionsTheme(builders: {
         TargetPlatform.android: GlassTransitions(),
         TargetPlatform.iOS: GlassTransitions(),
+        TargetPlatform.windows: DesktopPageTransitions(),
+        TargetPlatform.linux: DesktopPageTransitions(),
+        TargetPlatform.macOS: DesktopPageTransitions(),
       }),
     );
   }

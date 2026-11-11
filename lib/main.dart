@@ -1,6 +1,8 @@
 import 'keyboard.dart';
 import 'dart:async';
 
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -45,6 +47,13 @@ void _startFpsLog() {
     debugPrint('FPSLOG frames=$n build=${(worstBuild / 1000).toStringAsFixed(1)}ms raster=${(worstRaster / 1000).toStringAsFixed(1)}ms');
     n = worstBuild = worstRaster = 0;
   });
+}
+
+class _DesktopScroll extends MaterialScrollBehavior {
+  const _DesktopScroll();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {...super.dragDevices, PointerDeviceKind.mouse, PointerDeviceKind.trackpad, PointerDeviceKind.stylus};
 }
 
 class OftobApp extends StatefulWidget {
@@ -104,6 +113,8 @@ class _OftobAppState extends State<OftobApp> {
         scaffoldMessengerKey: _msgKey,
         navigatorObservers: [ModalWatcher(), KeyboardRouteObserver()],
         debugShowCheckedModeBanner: false,
+        // kompyuter: karusel va ro'yxatlarni sichqoncha bilan ham surish mumkin
+        scrollBehavior: const _DesktopScroll(),
         theme: AppTheme.build(Brightness.light),
         darkTheme: AppTheme.build(Brightness.dark),
         themeMode: tm,

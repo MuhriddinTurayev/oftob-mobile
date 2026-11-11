@@ -200,6 +200,132 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  /// Kompyuter maketi: tepada qidiruv, statistika qatori; keyin chapda kassa+obyektlar, o'ngda ish kuni+hozir ishda;
+  /// pastda lidlar va oxirgi operatsiyalar yonma-yon; xizmatlar — kenglikka qarab ko'p ustunli to'r.
+  Widget _desktop(BuildContext context, {required List<Widget> stats, required List<DashSection> services, required bool searching, required String cur}) {
+    final cs = Theme.of(context).colorScheme;
+    final me = s.me!;
+    Widget search() => ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Glass(
+            radius: 16,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(children: [
+              Icon(Icons.search_rounded, color: cs.outline),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  onChanged: (v) => setState(() => _q = v),
+                  decoration: InputDecoration(hintText: tr("Bo'lim qidirish…"), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, filled: false, isDense: true, contentPadding: const EdgeInsets.symmetric(vertical: 14)),
+                ),
+              ),
+            ]),
+          ),
+        );
+
+    Widget statRow() {
+      final cols = stats.length <= 4 ? stats.length : (stats.length == 5 ? 3 : 4);
+      return Column(children: [
+        for (var i = 0; i < stats.length; i += cols)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: IntrinsicHeight(
+              child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                for (var k = 0; k < cols; k++) ...[
+                  if (k > 0) const SizedBox(width: 14),
+                  Expanded(child: i + k < stats.length ? stats[i + k] : const SizedBox.shrink()),
+                ],
+              ]),
+            ),
+          ),
+      ]);
+    }
+
+    Widget objectsGrid() => LayoutBuilder(builder: (context, bc) {
+          final cols = _objs.length == 1 ? 1 : 2;
+          final w = (bc.maxWidth - 14 * (cols - 1)) / cols;
+          return Wrap(spacing: 14, runSpacing: 14, children: [for (final o in _objs) SizedBox(width: w, height: 112, child: _ObjectCard(o, onTap: () => widget.onOpen?.call('Obyektlar')))]);
+        });
+
+    final cash = me.can('cash:read')
+        ? _CashCard(
+            total: _cashTotal != null ? _cashTotal!['amount'] as num? : _cash[cur],
+            currency: _cashTotal != null ? '${_cashTotal!['currency']}' : cur,
+            others: {for (final e in _cash.entries) if (e.key != (_cashTotal != null ? '${_cashTotal!['currency']}' : cur)) e.key: e.value},
+            rate: _cashTotal?['usd_rate'] as num?,
+            desks: _desks,
+            onTap: () => widget.onOpen?.call('Kassa'),
+          )
+        : null;
+
+    final left = <Widget>[
+      if (cash != null) ...[cash, const SizedBox(height: 14)],
+      if (me.can('objects:read') && _objs.isNotEmpty) objectsGrid(),
+    ];
+    final right = <Widget>[
+      if (me.can('shift:write')) ...[ShiftCard(session: s), const SizedBox(height: 14)],
+      if (me.can('attendance:read') && _now.isNotEmpty) ...[
+        _Section(title: 'Hozir ishda', trailing: '${_now.length} kishi', onTap: () => widget.onOpen?.call('Davomat')),
+        for (var i = 0; i < _now.take(5).length; i++) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11), onTap: () => _openWorker(_now[i]), child: _WorkingRow(_now[i])),
+        if (_now.length > 5) Padding(padding: const EdgeInsets.only(left: 6), child: Text('+${_now.length - 5} ${tr('kishi yana')}', style: TextStyle(color: cs.outline, fontSize: 12.5))),
+      ],
+    ];
+
+    Widget leadsCol() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _Section(title: 'Yangi lidlar', trailing: '$_leadsTotal ta', onTap: () => widget.onOpen?.call('Lidlar')),
+          if (_leads.isEmpty) const _Empty("Hozircha lid yo'q"),
+          for (final l in _leads) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), child: _LeadRow(l)),
+        ]);
+    Widget opsCol() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _Section(title: 'Oxirgi operatsiyalar', onTap: () => widget.onOpen?.call('Kassa')),
+          if (_ops.isEmpty) const _Empty("Operatsiya yo'q"),
+          for (final o in _ops) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), child: _OpRow(o)),
+        ]);
+
+    final tiles = LayoutBuilder(builder: (context, bc) {
+      final cols = (bc.maxWidth / 118).floor().clamp(4, 9);
+      final tw = (bc.maxWidth - 12 * (cols - 1)) / cols;
+      final th = 10 + 42 + 7 + MediaQuery.textScalerOf(context).scale(11.5) * 1.18 * 2 + 10;
+      return Wrap(spacing: 12, runSpacing: 12, children: [for (final x in services) SizedBox(width: tw, height: th < 96 ? 96 : th, child: _ServiceTile(x, onTap: () => widget.onOpen?.call(x.label)))]);
+    });
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(24, 6, 24, 40),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          Align(alignment: Alignment.centerLeft, child: search()),
+          if (!searching) Padding(padding: const EdgeInsets.only(top: 12), child: TgConnectBanner(session: s)),
+          const SizedBox(height: 16),
+          if (!searching) ...[
+            if (stats.isNotEmpty) statRow(),
+            if (left.isNotEmpty || right.isNotEmpty)
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (left.isNotEmpty) Expanded(flex: 6, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: left)),
+                if (left.isNotEmpty && right.isNotEmpty) const SizedBox(width: 20),
+                if (right.isNotEmpty) Expanded(flex: 5, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: right)),
+              ]),
+            if (me.can('leads:read') || me.can('cash:read')) ...[
+              const SizedBox(height: 24),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (me.can('leads:read')) Expanded(child: leadsCol()),
+                if (me.can('leads:read') && me.can('cash:read')) const SizedBox(width: 20),
+                if (me.can('cash:read')) Expanded(child: opsCol()),
+              ]),
+            ],
+          ],
+          if (services.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            _Section(title: 'Xizmatlar'),
+            tiles,
+          ] else if (searching)
+            const Padding(padding: EdgeInsets.all(32), child: Center(child: Text("Hech narsa topilmadi"))),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -241,6 +367,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _Stat(icon: Icons.people_alt_rounded, color: Brand.pink, title: 'Lidlar', big: '$_leadsTotal', sub: 'jami so\'rovlar', onTap: () => widget.onOpen?.call('Lidlar')),
     ];
 
+    // kompyuter (keng oyna): statistika qatori, ikki ustun, kenglikka mos xizmatlar to'ri
+    if (MediaQuery.sizeOf(context).width >= 1000) return _desktop(context, stats: stats, services: services, searching: searching, cur: cur);
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(

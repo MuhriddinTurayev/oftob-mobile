@@ -154,13 +154,12 @@ class _CashScreenState extends State<CashScreen> {
         _ => Icons.account_balance_wallet_rounded,
       };
 
-  Widget _carousel() {
-    final pages = <Widget>[
+  List<Widget> _pages() => <Widget>[
       _card(
         g: const [Color(0xFF0F1E44), Color(0xFF1E3A8A)],
         icon: Icons.account_balance_rounded,
         title: _total != null ? tr('Barcha kassalarda jami') : tr('Hamma kassalar'),
-        sub: '${_desks.length} ${tr('ta kassa')} · ${tr('chapga suring')}',
+        sub: '${_desks.length} ${tr('ta kassa')}${MediaQuery.sizeOf(context).width >= 1000 ? '' : ' · ${tr('chapga suring')}'}',
         // jami — server hisoblaydi (saytdagidek): boshqa valyutalar kurs bo'yicha o'tkaziladi; pastda «shundan … USD · 1 USD = …»
         amounts: _total != null
             ? ['${money(_total!['amount'] as num?)} ${_total!['currency'] ?? ''}']
@@ -180,6 +179,9 @@ class _CashScreenState extends State<CashScreen> {
           on: _at == i + 1,
         ),
     ];
+
+  Widget _carousel() {
+    final pages = _pages();
     final n = pages.length;
     final ts = MediaQuery.textScalerOf(context);
     // sarlavha + summa + izoh + pastki qator; shrift kattalashsa karta ham bo'yiga o'sadi
@@ -212,10 +214,88 @@ class _CashScreenState extends State<CashScreen> {
     ]);
   }
 
+  Widget _desktop(ColorScheme cs, String? deskName) {
+    Widget opsList() => PagedList(
+          key: _list,
+          session: widget.session,
+          emptyText: "Operatsiyalar yo'q",
+          fetch: (p) => widget.session.api!.cashOps(page: p, desk: _deskId),
+          itemBuilder: _opTile,
+        );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // chapda: kassalar to'ri va Kirim / Chiqim
+        SizedBox(
+          width: 560,
+          child: ListView(padding: const EdgeInsets.only(bottom: 24), children: [
+            Row(children: [
+              const Expanded(child: Text('Kassalar', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900))),
+              IconButton(tooltip: tr('Yangilash'), onPressed: _refreshAll, icon: const Icon(Icons.refresh)),
+            ]),
+            if (_deskError != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(_deskError!, style: TextStyle(color: cs.error))),
+            LayoutBuilder(builder: (context, bc) => _deskGrid(bc.maxWidth)),
+            if (_form?.canAdd == true)
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: Row(children: [
+                  Expanded(child: _OpButton(income: true, onTap: () => _add('in'))),
+                  const SizedBox(width: 12),
+                  Expanded(child: _OpButton(income: false, onTap: () => _add('out'))),
+                ]),
+              ),
+          ]),
+        ),
+        const SizedBox(width: 24),
+        // o'ngda: tanlangan kassa operatsiyalari
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(deskName == null ? tr("So'nggi operatsiyalar") : '${tr("So'nggi operatsiyalar")} · $deskName', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            ),
+            Expanded(child: opsList()),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  /// Kompyuter: kassalar to'r (karusel o'rniga) — bosilgani tanlanadi, o'ng tomonda shu kassa operatsiyalari
+  Widget _deskGrid(double maxW) {
+    final pages = _pages();
+    final cs = Theme.of(context).colorScheme;
+    final cols = (maxW / 250).floor().clamp(1, 3);
+    final w = (maxW - 8 * (cols - 1)) / cols;
+    return Wrap(spacing: 8, runSpacing: 4, children: [
+      for (var i = 0; i < pages.length; i++)
+        SizedBox(
+          width: w,
+          height: 158,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                setState(() => _at = i);
+                WidgetsBinding.instance.addPostFrameCallback((_) => _list.currentState?.reload());
+              },
+              child: DecoratedBox(
+                position: DecorationPosition.foreground,
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), border: Border.all(color: i == _at ? cs.primary : Colors.transparent, width: 2.5)),
+                child: pages[i],
+              ),
+            ),
+          ),
+        ),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final deskName = _deskId == null ? null : '${_desks[_at - 1]['name']}';
+    if (MediaQuery.sizeOf(context).width >= 1000 && _desks.isNotEmpty) return _desktop(cs, deskName);
     // karusel ro'yxatdan TASHQARIDA: ro'yxat qayta yuklanganda u qayta qurilmaydi va boshiga qaytib ketmaydi
     final head = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +331,15 @@ class _CashScreenState extends State<CashScreen> {
       session: widget.session,
       emptyText: "Operatsiyalar yo'q",
       fetch: (p) => widget.session.api!.cashOps(page: p, desk: _deskId),
-      itemBuilder: (context, o) {
+      itemBuilder: _opTile,
+    )),
+    ]);
+  }
+
+  Widget _opTile(BuildContext context, Map<String, dynamic> o) {
+    final cs = Theme.of(context).colorScheme;
+    {
+      {
         final income = o['type'] == 'in';
         final color = income ? Brand.green : Colors.red;
         final title = '${o['category'] ?? (income ? 'Kirim' : 'Chiqim')}';
@@ -285,9 +373,8 @@ class _CashScreenState extends State<CashScreen> {
           ),
           ),
         );
-      },
-    )),
-    ]);
+      }
+    }
   }
 }
 

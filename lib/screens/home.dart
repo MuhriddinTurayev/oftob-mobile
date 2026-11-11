@@ -60,6 +60,20 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _index = 0;
+
+  /// Kompyuter (keng oyna): yon menyu qoladi, sahifalar o'ng tomondagi ichki navigatorda ochiladi
+  final _deskNav = GlobalKey<NavigatorState>();
+  final _deskIdx = ValueNotifier<int>(0);
+
+  bool get _isWide => MediaQuery.sizeOf(context).width >= _wide;
+
+  /// Sahifa ochish uchun navigator: kompyuterda — ichki (yon menyu yopilmaydi), telefonda — odatdagi
+  NavigatorState get _nav => (_isWide ? _deskNav.currentState : null) ?? Navigator.of(context);
+
+  void _setTab(int v) {
+    setState(() => _index = v);
+    _deskIdx.value = v;
+  }
   final _dashRefresh = ValueNotifier<int>(0);
   late final NotificationCenter _nc = NotificationCenter(widget.session, onFresh: _fresh);
 
@@ -176,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _openNotifications() {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => NotificationsScreen(center: _nc, onGo: _go)));
+    _nav.push(MaterialPageRoute<void>(builder: (_) => NotificationsScreen(center: _nc, onGo: _go)));
   }
 
   /// Bildirishnomadan tegishli bo'limga o'tish
@@ -201,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<_Tab> get _primary {
     final me = s.me!;
     return [
-      _Tab('Bosh', Icons.home_outlined, Icons.home, (x) => DashboardScreen(session: x, onOpen: _open, sections: _sections, refresh: _dashRefresh, onProfile: () => setState(() => _index = _primary.length))),
+      _Tab('Bosh', Icons.home_outlined, Icons.home, (x) => DashboardScreen(session: x, onOpen: _open, sections: _sections, refresh: _dashRefresh, onProfile: () => _setTab(_primary.length))),
       // prorab uchun davomat — eng asosiy ish; boshqa rollarda «Yana» ichida (Bosh ekrandagi karta orqali ham ochiladi)
       if (me.can('attendance:read') && me.role == 'foreman') _Tab('Davomat', Icons.how_to_reg_outlined, Icons.how_to_reg, (x) => AttendanceScreen(session: x)),
       if (me.can('funds:read') && me.role == 'foreman') _Tab('Pul', Icons.payments_outlined, Icons.payments, (x) => FundsScreen(session: x)),
@@ -318,21 +332,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _open(String label) {
     final p = _primary;
     if (label == 'Yana') {
-      setState(() => _index = p.length);
+      _setTab(p.length);
       return true;
     }
     final i = p.indexWhere((e) => e.label == label);
     if (i >= 0) {
       HapticFeedback.selectionClick();
       // ochiq sahifalar (masalan, «Kassa» to'liq ekrani) yopilib, tab ko'rsatiladi
-      Navigator.of(context).popUntil((r) => r.isFirst);
-      setState(() => _index = i);
+      _nav.popUntil((r) => r.isFirst);
+      _setTab(i);
       if (i == 0) _dashRefresh.value++;
       return true;
     }
     final m = _more.where((e) => e.label == label);
     if (m.isNotEmpty) {
-      Navigator.of(context).popUntil((r) => r.isFirst);
+      _nav.popUntil((r) => r.isFirst);
       _push(m.first);
       return true;
     }
@@ -341,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _push(_Tab t) {
     HapticFeedback.selectionClick();
-    Navigator.of(context)
+    _nav
         .push(MaterialPageRoute<void>(
           builder: (_) => Scaffold(appBar: AppBar(title: Text(t.label)), body: t.builder(s)),
         ))
@@ -350,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _openProfile() {
     HapticFeedback.selectionClick();
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ProfileScreen(session: s, onLogout: _logout)));
+    _nav.push(MaterialPageRoute<void>(builder: (_) => ProfileScreen(session: s, onLogout: _logout)));
   }
 
   Future<void> _logout() async {
@@ -445,7 +459,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               if (d != null) Icon(d['linked'] == true ? Icons.check_circle_rounded : Icons.error_outline_rounded, color: d['linked'] == true ? Brand.green : Colors.orange.shade700, size: 20),
               Icon(Icons.chevron_right, color: cs.outline),
             ]),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => TelegramConnectScreen(session: s))).then((_) => TgLink.load(s)),
+            onTap: () => _nav.push(MaterialPageRoute<void>(builder: (_) => TelegramConnectScreen(session: s))).then((_) => TgLink.load(s)),
           ),
         ),
         ..._moreGroups(cs, row),
@@ -459,7 +473,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               'Sinxronlash',
               sub: "Offline ma'lumot va yuborilmagan amallar",
               trailing: Badge(isLabelVisible: n > 0, label: Text('$n'), child: Icon(Icons.chevron_right, color: cs.outline)),
-              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s))),
+              onTap: () => _nav.push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s))),
             );
           },
         ),
@@ -587,7 +601,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.only(right: 8),
               child: GlassIconButton(
                 badge: n,
-                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s))),
+                onTap: () => _nav.push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s))),
                 icon: Icon(Offline.online.value ? Icons.cloud_sync_outlined : Icons.cloud_off_outlined, size: 22, color: Offline.online.value ? cs.primary : Colors.orange.shade800),
               ),
             );
@@ -627,10 +641,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.fromLTRB(10, 0, 10, 14),
               child: Row(children: [
                 Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(11), gradient: const LinearGradient(colors: [Brand.green, Brand.teal])),
-                  child: const Icon(Icons.apartment_rounded, color: Colors.white, size: 20),
+                  width: 38,
+                  height: 38,
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Brand.green, Brand.teal])),
+                  child: Image.asset('assets/brand/mark_white.png', fit: BoxFit.contain),
                 ),
                 const SizedBox(width: 10),
                 const Expanded(child: Text('Oftob Building', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16))),
@@ -647,7 +662,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(14),
                         onTap: () {
-                          setState(() => _index = k);
+                          _deskNav.currentState?.popUntil((r) => r.isFirst);
+                          _setTab(k);
                           if (k == 0) _dashRefresh.value++;
                         },
                         child: Padding(
@@ -663,11 +679,61 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
               ]),
             ),
+            const SizedBox(height: 8),
+            Divider(height: 1, color: cs.outline.withValues(alpha: 0.18)),
+            const SizedBox(height: 8),
+            Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: _openProfile,
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: ListenableBuilder(
+                    listenable: s,
+                    builder: (_, _) {
+                      final nm = s.userName.isEmpty ? s.me!.company : s.userName;
+                      return Row(children: [
+                        UserAvatar(session: s, name: nm, size: 36),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(nm, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                            Text(s.me!.company, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 11.5)),
+                          ]),
+                        ),
+                      ]);
+                    },
+                  ),
+                ),
+              ),
+            ),
           ]),
         ),
       ),
     );
   }
+
+  /// Kompyuter: sarlavha + ogohlantirish chizig'i + faol bo'lim (ichki navigatorning birinchi sahifasi)
+  Widget _deskRoot() => ListenableBuilder(
+        listenable: Listenable.merge([_deskIdx, s]),
+        builder: (context, _) {
+          final tabs = _primary;
+          final moreIndex = tabs.length;
+          final i = _deskIdx.value.clamp(0, moreIndex);
+          // Bosh va Kassa — o'z keng maketi bor; qolgan bo'limlar (sarlavhasi bilan) markazda qulay kenglikda
+          final broad = i < tabs.length && (tabs[i].label == 'Bosh' || tabs[i].label == 'Kassa');
+          final col = Column(children: [
+            _header(i, moreIndex, tabs),
+            OfflineBar(onTap: () => _nav.push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s)))),
+            Expanded(child: NavInset(inset: 0, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()]))),
+          ]);
+          return broad ? col : _narrow(col);
+        },
+      );
+
+  Widget _narrow(Widget w) => Align(alignment: Alignment.topCenter, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: DesktopPageTransitions.maxWidth), child: w));
 
   @override
   Widget build(BuildContext context) {
@@ -677,16 +743,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final wide = MediaQuery.sizeOf(context).width >= _wide;
     final content = Column(children: [
       _header(i, moreIndex, tabs),
-      OfflineBar(onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s)))),
+      OfflineBar(onTap: () => _nav.push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s)))),
       Expanded(child: NavInset(inset: wide ? 0 : NavInset.bar, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()]))),
     ]);
     if (wide) {
       return Scaffold(
         body: SafeArea(
           child: Row(children: [
-            _rail(i, tabs),
-            // keng ekranda tarkib cho'zilib ketmaydi: markazda qulay kenglikda
-            Expanded(child: Align(alignment: Alignment.topCenter, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1080), child: content))),
+            ValueListenableBuilder<int>(valueListenable: _deskIdx, builder: (_, v, _) => _rail(v.clamp(0, tabs.length), tabs)),
+            // keng ekranda tarkib cho'zilib ketmaydi: markazda qulay kenglikda; ochilgan sahifalar ham shu yerda (yon menyu yopilmaydi)
+            Expanded(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1240),
+                  child: Navigator(
+                    key: _deskNav,
+                    onGenerateRoute: (_) => MaterialPageRoute<void>(builder: (_) => _deskRoot()),
+                  ),
+                ),
+              ),
+            ),
           ]),
         ),
       );
