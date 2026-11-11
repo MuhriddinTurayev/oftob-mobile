@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
@@ -117,7 +118,8 @@ class _ShiftCardState extends State<ShiftCard> {
     if (act != 'reopen') {
       final r = await currentFix(real: act == 'start');
       fix = r.fix;
-      if (fix == null && act == 'start') {
+      // «Keldim» telefonda faqat obyektda (joylashuvsiz qabul qilinmaydi). Kompyuterda GPS yo'q — joylashuv topilmasa, tasdiqlab joylashuvsiz belgilanadi.
+      if (fix == null && act == 'start' && !(Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
         // «Keldim» faqat obyektda: joylashuvsiz qabul qilinmaydi
         if (mounted) {
           setState(() {
