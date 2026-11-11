@@ -73,9 +73,18 @@ class Session extends ChangeNotifier {
     Offline.disable();   // platforma ma'lumotlari telefonda saqlanmaydi
   }
 
+  /// Serverda «bir qurilma — bitta kalit»: kompyuter telefonning kalitini o'chirib yubormasligi uchun har platforma o'z nomi bilan kiradi
+  static String get _deviceName => switch (defaultTargetPlatform) {
+        TargetPlatform.iOS => 'iPhone',
+        TargetPlatform.windows => 'Windows',
+        TargetPlatform.macOS => 'Mac',
+        TargetPlatform.linux => 'Linux',
+        _ => 'Android',
+      };
+
   /// Platforma egasi kirishi: login + parol
   Future<void> platformSignIn({required String email, required String password}) async {
-    final key = await ApiClient.platformLogin(serverUrl, email: email, password: password, device: defaultTargetPlatform == TargetPlatform.iOS ? 'iPhone' : 'Android');
+    final key = await ApiClient.platformLogin(serverUrl, email: email, password: password, device: _deviceName);
     await _platformConnect(serverUrl, key);
     await _storage.write(key: 'pkey', value: key);
     notifyListeners();
@@ -170,7 +179,7 @@ class Session extends ChangeNotifier {
 
   /// Xodim kirishi (asosiy yo'l): korxona kodi + login + parol. Server shaxsiy kalit beradi, ilova shu kalit bilan ishlaydi.
   Future<void> staffSignIn({required String company, required String email, required String password}) async {
-    final r = await ApiClient.login(serverUrl, company: company, email: email, password: password, device: defaultTargetPlatform == TargetPlatform.iOS ? 'iPhone' : 'Android');
+    final r = await ApiClient.login(serverUrl, company: company, email: email, password: password, device: _deviceName);
     await Offline.init('${r.companySlug}_${r.userId}');
     await _connect(r.serverUrl, r.token, persist: true);
     userName = r.userName;
