@@ -17,6 +17,7 @@ class Tappable extends StatefulWidget {
 
 class _TappableState extends State<Tappable> {
   bool _down = false;
+  bool _hover = false; // kompyuter: sichqoncha ustiga kelganda yengil ko'tariladi
 
   void _set(bool v) {
     if (_down != v && mounted) setState(() => _down = v);
@@ -24,8 +25,11 @@ class _TappableState extends State<Tappable> {
 
   @override
   Widget build(BuildContext context) {
+    final clickable = widget.onTap != null || widget.onLongPress != null;
     return MouseRegion(
-      cursor: (widget.onTap != null || widget.onLongPress != null) ? SystemMouseCursors.click : MouseCursor.defer,
+      cursor: clickable ? SystemMouseCursors.click : MouseCursor.defer,
+      onEnter: clickable ? (_) => setState(() => _hover = true) : null,
+      onExit: clickable ? (_) => setState(() => _hover = false) : null,
       child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: (_) => _set(true),
@@ -44,7 +48,7 @@ class _TappableState extends State<Tappable> {
               widget.onLongPress!();
             },
       child: AnimatedScale(
-        scale: _down ? widget.scale : 1,
+        scale: _down ? widget.scale : (_hover ? 1.012 : 1),
         duration: Duration(milliseconds: _down ? 90 : 220),
         curve: _down ? Curves.easeOut : Curves.easeOutBack,
         child: AnimatedOpacity(opacity: _down ? 0.88 : 1, duration: const Duration(milliseconds: 120), child: widget.child),

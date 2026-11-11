@@ -289,7 +289,19 @@ class GlassIconButton extends StatelessWidget {
   }
 }
 
-/// Kompyuter (keng oyna): ochiladigan sahifalar butun ekranga yoyilmasdan, markazda qulay kenglikda turadi
+/// Kompyuter qobig'i (yon menyu + ichki navigator) ichida ekanligini bildiradi: ichkarida ochilgan sahifalar o'z fonini chizmaydi
+/// (fon butun oyna uchun bitta — yon menyu va sahifalar ostida uzluksiz).
+class DeskShell extends InheritedWidget {
+  const DeskShell({super.key, required super.child});
+
+  static bool inside(BuildContext context) => context.getInheritedWidgetOfExactType<DeskShell>() != null;
+
+  @override
+  bool updateShouldNotify(DeskShell old) => false;
+}
+
+/// Kompyuter (keng oyna): ochiladigan sahifalar butun ekranga yoyilmasdan, markazda qulay kenglikda turadi;
+/// har bir sahifa (telefondagi kabi) o'z gradient fonini oladi — kunduzgi va tungi rejimda ham.
 class DesktopPageTransitions extends PageTransitionsBuilder {
   const DesktopPageTransitions();
 
@@ -299,10 +311,9 @@ class DesktopPageTransitions extends PageTransitionsBuilder {
   Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
     // boshlang'ich sahifa (butun ekran / yon menyu bilan qobiq) kengligicha qoladi; ustidan ochilganlar — markazda
     final wide = MediaQuery.sizeOf(context).width >= 900 && !route.isFirst;
-    return FadeTransition(
-      opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-      child: wide ? Align(alignment: Alignment.topCenter, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: maxWidth), child: child)) : child,
-    );
+    Widget page = wide ? Align(alignment: Alignment.topCenter, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: maxWidth), child: child)) : child;
+    if (!DeskShell.inside(context)) page = GlassBackdrop(child: page);
+    return FadeTransition(opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic), child: page);
   }
 }
 

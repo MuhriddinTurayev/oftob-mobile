@@ -747,7 +747,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       Expanded(child: NavInset(inset: wide ? 0 : NavInset.bar, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()]))),
     ]);
     if (wide) {
-      return Scaffold(
+      return DeskShell(child: Scaffold(
         body: SafeArea(
           child: Row(children: [
             ValueListenableBuilder<int>(valueListenable: _deskIdx, builder: (_, v, _) => _rail(v.clamp(0, tabs.length), tabs)),
@@ -766,7 +766,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ]),
         ),
-      );
+      ));
     }
     return Scaffold(
       extendBody: true, // tarkib suzuvchi panel ostidan o'tadi (xira ko'rinadi)
