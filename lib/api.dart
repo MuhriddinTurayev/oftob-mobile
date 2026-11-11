@@ -817,6 +817,18 @@ class ApiClient {
 
   /* ---------------- lidlar ---------------- */
 
+  /// Real vaqt belgilari (hamma sohalar uchun): qiymat o'zgarsa — o'sha soha ma'lumoti o'zgargan. null — eski server
+  Future<Map<String, String>?> pulse() async {
+    try {
+      final b = await _send(() => _http.get(_uri('/pulse'), headers: _headers), timeout: const Duration(seconds: 6));
+      final m = ((b as Map)['data'] as Map?) ?? const {};
+      return {for (final e in m.entries) '${e.key}': '${e.value}'};
+    } on ApiException catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+
   /// «Puls»: oxirgi lid raqami (juda yengil so'rov, keshsiz). Yangi lid kelsa raqam o'zgaradi — ro'yxat darhol yangilanadi. null — eski server
   Future<int?> leadSeq() async {
     try {

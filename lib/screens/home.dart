@@ -11,7 +11,7 @@ import 'dart:async';
 import '../api.dart';
 import '../offline.dart';
 import '../prefetch.dart';
-import '../lead_pulse.dart';
+import '../pulse.dart';
 import '../session.dart';
 import 'attendance.dart';
 import 'cash.dart';
@@ -95,10 +95,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     Push.syncCreds(); // fondagi tekshiruv qulflangan iPhone'da ham kirish ma'lumotini o'qiy olsin
     Fcm.register(s); // Firebase push manzilini serverga (sozlangan bo'lsa)
     Push.foregroundPing.addListener(_nc.refresh);
-    if (s.me?.can('leads:read') == true) {
-      LeadPulse.start(s); // yangi lid — 2 soniyada (Telegram kabi)
-      LeadPulse.tick.addListener(_onLeadPulse);
-    }
+    Pulse.start(s); // real vaqt: har 2 soniyada o'zgarish belgilari (lid, smena, davomat, vazifa, kassa...)
+    Pulse.any.addListener(_onLeadPulse);
     Push.openGo.addListener(_pushGo);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _pushGo(); // ilova bildirishnoma bosilib ochilgan bo'lsa — o'sha bo'limga
@@ -115,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Timer? _syncTimer;
 
-  /// Yangi lid keldi — bosh sahifadagi «Yangi lidlar» ham yangilanadi
+  /// Biror o'zgarish bo'ldi — bosh sahifa (kassa, smena, lidlar, hozir ishda...) jimgina yangilanadi
   void _onLeadPulse() => _dashRefresh.value++;
 
   /// Ilova oxirgi marta ekranga chiqqan payt (Firebase push bilan takrorni oldini olish uchun)
@@ -145,8 +143,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (AppNav.open == _open) AppNav.open = null;
     Push.openGo.removeListener(_pushGo);
     Push.foregroundPing.removeListener(_nc.refresh);
-    LeadPulse.tick.removeListener(_onLeadPulse);
-    LeadPulse.stop();
+    Pulse.any.removeListener(_onLeadPulse);
+    Pulse.stop();
     if (ApiClient.onExpired == _expired) ApiClient.onExpired = null;
     HardwareKeyboard.instance.removeHandler(_hotkey);
     WidgetsBinding.instance.removeObserver(this);

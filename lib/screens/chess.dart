@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../format.dart';
 import '../l10n.dart';
+import '../pulse.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -36,6 +37,17 @@ class _ChessTabState extends State<ChessTab> {
   void initState() {
     super.initState();
     _init();
+    Pulse.state.addListener(_onPulse); // boshqa sotuvchi bron/sotsa — shaxmatka darhol yangilanadi
+  }
+
+  void _onPulse() {
+    if (mounted && !_loading) _loadApts(quiet: true);
+  }
+
+  @override
+  void dispose() {
+    Pulse.state.removeListener(_onPulse);
+    super.dispose();
   }
 
   Future<void> _init() async {

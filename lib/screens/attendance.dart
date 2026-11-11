@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../assistant.dart' show AiBubble;
 import '../format.dart';
+import '../pulse.dart';
 import '../session.dart';
 import '../widgets.dart';
 import '../theme.dart';
@@ -60,6 +61,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   @override
   void dispose() {
+    Pulse.attendance.removeListener(_onPulse);
+    Pulse.shift.removeListener(_onPulse);
     _flashT?.cancel();
     super.dispose();
   }
@@ -92,6 +95,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   void initState() {
     super.initState();
     _load();
+    Pulse.attendance.addListener(_onPulse);
+    Pulse.shift.addListener(_onPulse);
+  }
+
+  void _onPulse() {
+    if (mounted && _isToday && !_busy) _load(quiet: true);
   }
 
   Future<void> _load({bool quiet = false}) async {

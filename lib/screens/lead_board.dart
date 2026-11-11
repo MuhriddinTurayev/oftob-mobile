@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../format.dart';
 import '../l10n.dart';
-import '../lead_pulse.dart';
+import '../pulse.dart';
 import '../motion.dart';
 import '../session.dart';
 import '../theme.dart';
@@ -76,7 +76,8 @@ class _LeadBoardScreenState extends State<LeadBoardScreen> {
     super.initState();
     _load();
     // yangi lid kelsa ro'yxat DARHOL yangilanadi (LeadPulse: 2 soniya), zaxira sifatida har daqiqada ham
-    LeadPulse.tick.addListener(_onPulse);
+    Pulse.leads.addListener(_onPulse);
+    Pulse.state.addListener(_onPulse);
     _poll = Timer.periodic(const Duration(seconds: 60), (_) {
       if (mounted && !_oldServer) _load(quiet: true);
     });
@@ -88,7 +89,8 @@ class _LeadBoardScreenState extends State<LeadBoardScreen> {
 
   @override
   void dispose() {
-    LeadPulse.tick.removeListener(_onPulse);
+    Pulse.leads.removeListener(_onPulse);
+    Pulse.state.removeListener(_onPulse);
     _poll?.cancel();
     super.dispose();
   }

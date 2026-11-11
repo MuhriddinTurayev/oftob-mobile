@@ -17,8 +17,11 @@ class PagedList extends StatefulWidget {
     required this.itemBuilder,
     this.emptyText = 'Ma\'lumot yo\'q',
     this.header,
+    this.refresh,
   });
 
+  /// Signal kelganda ro'yxat jimgina qayta yuklanadi (real vaqt: Pulse)
+  final Listenable? refresh;
   final Session session;
   final Future<Paged> Function(int page) fetch;
   final Widget Function(BuildContext context, Map<String, dynamic> item) itemBuilder;
@@ -43,11 +46,17 @@ class PagedListState extends State<PagedList> {
     _scroll.addListener(() {
       if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 300) _loadMore();
     });
+    widget.refresh?.addListener(_onSignal);
     reload();
+  }
+
+  void _onSignal() {
+    if (mounted && !_loading && !_more) reload();
   }
 
   @override
   void dispose() {
+    widget.refresh?.removeListener(_onSignal);
     _scroll.dispose();
     super.dispose();
   }

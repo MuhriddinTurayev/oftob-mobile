@@ -9,6 +9,7 @@ import '../keyboard.dart';
 import '../api.dart';
 import '../format.dart';
 import '../offline.dart';
+import '../pulse.dart';
 import '../session.dart';
 import '../upload.dart';
 import '../widgets.dart';
@@ -195,6 +196,7 @@ class _FundsScreenState extends State<FundsScreen> {
   Widget build(BuildContext context) {
     return FutureBody<Map<String, dynamic>>(
       key: _key,
+      refresh: Listenable.merge([Pulse.funds, Pulse.cash]),
       session: s,
       load: () => s.api!.funds(user: _user, status: _status),
       builder: (context, d, reload) {

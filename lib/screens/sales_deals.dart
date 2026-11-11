@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../format.dart';
 import '../l10n.dart';
 import '../motion.dart';
+import '../pulse.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -101,6 +102,19 @@ class _DealsViewState extends State<DealsView> {
   void initState() {
     super.initState();
     _load();
+    Pulse.state.addListener(_onPulse); // sotuv/bron/to'lov o'zgarsa — hisob darhol yangilanadi
+    Pulse.cash.addListener(_onPulse);
+  }
+
+  void _onPulse() {
+    if (mounted && !_loading) _load(quiet: true);
+  }
+
+  @override
+  void dispose() {
+    Pulse.state.removeListener(_onPulse);
+    Pulse.cash.removeListener(_onPulse);
+    super.dispose();
   }
 
   Future<void> _load({bool quiet = false}) async {
@@ -261,6 +275,19 @@ class _SellersViewState extends State<SellersView> {
   void initState() {
     super.initState();
     _load();
+    Pulse.state.addListener(_onPulse); // sotuv/bron/to'lov o'zgarsa — hisob darhol yangilanadi
+    Pulse.cash.addListener(_onPulse);
+  }
+
+  void _onPulse() {
+    if (mounted && !_loading) _load(quiet: true);
+  }
+
+  @override
+  void dispose() {
+    Pulse.state.removeListener(_onPulse);
+    Pulse.cash.removeListener(_onPulse);
+    super.dispose();
   }
 
   Future<void> _load({bool quiet = false}) async {

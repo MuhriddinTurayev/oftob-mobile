@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' hide Text;
 
 import '../api.dart';
 import '../format.dart';
+import '../pulse.dart';
 import '../session.dart';
 import '../widgets.dart';
 import '../theme.dart';
@@ -33,6 +34,11 @@ class _CashScreenState extends State<CashScreen> {
     super.initState();
     _loadDesks();
     _loadForm();
+    Pulse.cash.addListener(_onPulse);
+  }
+
+  void _onPulse() {
+    if (mounted) _loadDesks();
   }
 
   Future<void> _loadForm() async {
@@ -68,6 +74,7 @@ class _CashScreenState extends State<CashScreen> {
 
   @override
   void dispose() {
+    Pulse.cash.removeListener(_onPulse);
     _page.dispose();
     super.dispose();
   }
@@ -217,6 +224,7 @@ class _CashScreenState extends State<CashScreen> {
   Widget _desktop(ColorScheme cs, String? deskName) {
     Widget opsList() => PagedList(
           key: _list,
+          refresh: Listenable.merge([Pulse.cash, Pulse.state]),
           session: widget.session,
           emptyText: "Operatsiyalar yo'q",
           fetch: (p) => widget.session.api!.cashOps(page: p, desk: _deskId),
@@ -328,6 +336,7 @@ class _CashScreenState extends State<CashScreen> {
       head,
       Expanded(child: PagedList(
       key: _list,
+      refresh: Listenable.merge([Pulse.cash, Pulse.state]),
       session: widget.session,
       emptyText: "Operatsiyalar yo'q",
       fetch: (p) => widget.session.api!.cashOps(page: p, desk: _deskId),

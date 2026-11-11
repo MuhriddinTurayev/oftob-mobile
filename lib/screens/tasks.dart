@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../api.dart';
 import '../format.dart';
+import '../pulse.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -134,6 +135,7 @@ class _TasksScreenState extends State<TasksScreen> {
           Expanded(
             child: PagedList(
               key: _key,
+              refresh: Pulse.tasks,
               session: s,
               emptyText: 'Vazifalar yo\'q',
               fetch: (p) => s.api!.tasks(page: p, status: _status, assignee: _mine ? s.userId : null),

@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../desktop_web.dart';
 import '../documents.dart';
 import '../format.dart';
+import '../pulse.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../webcache.dart';
@@ -32,6 +33,7 @@ class ObjectsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBody<List<Map<String, dynamic>>>(
+      refresh: Pulse.state,
       session: session,
       load: () => session.api!.objects(),
       builder: (context, objects, _) {
@@ -184,6 +186,7 @@ class _ApartmentsScreenState extends State<ApartmentsScreen> {
           Expanded(
             child: PagedList(
               key: _listKey,
+              refresh: Pulse.state,
               session: widget.session,
               emptyText: 'Kvartiralar topilmadi',
               fetch: (p) => widget.session.api!.apartments(_objectId, status: _status, rooms: _rooms, page: p, perPage: 60),

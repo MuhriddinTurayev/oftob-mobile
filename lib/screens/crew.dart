@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../format.dart';
+import '../pulse.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../motion.dart';
@@ -58,6 +59,19 @@ class _CrewScreenState extends State<CrewScreen> {
   void initState() {
     super.initState();
     _load();
+    Pulse.attendance.addListener(_onPulse);
+    Pulse.state.addListener(_onPulse);
+  }
+
+  void _onPulse() {
+    if (mounted) _load(quiet: true);
+  }
+
+  @override
+  void dispose() {
+    Pulse.attendance.removeListener(_onPulse);
+    Pulse.state.removeListener(_onPulse);
+    super.dispose();
   }
 
   Future<void> _load({bool quiet = false}) async {

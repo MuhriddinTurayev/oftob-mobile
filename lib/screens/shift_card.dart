@@ -9,6 +9,7 @@ import '../api.dart';
 import '../assistant.dart';
 import '../format.dart';
 import '../location.dart';
+import '../pulse.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../l10n.dart';
@@ -38,14 +39,20 @@ class _ShiftCardState extends State<ShiftCard> {
   void initState() {
     super.initState();
     _load();
+    Pulse.shift.addListener(_onPulse); // botdan yoki saytdan Keldim/Ketdim bosilsa — darhol yangilanadi
     AppNav.shift.addListener(_onVoice);
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && '${_st?['status']}' == 'working') _sec.value++; // faqat taymer yozuvi qayta chiziladi, butun karta emas
     });
   }
 
+  void _onPulse() {
+    if (mounted && !_busy) _load();
+  }
+
   @override
   void dispose() {
+    Pulse.shift.removeListener(_onPulse);
     AppNav.shift.removeListener(_onVoice);
     _tick?.cancel();
     _sec.dispose();
