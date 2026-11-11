@@ -289,6 +289,41 @@ class GlassIconButton extends StatelessWidget {
   }
 }
 
+
+/// Ilovaning barcha sahifa yo'nalishi. Telefonda — oddiy sahifa. Kompyuter qobig'i ichida (yon menyu bor, oyna keng) —
+/// YON PANEL: asosiy bo'lim (Bosh, Yana, Lidlar…) ko'rinib turadi, ochilgan sahifa o'ng tomonda qulay kenglikdagi panelda chiqadi;
+/// panel tashqarisi bosilsa yopiladi. Boshqa joyda (kirish oynalari) — markazda qulay kenglikda.
+class DeskRoute<T> extends MaterialPageRoute<T> {
+  DeskRoute({required super.builder, super.settings, super.fullscreenDialog});
+
+  bool? _panelCache;
+
+  /// Yon panelmi: faqat kompyuter qobig'i ichida, boshlang'ich bo'lmagan sahifa va oyna yetarli keng bo'lganda
+  bool get isPanel {
+    final nav = navigator;
+    if (nav == null) return _panelCache ?? false;
+    return _panelCache ??= !isFirst && DeskShell.inside(nav.context) && MediaQuery.sizeOf(nav.context).width >= DesktopPageTransitions.wideFrom;
+  }
+
+  @override
+  bool get opaque => !isPanel;
+
+  @override
+  Color? get barrierColor => isPanel ? const Color(0x47000000) : null;
+
+  @override
+  bool get barrierDismissible => isPanel;
+
+  @override
+  String? get barrierLabel => isPanel ? 'Yopish' : null;
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 280);
+
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 220);
+}
+
 /// Kompyuter qobig'i (yon menyu + ichki navigator) ichida ekanligini bildiradi: ichkarida ochilgan sahifalar o'z fonini chizmaydi
 /// (fon butun oyna uchun bitta — yon menyu va sahifalar ostida uzluksiz).
 class DeskShell extends InheritedWidget {
@@ -300,20 +335,50 @@ class DeskShell extends InheritedWidget {
   bool updateShouldNotify(DeskShell old) => false;
 }
 
-/// Kompyuter (keng oyna): ochiladigan sahifalar butun ekranga yoyilmasdan, markazda qulay kenglikda turadi;
-/// har bir sahifa (telefondagi kabi) o'z gradient fonini oladi — kunduzgi va tungi rejimda ham.
+/// Sahifa o'tishlari (Windows/Linux/macOS): yon panel o'ngdan suzib chiqadi; boshqa sahifalar markazda qulay kenglikda.
 class DesktopPageTransitions extends PageTransitionsBuilder {
   const DesktopPageTransitions();
 
   static const double maxWidth = 920;
+  static const double wideFrom = 900;
 
   @override
   Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
-    // boshlang'ich sahifa (butun ekran / yon menyu bilan qobiq) kengligicha qoladi; ustidan ochilganlar — markazda
-    final wide = MediaQuery.sizeOf(context).width >= 900 && !route.isFirst;
+    final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
+    final inShell = DeskShell.inside(context);
+    final wide = MediaQuery.sizeOf(context).width >= wideFrom && !route.isFirst;
+    // yon panel
+    final r = route;
+    if (r is DeskRoute<T> && r.isPanel) {
+      return LayoutBuilder(builder: (context, bc) {
+        final w = bc.maxWidth.isFinite ? (bc.maxWidth * 0.56).clamp(560.0, 780.0).clamp(0.0, bc.maxWidth) : 680.0;
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        return Align(
+          alignment: Alignment.centerRight,
+          child: SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0.12, 0), end: Offset.zero).animate(curved),
+            child: FadeTransition(
+              opacity: curved,
+              child: SizedBox(
+                width: w,
+                height: double.infinity,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(30)),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.55 : 0.22), blurRadius: 40, offset: const Offset(-8, 0))],
+                  ),
+                  child: ClipRRect(borderRadius: const BorderRadius.horizontal(left: Radius.circular(30)), child: GlassBackdrop(child: child)),
+                ),
+              ),
+            ),
+          ),
+        );
+      });
+    }
+    // oddiy sahifa: kompyuterda markazda qulay kenglikda; qobiq tashqarisida o'z fonini oladi
     Widget page = wide ? Align(alignment: Alignment.topCenter, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: maxWidth), child: child)) : child;
-    if (!DeskShell.inside(context)) page = GlassBackdrop(child: page);
-    return FadeTransition(opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic), child: page);
+    if (!inShell) page = GlassBackdrop(child: page);
+    return FadeTransition(opacity: curved, child: page);
   }
 }
 

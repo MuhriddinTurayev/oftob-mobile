@@ -70,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (admin) {
         FocusScope.of(context).unfocus();
         _code.clear();
-        await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PlatformLoginScreen(session: s)));
+        await Navigator.of(context).push(DeskRoute<void>(builder: (_) => PlatformLoginScreen(session: s)));
         return;
       }
     }
@@ -106,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
     HapticFeedback.selectionClick();
     await s.rememberCompany(c);
     if (!mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => StaffLoginScreen(session: s, company: c)));
+    await Navigator.of(context).push(DeskRoute<void>(builder: (_) => StaffLoginScreen(session: s, company: c)));
   }
 
   void _developer() {

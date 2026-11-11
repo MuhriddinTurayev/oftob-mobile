@@ -148,7 +148,7 @@ class _WorkScreenState extends State<WorkScreen> {
 
   Future<void> _setSite(Map<String, dynamic> o) async {
     final site = o['site'] is Map ? Map<String, dynamic>.from(o['site'] as Map) : null;
-    final picked = await Navigator.of(context).push<PickedSite>(MaterialPageRoute(
+    final picked = await Navigator.of(context).push<PickedSite>(DeskRoute(
       builder: (_) => MapPickerScreen(title: '${o['name']}', lat: (site?['lat'] as num?)?.toDouble(), lng: (site?['lng'] as num?)?.toDouble(), radius: ((site?['radius'] as num?) ?? 150).toInt()),
     ));
     if (picked == null || !mounted) return;

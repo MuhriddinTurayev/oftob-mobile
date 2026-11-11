@@ -49,7 +49,7 @@ class _JournalScreenState extends State<JournalScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Obyektlar yuklanmoqda — biroz kuting'))));
       return;
     }
-    final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => _NewReport(session: s, objects: _objects, initial: _object)));
+    final ok = await Navigator.of(context).push<bool>(DeskRoute(builder: (_) => _NewReport(session: s, objects: _objects, initial: _object)));
     if (ok == true) _list.currentState?.reload();
   }
 
@@ -150,7 +150,7 @@ class _JournalScreenState extends State<JournalScreen> {
                           itemCount: n,
                           separatorBuilder: (_, _) => const SizedBox(width: 8),
                           itemBuilder: (context, i) => GestureDetector(
-                            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => _PhotoView(api: s.api!, id: x['id'] as int, count: n, start: i))),
+                            onTap: () => Navigator.of(context).push(DeskRoute<void>(builder: (_) => _PhotoView(api: s.api!, id: x['id'] as int, count: n, start: i))),
                             child: ClipRRect(borderRadius: BorderRadius.circular(14), child: SizedBox(width: 110, height: 110, child: _Pic(api: s.api!, id: x['id'] as int, i: i, fit: BoxFit.cover))),
                           ),
                         ),

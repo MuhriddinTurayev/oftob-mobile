@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Text;
 
 import 'package:flutter/services.dart';
 
+import '../theme.dart';
 import '../api.dart';
 import '../company.dart';
 import '../session.dart';
@@ -37,7 +38,7 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
   }
 
   Future<void> _forgot() async {
-    final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => ForgotPasswordScreen(session: widget.session, company: widget.company, login: _login.text.trim())));
+    final ok = await Navigator.of(context).push<bool>(DeskRoute(builder: (_) => ForgotPasswordScreen(session: widget.session, company: widget.company, login: _login.text.trim())));
     if (ok == true && mounted) {
       _pass.clear();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Parol o'zgartirildi. Yangi parol bilan kiring.")));

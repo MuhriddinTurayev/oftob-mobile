@@ -23,7 +23,7 @@ void _snack(BuildContext context, String t) => ScaffoldMessenger.of(context)
   ..showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, content: Text(t)));
 
 Future<void> openPlatformPage(BuildContext context, String title, Widget body) =>
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => Scaffold(backgroundColor: Colors.transparent, appBar: AppBar(title: Text(title)), body: body)));
+    Navigator.of(context).push(DeskRoute<void>(builder: (_) => Scaffold(backgroundColor: Colors.transparent, appBar: AppBar(title: Text(title)), body: body)));
 
 class _Pill extends StatelessWidget {
   const _Pill(this.text, this.color);
@@ -110,7 +110,7 @@ class _ClaimsScreenState extends State<ClaimsScreen> {
   void _receipt(Map<String, dynamic> c) {
     final api = s.papi!;
     final url = api.fileUrl('/platform/billing/claims/${c['id']}/receipt');
-    Navigator.of(context).push(MaterialPageRoute<void>(
+    Navigator.of(context).push(DeskRoute<void>(
       builder: (_) => Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, title: Text(tr('Chek'))),

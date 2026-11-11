@@ -20,7 +20,7 @@ class RatesScreen extends StatefulWidget {
 }
 
 /// Sotish oynasidan ochish uchun (o'z sarlavhasi bilan)
-Future<void> openRates(BuildContext context, Session session) => Navigator.of(context).push(MaterialPageRoute<void>(
+Future<void> openRates(BuildContext context, Session session) => Navigator.of(context).push(DeskRoute<void>(
       builder: (_) => Scaffold(backgroundColor: Colors.transparent, appBar: AppBar(title: const Text("Bo'lib to'lash foizlari")), body: RatesScreen(session: session)),
     ));
 

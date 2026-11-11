@@ -61,7 +61,7 @@ class _SupportScreenState extends State<SupportScreen> {
   }
 
   void _open(Map<String, dynamic>? thread, String title) {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SupportChat(session: s, thread: thread, title: title))).then((_) => _load(quiet: true));
+    Navigator.of(context).push(DeskRoute<void>(builder: (_) => SupportChat(session: s, thread: thread, title: title))).then((_) => _load(quiet: true));
   }
 
   @override
@@ -432,7 +432,7 @@ class _ChatImage extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.zero,
       child: GestureDetector(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        onTap: () => Navigator.of(context).push(DeskRoute<void>(
           builder: (_) => Scaffold(
             backgroundColor: Colors.black,
             appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),

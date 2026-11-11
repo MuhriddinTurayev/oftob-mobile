@@ -95,13 +95,47 @@ class PagedListState extends State<PagedList> {
     }
   }
 
+  /// Kompyuter (keng ro'yxat): elementlar ikki ustunda; telefon va tor panelda — null (oddiy ro'yxat)
+  Widget? _wideList(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width < 1000 || _items.isEmpty) return null;
+    return LayoutBuilder(builder: (context, bc) {
+      if (bc.maxWidth < 900) return _narrowList(context);
+      return ListView(
+        controller: _scroll,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.only(bottom: NavInset.listBottom(context)),
+        children: [
+          if (widget.header != null) widget.header!,
+          DeskGrid(minColumn: 440, maxColumns: 2, children: [for (var i = 0; i < _items.length; i++) widget.itemBuilder(context, _items[i])]),
+          if (_more) const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator())),
+        ],
+      );
+    });
+  }
+
+  Widget _narrowList(BuildContext context) => ListView.builder(
+        controller: _scroll,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.only(bottom: NavInset.listBottom(context)),
+        itemCount: (widget.header != null ? 1 : 0) + _items.length + (_more ? 1 : 0),
+        itemBuilder: (context, i) {
+          if (widget.header != null) {
+            if (i == 0) return widget.header!;
+            i -= 1;
+          }
+          if (i >= _items.length) return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()));
+          return widget.itemBuilder(context, _items[i]);
+        },
+      );
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null && _items.isEmpty) return ErrorView(message: _error!, onRetry: reload);
     return RefreshIndicator(
       onRefresh: reload,
-      child: ListView.builder(
+      child: _wideList(context) ??
+      ListView.builder(
         controller: _scroll,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.only(bottom: NavInset.listBottom(context)),
@@ -121,6 +155,27 @@ class PagedListState extends State<PagedList> {
         },
       ),
     );
+  }
+}
+
+/// Kenglikka qarab 1–3 ustun: telefonda — oddiy ro'yxat, kompyuterda — yonma-yon (har ustun kamida [minColumn] px).
+/// Elementlar o'z bo'shliqlarini o'zlari beradi (pastdan chekinish), shuning uchun ustunlar orasidagina [gap] qo'shiladi.
+class DeskGrid extends StatelessWidget {
+  const DeskGrid({super.key, required this.children, this.minColumn = 500, this.gap = 4, this.maxColumns = 3});
+
+  final List<Widget> children;
+  final double minColumn;
+  final double gap;
+  final int maxColumns;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, bc) {
+      final cols = ((bc.maxWidth + gap) / (minColumn + gap)).floor().clamp(1, maxColumns);
+      if (cols == 1) return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
+      final w = (bc.maxWidth - gap * (cols - 1)) / cols;
+      return Wrap(spacing: gap, children: [for (final c in children) SizedBox(width: w, child: c)]);
+    });
   }
 }
 

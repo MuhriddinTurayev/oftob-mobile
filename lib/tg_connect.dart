@@ -292,7 +292,7 @@ class TgConnectBanner extends StatelessWidget {
           child: Glass(
             radius: 22,
             tint: Brand.teal.withValues(alpha: 0.12),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => TelegramConnectScreen(session: session))),
+            onTap: () => Navigator.of(context).push(DeskRoute<void>(builder: (_) => TelegramConnectScreen(session: session))),
             padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
             child: Row(children: [
               const IconTile(icon: Icons.send_rounded, color: Brand.teal, size: 42),

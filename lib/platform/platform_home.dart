@@ -88,7 +88,7 @@ class _PlatformHomeState extends State<PlatformHome> {
   }
 
   void _openNotifications() {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => NotificationsScreen(center: _nc, onGo: _go)));
+    Navigator.of(context).push(DeskRoute<void>(builder: (_) => NotificationsScreen(center: _nc, onGo: _go)));
   }
 
   void _go(String go) {
@@ -250,7 +250,7 @@ class _WsRow extends StatelessWidget {
 }
 
 Future<void> openCompany(BuildContext context, Session s, int id) =>
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => CompanyPage(session: s, id: id)));
+    Navigator.of(context).push(DeskRoute<void>(builder: (_) => CompanyPage(session: s, id: id)));
 
 /* ---------------- Obzor ---------------- */
 
@@ -1117,7 +1117,7 @@ class _More extends StatelessWidget {
             ]),
           ),
         );
-    void push(String title, Widget w) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => Scaffold(backgroundColor: Colors.transparent, appBar: AppBar(title: Text(title)), body: w)));
+    void push(String title, Widget w) => Navigator.of(context).push(DeskRoute<void>(builder: (_) => Scaffold(backgroundColor: Colors.transparent, appBar: AppBar(title: Text(title)), body: w)));
     return ListView(
       padding: EdgeInsets.fromLTRB(16, 4, 16, NavInset.listBottom(context)),
       children: [
@@ -1192,7 +1192,7 @@ class _More extends StatelessWidget {
         if (can('settings')) row(Icons.pin_rounded, Brand.teal, 'Kirish kodi', "Ilovada administrator kirishi uchun kod", () => changeGateCode(context, s)),
         if (can('settings'))
           row(Icons.support_agent_rounded, Brand.blue, 'Kirish oynasi', "Yangi foydalanuvchiga ko'rinadigan telefon va matn",
-              () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LoginInfoSettingsScreen(session: s)))),
+              () => Navigator.of(context).push(DeskRoute<void>(builder: (_) => LoginInfoSettingsScreen(session: s)))),
         Padding(padding: const EdgeInsets.fromLTRB(4, 8, 4, 8), child: Text("To'liq panel (sayt bo'limlari)", style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))),
         for (final (perm, path, icon, color, title) in [
           ('', '/admin', Icons.space_dashboard_rounded, Brand.blue, 'Bosh panel'),
@@ -1408,7 +1408,7 @@ class _PlansState extends State<_Plans> {
 /* ---------------- To'liq panel: veb-admin ilova ichida ---------------- */
 
 Future<void> openWebAdmin(BuildContext context, Session s, String path, String title) =>
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => _WebAdmin(session: s, path: path, title: title)));
+    Navigator.of(context).push(DeskRoute<void>(builder: (_) => _WebAdmin(session: s, path: path, title: title)));
 
 class _WebAdmin extends StatefulWidget {
   const _WebAdmin({required this.session, required this.path, required this.title});
@@ -1560,7 +1560,7 @@ class _PlatformLoginScreenState extends State<PlatformLoginScreen> {
               ),
               TextButton(
                 onPressed: () async {
-                  final email = await Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => PlatformForgotScreen(serverUrl: widget.session.serverUrl, email: _email.text.trim())));
+                  final email = await Navigator.of(context).push<String>(DeskRoute(builder: (_) => PlatformForgotScreen(serverUrl: widget.session.serverUrl, email: _email.text.trim())));
                   if (email != null && mounted) {
                     setState(() {
                       _email.text = email;

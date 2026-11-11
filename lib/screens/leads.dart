@@ -146,15 +146,22 @@ class _LeadsScreenState extends State<LeadsScreen> {
     final shown = _all.where(_passes).toList();
     final rows = <Widget>[];
     String? lastDay;
+    var dayRows = <Widget>[];
+    void flushDay() {
+      if (dayRows.isNotEmpty) rows.add(DeskGrid(minColumn: 440, maxColumns: 2, children: dayRows));
+      dayRows = <Widget>[];
+    }
     for (final l in shown) {
       final d = _when(l);
       final day = _day(d);
       if (day != lastDay) {
+        flushDay();
         lastDay = day;
         rows.add(Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 4), child: Text(day, style: TextStyle(color: cs.outline, fontWeight: FontWeight.w800, fontSize: 13))));
       }
-      rows.add(_LeadRow(l: l, onTap: () => _open(l)));
+      dayRows.add(_LeadRow(l: l, onTap: () => _open(l)));
     }
+    flushDay();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -171,7 +178,7 @@ class _LeadsScreenState extends State<LeadsScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                 child: GlassRow(
                   margin: EdgeInsets.zero,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LeadSourcesScreen(session: s))),
+                  onTap: () => Navigator.push(context, DeskRoute(builder: (_) => LeadSourcesScreen(session: s))),
                   child: Row(children: [
                     const IconTile(icon: Icons.hub_rounded, color: Brand.blue, size: 40),
                     const SizedBox(width: 12),

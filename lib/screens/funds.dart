@@ -102,7 +102,7 @@ class GoodsStrip extends StatelessWidget {
         itemCount: count,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) => GestureDetector(
-          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => _GoodsView(api: api, op: op, count: count, start: i))),
+          onTap: () => Navigator.of(context).push(DeskRoute<void>(builder: (_) => _GoodsView(api: api, op: op, count: count, start: i))),
           child: ClipRRect(borderRadius: BorderRadius.circular(12), child: SizedBox(width: 92, height: 92, child: _GoodsPicNet(api: api, op: op, i: i, fit: BoxFit.cover))),
         ),
       ),
@@ -246,7 +246,7 @@ class _FundsScreenState extends State<FundsScreen> {
           Expanded(
             child: FilledButton.icon(
               onPressed: () async {
-                final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => PurchaseScreen(session: s, data: d)));
+                final ok = await Navigator.of(context).push<bool>(DeskRoute(builder: (_) => PurchaseScreen(session: s, data: d)));
                 if (ok == true) _reload();
               },
               icon: const Icon(Icons.receipt_long),
@@ -791,7 +791,7 @@ class _OpSheetState extends State<_OpSheet> {
               )
             else if (o['has_receipt'] == true)
               GestureDetector(
-                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => _ReceiptView(api: api, id: o['id'] as int))),
+                onTap: () => Navigator.of(context).push(DeskRoute<void>(builder: (_) => _ReceiptView(api: api, id: o['id'] as int))),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: _ReceiptPic(api: api, id: o['id'] as int, height: 220, fit: BoxFit.cover),

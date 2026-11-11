@@ -190,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _openNotifications() {
-    _nav.push(MaterialPageRoute<void>(builder: (_) => NotificationsScreen(center: _nc, onGo: _go)));
+    _nav.push(DeskRoute<void>(builder: (_) => NotificationsScreen(center: _nc, onGo: _go)));
   }
 
   /// Bildirishnomadan tegishli bo'limga o'tish
@@ -355,8 +355,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _push(_Tab t) {
     HapticFeedback.selectionClick();
+    if (_isWide) _nav.popUntil((r) => r.isFirst); // kompyuter: bo'lim almashtirilsa — avvalgi yon panel yopilib, yangisi ochiladi
     _nav
-        .push(MaterialPageRoute<void>(
+        .push(DeskRoute<void>(
           builder: (_) => Scaffold(appBar: AppBar(title: Text(t.label)), body: t.builder(s)),
         ))
         .then((_) => _dashRefresh.value++);
@@ -364,7 +365,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _openProfile() {
     HapticFeedback.selectionClick();
-    _nav.push(MaterialPageRoute<void>(builder: (_) => ProfileScreen(session: s, onLogout: _logout)));
+    _nav.push(DeskRoute<void>(builder: (_) => ProfileScreen(session: s, onLogout: _logout)));
   }
 
   Future<void> _logout() async {
@@ -459,7 +460,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               if (d != null) Icon(d['linked'] == true ? Icons.check_circle_rounded : Icons.error_outline_rounded, color: d['linked'] == true ? Brand.green : Colors.orange.shade700, size: 20),
               Icon(Icons.chevron_right, color: cs.outline),
             ]),
-            onTap: () => _nav.push(MaterialPageRoute<void>(builder: (_) => TelegramConnectScreen(session: s))).then((_) => TgLink.load(s)),
+            onTap: () => _nav.push(DeskRoute<void>(builder: (_) => TelegramConnectScreen(session: s))).then((_) => TgLink.load(s)),
           ),
         ),
         ..._moreGroups(cs, row),
@@ -473,10 +474,177 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               'Sinxronlash',
               sub: "Offline ma'lumot va yuborilmagan amallar",
               trailing: Badge(isLabelVisible: n > 0, label: Text('$n'), child: Icon(Icons.chevron_right, color: cs.outline)),
-              onTap: () => _nav.push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s))),
+              onTap: () => _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s))),
             );
           },
         ),
+      ],
+    );
+  }
+
+  /// Kompyuter: «Yana» — profil va sozlamalar tepada, guruhlar kartochka to'rida (ichidagi bo'limlar ochiq ko'rinadi, bosilsa — yon panelda ochiladi)
+  Widget _moreTabDesktop() {
+    final cs = Theme.of(context).colorScheme;
+    final me = s.me!;
+    final name = s.userName.isEmpty ? me.company : s.userName;
+    final byLabel = {for (final t in _more) t.label: t};
+    final used = <String>{};
+
+    Widget item(IconData icon, Color color, String label, {String? sub, Widget? trailing, required VoidCallback onTap}) => Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+              child: Row(children: [
+                IconTile(icon: icon, color: color, size: 36),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(tr(label), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                    if (sub != null) Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12)),
+                  ]),
+                ),
+                trailing ?? Icon(Icons.chevron_right, color: cs.outline, size: 20),
+              ]),
+            ),
+          ),
+        );
+
+    Widget card(String title, IconData icon, Color color, List<Widget> items) => Glass(
+          radius: 24,
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+              child: Row(children: [
+                IconTile(icon: icon, color: color, size: 40),
+                const SizedBox(width: 12),
+                Expanded(child: Text(tr(title), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16.5, letterSpacing: -0.2))),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+                  decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                  child: Text('${items.length}', style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12)),
+                ),
+              ]),
+            ),
+            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
+            const SizedBox(height: 6),
+            ...items,
+          ]),
+        );
+
+    final groups = <(Widget, int)>[];
+    for (final (title, icon, color, labels) in _groups) {
+      final ts = [for (final l in labels) if (byLabel[l] != null) byLabel[l]!];
+      used.addAll(ts.map((e) => e.label));
+      if (ts.isEmpty) continue;
+      groups.add((card(title, icon, color, [for (final t in ts) item(t.icon, _colors[t.label] ?? color, t.label, onTap: () => _push(t))]), ts.length + 2));
+    }
+    // hech bir guruhga kirmagan bo'limlar (masalan, «Yordam»)
+    final rest = [for (final t in _more) if (!used.contains(t.label)) t];
+    if (rest.isNotEmpty) groups.add((card('Boshqa', Icons.apps_rounded, Brand.blue, [for (final t in rest) item(t.icon, _colors[t.label] ?? Brand.blue, t.label, onTap: () => _push(t))]), rest.length + 2));
+    // sinxronlash
+    groups.add((
+      ListenableBuilder(
+        listenable: Listenable.merge([Offline.pending, Offline.failed]),
+        builder: (context, _) {
+          final n = Offline.pending.value + Offline.failed.value;
+          return card('Sinxronlash', Icons.cloud_sync_outlined, Brand.blue, [
+            item(Icons.cloud_sync_outlined, Brand.blue, 'Sinxronlash', sub: "Offline ma'lumot va yuborilmagan amallar", trailing: Badge(isLabelVisible: n > 0, label: Text('$n'), child: Icon(Icons.chevron_right, color: cs.outline, size: 20)), onTap: () => _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s)))),
+          ]);
+        },
+      ),
+      3,
+    ));
+
+    // ikki ustun: kartochkalar balandligiga qarab kamroq to'lgan ustunga qo'shiladi
+    final left = <Widget>[], right = <Widget>[];
+    var lh = 0, rh = 0;
+    for (final (w, h) in groups) {
+      if (lh <= rh) {
+        left.add(Padding(padding: const EdgeInsets.only(bottom: 14), child: w));
+        lh += h;
+      } else {
+        right.add(Padding(padding: const EdgeInsets.only(bottom: 14), child: w));
+        rh += h;
+      }
+    }
+
+    final profile = Glass(
+      radius: 26,
+      onTap: _openProfile,
+      padding: const EdgeInsets.all(16),
+      child: Row(children: [
+        ListenableBuilder(listenable: s, builder: (_, _) => UserAvatar(session: s, name: name, size: 60)),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(name, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 2),
+            Text('${me.company} · ${me.roleName}${me.readOnly ? " · faqat ko'rish" : ''}', style: TextStyle(color: cs.outline, fontSize: 13)),
+            const SizedBox(height: 4),
+            Text(tr('Profil, rasm, parol, seanslar'), style: TextStyle(color: cs.primary, fontSize: 12.5, fontWeight: FontWeight.w700)),
+          ]),
+        ),
+        Icon(Icons.chevron_right, color: cs.outline),
+      ]),
+    );
+
+    final look = Glass(
+      radius: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: ValueListenableBuilder<ThemeMode>(
+        valueListenable: ThemeController.mode,
+        builder: (context, tm, _) => Row(children: [
+          const IconTile(icon: Icons.contrast_rounded, color: Brand.purple, size: 40),
+          const SizedBox(width: 12),
+          Expanded(child: Text(tr("Ko'rinish"), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5))),
+          _ThemeDot(icon: Icons.brightness_auto_rounded, tip: 'Avto', on: tm == ThemeMode.system, onTap: () => ThemeController.set(ThemeMode.system)),
+          const SizedBox(width: 6),
+          _ThemeDot(icon: Icons.light_mode_rounded, tip: 'Kun', on: tm == ThemeMode.light, onTap: () => ThemeController.set(ThemeMode.light)),
+          const SizedBox(width: 6),
+          _ThemeDot(icon: Icons.dark_mode_rounded, tip: 'Tun', on: tm == ThemeMode.dark, onTap: () => ThemeController.set(ThemeMode.dark)),
+        ]),
+      ),
+    );
+
+    final tg = ValueListenableBuilder<Map<String, dynamic>?>(
+      valueListenable: TgLink.state,
+      builder: (context, d, _) => Glass(
+        radius: 26,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        onTap: () => _nav.push(DeskRoute<void>(builder: (_) => TelegramConnectScreen(session: s))).then((_) => TgLink.load(s)),
+        child: Row(children: [
+          const IconTile(icon: Icons.send_rounded, color: Brand.teal, size: 40),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Telegram bot', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5)),
+              Text(d == null ? "Xabarlar Telegram'ga" : (d['linked'] == true ? "Ulangan — xabarlar Telegram'ga keladi" : 'Ulanmagan — bosing va ulaning'), style: TextStyle(color: cs.outline, fontSize: 12.5)),
+            ]),
+          ),
+          if (d != null) Icon(d['linked'] == true ? Icons.check_circle_rounded : Icons.error_outline_rounded, color: d['linked'] == true ? Brand.green : Colors.orange.shade700, size: 22),
+        ]),
+      ),
+    );
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 40),
+      children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(flex: 5, child: profile),
+          const SizedBox(width: 14),
+          Expanded(flex: 4, child: Column(children: [look, const SizedBox(height: 14), tg])),
+        ]),
+        const SizedBox(height: 18),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(child: Column(children: left)),
+          const SizedBox(width: 14),
+          Expanded(child: Column(children: right)),
+        ]),
       ],
     );
   }
@@ -601,7 +769,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.only(right: 8),
               child: GlassIconButton(
                 badge: n,
-                onTap: () => _nav.push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s))),
+                onTap: () => _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s))),
                 icon: Icon(Offline.online.value ? Icons.cloud_sync_outlined : Icons.cloud_off_outlined, size: 22, color: Offline.online.value ? cs.primary : Colors.orange.shade800),
               ),
             );
@@ -723,13 +891,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           final moreIndex = tabs.length;
           final i = _deskIdx.value.clamp(0, moreIndex);
           // Bosh va Kassa — o'z keng maketi bor; qolgan bo'limlar (sarlavhasi bilan) markazda qulay kenglikda
-          final broad = i < tabs.length && (tabs[i].label == 'Bosh' || tabs[i].label == 'Kassa');
+          final broad = i >= tabs.length || const {'Bosh', 'Kassa', 'Obyektlar', 'Lidlar'}.contains(tabs[i].label);
           final col = Column(children: [
             _header(i, moreIndex, tabs),
-            OfflineBar(onTap: () => _nav.push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s)))),
-            Expanded(child: NavInset(inset: 0, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()]))),
+            OfflineBar(onTap: () => _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s)))),
+            Expanded(child: NavInset(inset: 0, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTabDesktop()]))),
           ]);
-          return broad ? col : _narrow(col);
+          return broad ? Align(alignment: Alignment.topCenter, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1560), child: col)) : _narrow(col);
         },
       );
 
@@ -743,7 +911,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final wide = MediaQuery.sizeOf(context).width >= _wide;
     final content = Column(children: [
       _header(i, moreIndex, tabs),
-      OfflineBar(onTap: () => _nav.push(MaterialPageRoute<void>(builder: (_) => SyncScreen(session: s)))),
+      OfflineBar(onTap: () => _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s)))),
       Expanded(child: NavInset(inset: wide ? 0 : NavInset.bar, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()]))),
     ]);
     if (wide) {
@@ -753,15 +921,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ValueListenableBuilder<int>(valueListenable: _deskIdx, builder: (_, v, _) => _rail(v.clamp(0, tabs.length), tabs)),
             // keng ekranda tarkib cho'zilib ketmaydi: markazda qulay kenglikda; ochilgan sahifalar ham shu yerda (yon menyu yopilmaydi)
             Expanded(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1240),
-                  child: Navigator(
-                    key: _deskNav,
-                    onGenerateRoute: (_) => MaterialPageRoute<void>(builder: (_) => _deskRoot()),
-                  ),
-                ),
+              // navigator butun o'ng qismni egallaydi (yon panel oyna chetigacha chiqadi); asosiy tarkib esa markazda qulay kenglikda
+              child: Navigator(
+                key: _deskNav,
+                onGenerateRoute: (_) => DeskRoute<void>(builder: (_) => _deskRoot()),
               ),
             ),
           ]),

@@ -35,11 +35,13 @@ class ObjectsScreen extends StatelessWidget {
         if (objects.isEmpty) {
           return ListView(children: const [Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Obyektlar yo\'q')))]);
         }
-        return ListView.builder(
+        return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.fromLTRB(12, 12, 12, NavInset.listBottom(context)),
-          itemCount: objects.length,
-          itemBuilder: (context, i) {
+          children: [
+            DeskGrid(minColumn: 470, maxColumns: 3, gap: 12, children: [
+          for (var i = 0; i < objects.length; i++)
+          Builder(builder: (context) {
             final o = objects[i];
             final a = (o['apartments'] as Map?) ?? const {};
             final progress = ((o['progress'] as num?) ?? 0).toInt();
@@ -49,7 +51,7 @@ class ObjectsScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute<void>(builder: (_) => ApartmentsScreen(session: session, object: o)),
+                  DeskRoute<void>(builder: (_) => ApartmentsScreen(session: session, object: o)),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -76,7 +78,9 @@ class ObjectsScreen extends StatelessWidget {
                 ),
               ),
             );
-          },
+          }),
+            ]),
+          ],
         );
       },
     );
@@ -334,7 +338,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
   /// Sotish / bron — to'liq shakl (muddat, boshlang'ich to'lov, foiz, shartnoma) alohida ekranda
   Future<void> _openDeal() async {
     var done = false;
-    await Navigator.of(context).push(MaterialPageRoute<void>(
+    await Navigator.of(context).push(DeskRoute<void>(
       builder: (_) => DealScreen(session: widget.session, objectId: widget.objectId, apt: widget.apt, onDone: () {
         done = true;
         widget.onChanged();
@@ -349,7 +353,7 @@ class _ApartmentSheetState extends State<ApartmentSheet> {
   }
 
   void _tour(String view, String title) {
-    Navigator.of(context).push(MaterialPageRoute<void>(
+    Navigator.of(context).push(DeskRoute<void>(
       builder: (_) => TourScreen(session: widget.session, objectId: widget.objectId, view: view, title: title, apartment: '${widget.apt['id']}'),
     ));
   }
