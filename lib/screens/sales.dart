@@ -120,7 +120,7 @@ class _SalesScreenState extends State<SalesScreen> {
             (_Tab.chess, 'Shaxmatka'),
             (_Tab.deals, _team ? 'Sotuvchilar' : 'Sotuvlarim'),
             (_Tab.payments, "To'lovlar"),
-            (_Tab.debtors, 'Qarzdorlar'),
+            (_Tab.debtors, "Bo'lib to'lash"),
           ];
           void pick(_Tab t) {
             HapticFeedback.selectionClick();
@@ -269,8 +269,91 @@ class _SalesScreenState extends State<SalesScreen> {
     showApartmentSheet(context, s, '${a['object_id']}', '${a['_object']}', full, onChanged: _load);
   }
 
+  int _dFilter = 0; // 0 — hammasi, 1 — muddati o'tgan, 2 — 7 kun ichida to'lov
+
+  String _ymd(DateTime d) => _d(d);
+
+  /// Bo'lib to'lash: kim qancha qarz, keyingi to'lov qachon va qancha, kimning muddati o'tgan (server hisobi — sayt bilan bir xil)
   Widget _debtorsView(ColorScheme cs) {
+    final now = DateTime.now();
+    final today = _ymd(now), soon = _ymd(now.add(const Duration(days: 7)));
+    bool isLate(Map a) => ((a['overdue'] as num?) ?? 0) > 0;
+    bool isSoon(Map a) {
+      final d = '${(a['next'] as Map?)?['date'] ?? ''}';
+      return !isLate(a) && d.isNotEmpty && d.compareTo(soon) <= 0 && d.compareTo(today) >= 0;
+    }
+
     final total = _debtTotal ?? _debtors.fold<num>(0, (a, b) => a + ((b['debt'] as num?) ?? 0));
+    final late = _debtors.where(isLate).toList();
+    final lateSum = _debtOverdue > 0 ? _debtOverdue : late.fold<num>(0, (a, b) => a + ((b['overdue'] as num?) ?? 0));
+    final soonList = _debtors.where(isSoon).toList();
+    final soonSum = soonList.fold<num>(0, (a, b) => a + (((b['next'] as Map?)?['amount'] as num?) ?? 0));
+    final shown = switch (_dFilter) { 1 => late, 2 => soonList, _ => _debtors };
+
+    Widget chip(String t, int n, int v) => Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: ChoiceChip(label: Text('${tr(t)} $n'), selected: _dFilter == v, showCheckmark: false, onSelected: (_) => setState(() => _dFilter = v)),
+        );
+
+    Widget pill(String t, Color c) => Container(
+          margin: const EdgeInsets.only(top: 6, right: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+          decoration: BoxDecoration(color: c.withValues(alpha: 0.13), borderRadius: BorderRadius.circular(20)),
+          child: Text(t, style: TextStyle(color: c, fontWeight: FontWeight.w800, fontSize: 12)),
+        );
+
+    Widget tile(Map<String, dynamic> a) {
+      final next = a['next'] as Map?;
+      final late = isLate(a);
+      final days = (a['late_days'] as num?)?.toInt() ?? 0;
+      final booked = '${a['status']}' == 'booked';
+      final accent = late ? cs.error : Brand.blue;
+      return GlassRow(
+        margin: const EdgeInsets.only(bottom: 2),
+        padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+        onTap: () => _openDebtor(a),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 46,
+              height: 46,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: accent.withValues(alpha: 0.13), borderRadius: BorderRadius.circular(14)),
+              child: Text('${a['number']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w900, color: accent, fontSize: '${a['number']}'.length > 3 ? 12 : 15)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${(a['buyer'] as Map?)?['name'] ?? ''}'.isEmpty ? 'Xaridor' : '${(a['buyer'] as Map)['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                Text('${a['_object']} · ${roomsLabel(a['rooms'])}${_team && a['seller'] != null ? ' · ${a['seller']}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12.5)),
+              ]),
+            ),
+            const SizedBox(width: 10),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(money(a['debt'] as num?), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15.5, color: late ? cs.error : null)),
+              Text(tr('qoldi'), style: TextStyle(color: cs.outline, fontSize: 11.5)),
+            ]),
+          ]),
+          Wrap(children: [
+            if (late) pill("${tr("Muddati o'tgan")}: ${money(a['overdue'] as num?)}${days > 0 ? ' · $days ${tr('kun')}' : ''}", cs.error),
+            if (next != null) pill('${tr("Keyingi to'lov")}: ${formatDate('${next['date']}')} · ${money(next['amount'] as num?)}', late ? Colors.orange.shade800 : Brand.blue),
+            if (booked) pill(tr('Bron'), Brand.orange),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(value: (((a['paid'] as num?) ?? 0) / _owed(a)).clamp(0, 1).toDouble(), minHeight: 6, backgroundColor: cs.outline.withValues(alpha: 0.15), color: accent),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text("${tr("To'langan")} ${money(a['paid'] as num?)}", style: TextStyle(color: cs.outline, fontSize: 12, fontWeight: FontWeight.w700)),
+          ]),
+        ]),
+      );
+    }
+
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
@@ -278,54 +361,47 @@ class _SalesScreenState extends State<SalesScreen> {
         padding: EdgeInsets.only(bottom: NavInset.listBottom(context)),
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: cs.errorContainer.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(18)),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            child: HeroGlass(
+              padding: const EdgeInsets.all(18),
+              radius: 24,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Xaridorlarning umumiy qarzi · ${_debtors.length} ta kvartira', style: TextStyle(color: cs.onErrorContainer.withValues(alpha: 0.8), fontWeight: FontWeight.w600, fontSize: 13)),
+                Text("${tr("Bo'lib to'lash bo'yicha qolgan summa")} · ${_debtors.length} ${tr('ta kvartira')}", style: TextStyle(color: cs.onPrimaryContainer.withValues(alpha: 0.75), fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 6),
-                FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text('${money(total)} so\'m', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: cs.onErrorContainer))),
-                if (_debtTotal != null && _debtOverdue > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text('${tr("shundan muddati o'tgan")}: ${money(_debtOverdue)} so\'m', style: TextStyle(color: cs.error, fontWeight: FontWeight.w700, fontSize: 13)),
-                  ),
+                FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text("${money(total)} so'm", style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: cs.onPrimaryContainer, letterSpacing: -0.6))),
+                const SizedBox(height: 12),
+                Wrap(spacing: 10, runSpacing: 8, children: [
+                  _stat(context, "Muddati o'tgan", late.isEmpty ? '0' : '${late.length} ${tr('ta')} · ${money(lateSum)}', late.isEmpty ? null : cs.error),
+                  _stat(context, "7 kun ichida to'lov", soonList.isEmpty ? '0' : '${soonList.length} ${tr('ta')} · ${money(soonSum)}', soonList.isEmpty ? null : Brand.blue),
+                ]),
               ]),
             ),
           ),
-          if (_debtors.isEmpty) const Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Qarzdor yo\'q'))),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: DeskGrid(minColumn: 460, gap: 12, children: [
-          for (final a in _debtors)
-            GlassRow(margin: const EdgeInsets.only(bottom: 2), onTap: () => _openDebtor(a), child: Row(children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(color: cs.error.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
-                    child: Text('${a['number']}', style: TextStyle(fontWeight: FontWeight.w800, color: cs.error)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('${(a['buyer'] as Map?)?['name'] ?? 'Xaridor'}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      Text('${a['_object']} · ${roomsLabel(a['rooms'])}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12.5)),
-                      const SizedBox(height: 4),
-                      ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(value: (((a['paid'] as num?) ?? 0) / _owed(a)).clamp(0, 1).toDouble(), minHeight: 4)),
-                    ]),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text(money(a['debt'] as num?), style: TextStyle(fontWeight: FontWeight.w800, color: cs.error)),
-                    Text('qarz', style: TextStyle(color: cs.outline, fontSize: 11.5)),
-                  ]),
-                ])),
+          SizedBox(
+            height: 46,
+            child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), children: [
+              chip('Hammasi', _debtors.length, 0),
+              chip("Muddati o'tgan", late.length, 1),
+              chip("7 kun ichida", soonList.length, 2),
             ]),
+          ),
+          if (shown.isEmpty)
+            Padding(padding: const EdgeInsets.all(48), child: Center(child: Text(_dFilter == 1 ? "Muddati o'tgan to'lov yo'q" : (_dFilter == 2 ? "7 kun ichida to'lov yo'q" : "Bo'lib to'lash bo'yicha qarzdor yo'q")))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: DeskGrid(minColumn: 460, gap: 12, children: [for (final a in shown) tile(a)]),
           ),
         ],
       ),
     );
   }
+
+  Widget _stat(BuildContext context, String l, String v, Color? c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(color: context.pill, borderRadius: BorderRadius.circular(14), border: Border.all(color: context.pillBorder)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text('${tr(l)}: ', style: TextStyle(color: context.inkSoft, fontSize: 12.5, fontWeight: FontWeight.w600)),
+          Text(v, style: TextStyle(color: c ?? context.ink, fontSize: 13.5, fontWeight: FontWeight.w900)),
+        ]),
+      );
 }
