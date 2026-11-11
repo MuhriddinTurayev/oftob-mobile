@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../format.dart';
 import '../l10n.dart';
+import '../lead_pulse.dart';
 import '../motion.dart';
 import '../session.dart';
 import '../theme.dart';
@@ -74,14 +75,20 @@ class _LeadBoardScreenState extends State<LeadBoardScreen> {
   void initState() {
     super.initState();
     _load();
-    // yangi lid kelsa ro'yxat o'zi yangilanadi (har 20 soniyada jimgina)
-    _poll = Timer.periodic(const Duration(seconds: 20), (_) {
+    // yangi lid kelsa ro'yxat DARHOL yangilanadi (LeadPulse: 2 soniya), zaxira sifatida har daqiqada ham
+    LeadPulse.tick.addListener(_onPulse);
+    _poll = Timer.periodic(const Duration(seconds: 60), (_) {
       if (mounted && !_oldServer) _load(quiet: true);
     });
   }
 
+  void _onPulse() {
+    if (mounted && !_oldServer) _load(quiet: true);
+  }
+
   @override
   void dispose() {
+    LeadPulse.tick.removeListener(_onPulse);
     _poll?.cancel();
     super.dispose();
   }

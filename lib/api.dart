@@ -817,6 +817,17 @@ class ApiClient {
 
   /* ---------------- lidlar ---------------- */
 
+  /// «Puls»: oxirgi lid raqami (juda yengil so'rov, keshsiz). Yangi lid kelsa raqam o'zgaradi — ro'yxat darhol yangilanadi. null — eski server
+  Future<int?> leadSeq() async {
+    try {
+      final b = await _send(() => _http.get(_uri('/leads/seq'), headers: _headers), timeout: const Duration(seconds: 6));
+      return (((b as Map)['data'] as Map?)?['seq'] as num?)?.toInt();
+    } on ApiException catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+
   /// Lid voronkasi (saytdagi «Лиды» bilan bir xil): bosqichlar, javob, kelish vaqti, tanlangan xonadon. null — eski server (oddiy ro'yxat ishlatiladi)
   Future<({List<Map<String, dynamic>> items, Map<String, dynamic> meta})?> leadBoard() async {
     try {
