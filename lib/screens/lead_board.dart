@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart' hide Text;
@@ -67,10 +68,22 @@ class _LeadBoardScreenState extends State<LeadBoardScreen> {
 
   Session get s => widget.session;
 
+  Timer? _poll;
+
   @override
   void initState() {
     super.initState();
     _load();
+    // yangi lid kelsa ro'yxat o'zi yangilanadi (har 20 soniyada jimgina)
+    _poll = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted && !_oldServer) _load(quiet: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load({bool quiet = false}) async {
