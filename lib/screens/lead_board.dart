@@ -274,7 +274,7 @@ class _LeadBoardScreenState extends State<LeadBoardScreen> {
               if (visit) pill('${tr('Keladi')}: ${_fd('${l['visit_date']}')}${'${l['visit_time'] ?? ''}'.isNotEmpty ? ' · ${l['visit_time']}' : ''}', Brand.blue, icon: Icons.event_available_rounded),
               if (reachName != null) pill('$reachName', reach == 'answered' ? Brand.teal : (reach == 'noanswer' ? cs.error : Brand.orange), icon: Icons.phone_in_talk_rounded),
             ]),
-            if ('${l['note']}'.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text('${l['note']}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13))),
+            if ((l['unread'] == true && '${l['last'] ?? ''}'.isNotEmpty ? '${l['last']}' : '${l['note']}').isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(l['unread'] == true && '${l['last'] ?? ''}'.isNotEmpty ? '${l['last']}' : '${l['note']}', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13))),
             if (!visit && '${l['next_date'] ?? ''}'.isNotEmpty && ['new', 'contact', 'meet', 'shown', 'booked'].contains('${l['status']}'))
               Padding(padding: const EdgeInsets.only(top: 4), child: Text('${_fd('${l['next_date']}')} · ${l['next_text']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 12))),
           ]),
