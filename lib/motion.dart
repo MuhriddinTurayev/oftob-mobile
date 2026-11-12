@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'lite.dart';
+
 /// Bosilganda yumshoq kichrayadi va qo'yib yuborilganda qaytadi (iOS kabi), yengil titrash bilan.
 class Tappable extends StatefulWidget {
   const Tappable({super.key, required this.child, this.onTap, this.onLongPress, this.scale = 0.965, this.haptic = true});
@@ -26,6 +28,18 @@ class _TappableState extends State<Tappable> {
   @override
   Widget build(BuildContext context) {
     final clickable = widget.onTap != null || widget.onLongPress != null;
+    if (LiteScope.of(context)) {
+      // yengil rejim: kichrayish, ko'tarilish, shaffoflik animatsiyasi yo'q — faqat bosish
+      return MouseRegion(
+        cursor: clickable ? SystemMouseCursors.click : MouseCursor.defer,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap == null ? null : () => widget.onTap!(),
+          onLongPress: widget.onLongPress == null ? null : () => widget.onLongPress!(),
+          child: widget.child,
+        ),
+      );
+    }
     return MouseRegion(
       cursor: clickable ? SystemMouseCursors.click : MouseCursor.defer,
       onEnter: clickable ? (_) => setState(() => _hover = true) : null,

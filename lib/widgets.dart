@@ -7,6 +7,7 @@ import 'session.dart';
 import 'l10n.dart';
 import 'theme.dart';
 import 'motion.dart';
+import 'lite.dart';
 
 /// Sahifalab yuklanadigan ro'yxat: tortib yangilash, pastga tushganda yana yuklash, xatoda "Qayta urinish".
 class PagedList extends StatefulWidget {
@@ -324,7 +325,7 @@ class LangSwitch extends StatelessWidget {
                 scale: 0.94,
                 onTap: () => L.set(L.codes[i]),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
+                  duration: Lite.d(const Duration(milliseconds: 220)),
                   height: 40,
                   alignment: Alignment.center,
                   padding: const EdgeInsets.symmetric(horizontal: 6),

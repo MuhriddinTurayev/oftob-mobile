@@ -341,10 +341,7 @@ class _ChessCellState extends State<_ChessCell> {
     final tip = '${tr('Kv.')} $no · ${rooms > 0 ? '$rooms ${tr('xona')}' : tr('Tijorat')} · ${area(a['area'] as num?)} m²\n${money(price)} ${tr("so'm")} · ${aptStatus(st)}${buyer != null ? '\n$buyer' : ''}';
     final lite = LiteScope.of(context);
     final lift = _hover && widget.on && !lite;
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 160),
-      opacity: widget.on ? 1 : 0.2,
-      child: Tooltip(
+    final cell = Tooltip(
         message: tip,
         waitDuration: const Duration(milliseconds: 400),
         child: MouseRegion(
@@ -360,7 +357,8 @@ class _ChessCellState extends State<_ChessCell> {
               height: widget.h,
               transform: Matrix4.translationValues(0, lift ? -2 : 0, 0),
               decoration: BoxDecoration(
-                gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [g1, g2]),
+                color: lite ? g2 : null,
+                gradient: lite ? null : LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [g1, g2]),
                 borderRadius: BorderRadius.circular(11),
                 border: Border.all(color: overdue ? Colors.red.shade500 : (lift ? cs.primary : border), width: overdue || lift ? 1.8 : 1),
                 boxShadow: lift ? [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 14, offset: const Offset(0, 6))] : null, // soya faqat ustiga kelganda (90+ katakda doim soya — qimmat)
@@ -390,7 +388,9 @@ class _ChessCellState extends State<_ChessCell> {
             ),
           ),
         ),
-      ),
     );
+    // yengil rejim: animatsiyali shaffoflik yo'q (filtrda faqat mos kelmaydigan kataklar xiralashadi)
+    if (lite) return widget.on ? cell : Opacity(opacity: 0.2, child: cell);
+    return AnimatedOpacity(duration: const Duration(milliseconds: 160), opacity: widget.on ? 1 : 0.2, child: cell);
   }
 }

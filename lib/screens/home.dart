@@ -728,12 +728,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     child: Text('${items.length}', style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12)),
                   ),
                   const SizedBox(width: 4),
-                  AnimatedRotation(turns: open ? 0.25 : 0, duration: const Duration(milliseconds: 200), child: Icon(Icons.chevron_right, color: cs.outline)),
+                  AnimatedRotation(turns: open ? 0.25 : 0, duration: Lite.d(const Duration(milliseconds: 200)), child: Icon(Icons.chevron_right, color: cs.outline)),
                 ]),
               ),
             ),
             AnimatedSize(
-              duration: const Duration(milliseconds: 220),
+              duration: Lite.d(const Duration(milliseconds: 220)),
               curve: Curves.easeOutCubic,
               alignment: Alignment.topCenter,
               child: !open
@@ -896,7 +896,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           padding: const EdgeInsets.fromLTRB(10, 10, 6, 5),
           child: Row(children: [
             Expanded(child: Text(tr(title).toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: cs.outline, fontSize: 10.8, fontWeight: FontWeight.w800, letterSpacing: 0.7))),
-            AnimatedRotation(turns: closed ? -0.25 : 0, duration: const Duration(milliseconds: 180), child: Icon(Icons.expand_more_rounded, size: 18, color: cs.outline)),
+            AnimatedRotation(turns: closed ? -0.25 : 0, duration: Lite.d(const Duration(milliseconds: 180)), child: Icon(Icons.expand_more_rounded, size: 18, color: cs.outline)),
           ]),
         ),
       ));
@@ -1256,7 +1256,7 @@ class _ThemeDot extends StatelessWidget {
         scale: 0.88,
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
+          duration: Lite.d(const Duration(milliseconds: 300)),
           curve: Curves.easeOutCubic,
           width: size,
           height: size,

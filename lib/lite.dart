@@ -21,10 +21,13 @@ class Lite {
   static Future<void> load() async {
     if (!desktop) return;
     try {
-      mode = await _store.read(key: 'lite_mode') ?? 'auto';
+      // Standart — YOQIQ: ofis kompyuterlarida qotmasligi muhimroq. O'chirish: yon menyudagi chaqmoq tugmasi.
+      mode = await _store.read(key: 'lite_mode') ?? 'on';
       final auto = await _store.read(key: 'lite_auto') == '1';
       on.value = mode == 'on' || (mode == 'auto' && auto);
-    } catch (_) {}
+    } catch (_) {
+      on.value = true;
+    }
   }
 
   /// Qo'lda: yoqish yoki o'chirish (avtomatik o'lchash to'xtaydi)
