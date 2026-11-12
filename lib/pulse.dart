@@ -26,7 +26,8 @@ class Pulse {
   static Map<String, String>? _last;
   static bool _busy = false;
   static int _fails = 0;
-  static bool _legacy = false; // eski server: faqat lidlar pulsi
+  static bool _legacy = false; // eski server: lidlar + smena pulsi
+  static int _legacyTick = 0;
 
   static ValueNotifier<int>? _of(String k) => switch (k) {
         'leads' => leads,
@@ -71,6 +72,15 @@ class Pulse {
           return;
         }
         cur = {'leads': '$seq'};
+        // eski serverda umumiy puls yo'q: smenani (Keldim/Ketdim — botdan, saytdan yoki boshqa qurilmadan) har 4 soniyada alohida tekshiramiz
+        if (_legacyTick++ % 2 == 0 && s.me?.can('shift:write') == true) {
+          try {
+            final sh = await api.shift();
+            cur['shift'] = '${sh['status']}|${sh['in']}|${sh['out']}';
+          } catch (_) {}
+        } else if (_last?['shift'] != null) {
+          cur['shift'] = _last!['shift']!;
+        }
       }
       _fails = 0;
       final prev = _last;
