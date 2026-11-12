@@ -148,7 +148,7 @@ class _LeadsScreenState extends State<LeadsScreen> {
     String? lastDay;
     var dayRows = <Widget>[];
     void flushDay() {
-      if (dayRows.isNotEmpty) rows.add(DeskGrid(minColumn: 440, maxColumns: 2, children: dayRows));
+      if (dayRows.isNotEmpty) rows.add(DeskGrid(minColumn: 440, maxColumns: 2, gap: 12, rowGap: 10, children: dayRows));
       dayRows = <Widget>[];
     }
     for (final l in shown) {

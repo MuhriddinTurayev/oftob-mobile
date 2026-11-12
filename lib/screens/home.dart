@@ -1168,7 +1168,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               return Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1240),
+                  constraints: const BoxConstraints(maxWidth: 1760),
                   child: Column(children: [
                     _deskHeader(i, moreIndex, tabs, titleOverride: sec),
                     OfflineBar(onTap: () => _openSection('Sinxronlash')),
@@ -1179,17 +1179,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             }
           }
           // Bosh va Kassa — o'z keng maketi bor; qolgan bo'limlar (sarlavhasi bilan) markazda qulay kenglikda
-          final broad = i >= tabs.length || const {'Bosh', 'Kassa', 'Obyektlar', 'Lidlar', 'Sotuv'}.contains(tabs[i].label);
           final col = Column(children: [
             _deskHeader(i, moreIndex, tabs),
             OfflineBar(onTap: () => _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s)))),
             Expanded(child: NavInset(inset: 0, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTabDesktop()]))),
           ]);
-          return broad ? Align(alignment: Alignment.topCenter, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1560), child: col)) : _narrow(col);
+          // hamma bo'limlar ish maydonini to'liq to'ldiradi (yon tomonlarda bo'sh joy qolmaydi)
+          return Align(alignment: Alignment.topCenter, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1760), child: col));
         },
       );
 
-  Widget _narrow(Widget w) => Align(alignment: Alignment.topCenter, child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: DesktopPageTransitions.maxWidth), child: w));
 
   @override
   Widget build(BuildContext context) {

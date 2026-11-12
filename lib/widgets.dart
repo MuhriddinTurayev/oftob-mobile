@@ -118,7 +118,7 @@ class PagedListState extends State<PagedList> {
         padding: EdgeInsets.only(bottom: NavInset.listBottom(context)),
         children: [
           if (widget.header != null) widget.header!,
-          DeskGrid(minColumn: 440, maxColumns: 2, children: [for (var i = 0; i < _items.length; i++) widget.itemBuilder(context, _items[i])]),
+          DeskGrid(minColumn: 440, maxColumns: 2, gap: 8, rowGap: 4, children: [for (var i = 0; i < _items.length; i++) widget.itemBuilder(context, _items[i])]),
           if (_more) const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator())),
         ],
       );
@@ -173,7 +173,10 @@ class PagedListState extends State<PagedList> {
 /// Kenglikka qarab 1–3 ustun: telefonda — oddiy ro'yxat, kompyuterda — yonma-yon (har ustun kamida [minColumn] px).
 /// Elementlar o'z bo'shliqlarini o'zlari beradi (pastdan chekinish), shuning uchun ustunlar orasidagina [gap] qo'shiladi.
 class DeskGrid extends StatelessWidget {
-  const DeskGrid({super.key, required this.children, this.minColumn = 500, this.gap = 4, this.maxColumns = 3});
+  const DeskGrid({super.key, required this.children, this.minColumn = 500, this.gap = 4, this.maxColumns = 3, this.rowGap = 0});
+
+  /// Qatorlar orasidagi qo'shimcha masofa (elementlarning o'z chekinishi bo'lmasa)
+  final double rowGap;
 
   final List<Widget> children;
   final double minColumn;
@@ -187,7 +190,10 @@ class DeskGrid extends StatelessWidget {
       if (cols == 1) return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
       // har qatordagi kartalar bir xil balandlikda (past-baland bo'lmasin, bo'sh joy qolmasin)
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        for (var i = 0; i < children.length; i += cols) _EqualRow(cols: cols, gap: gap, children: children.sublist(i, math.min(i + cols, children.length))),
+        for (var i = 0; i < children.length; i += cols) ...[
+          if (i > 0 && rowGap > 0) SizedBox(height: rowGap),
+          _EqualRow(cols: cols, gap: gap, children: children.sublist(i, math.min(i + cols, children.length))),
+        ],
       ]);
     });
   }
