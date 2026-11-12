@@ -856,8 +856,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return Padding(
         padding: const EdgeInsets.only(bottom: 2),
         child: Stack(children: [
-          Material(
-            color: on ? cs.primary.withValues(alpha: 0.13) : Colors.transparent,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            decoration: BoxDecoration(color: on ? cs.primary.withValues(alpha: 0.13) : Colors.transparent, borderRadius: BorderRadius.circular(12)),
+            child: Material(
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
@@ -874,7 +878,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
           ),
-          if (on) Positioned(left: 0, top: 9, bottom: 9, child: Container(width: 3.5, decoration: BoxDecoration(color: cs.primary, borderRadius: const BorderRadius.horizontal(right: Radius.circular(4))))),
+          ),
+          Positioned(left: 0, top: 9, bottom: 9, child: AnimatedOpacity(opacity: on ? 1 : 0, duration: const Duration(milliseconds: 180), child: Container(width: 3.5, decoration: BoxDecoration(color: cs.primary, borderRadius: const BorderRadius.horizontal(right: Radius.circular(4)))))),
         ]),
       );
     }
@@ -900,11 +905,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ]),
         ),
       ));
-      if (!closed) {
-        for (final t in ts) {
-          children.add(item(t.icon, _colors[t.label] ?? color, t.label));
-        }
-      }
+      children.add(ClipRect(
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: closed
+              ? const SizedBox(width: double.infinity)
+              : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [for (final t in ts) item(t.icon, _colors[t.label] ?? color, t.label)]),
+        ),
+      ));
     }
     // hech bir guruhga kirmagan bo'limlar va sinxronlash
     final rest = [for (final t in _more) if (!used.contains(t.label)) t];
@@ -984,7 +994,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
             ),
-            Expanded(child: ListView(padding: EdgeInsets.zero, children: children)),
+            Expanded(
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false), // yon menyuda ko'rinadigan scroll chizig'i yo'q — elementlarga tegmaydi
+                child: ListView(padding: EdgeInsets.zero, children: children),
+              ),
+            ),
             const SizedBox(height: 6),
             Divider(height: 1, color: cs.outline.withValues(alpha: 0.18)),
             const SizedBox(height: 8),

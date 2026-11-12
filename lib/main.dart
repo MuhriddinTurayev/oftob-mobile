@@ -158,7 +158,7 @@ class _OftobAppState extends State<OftobApp> {
           },
         ),
         home: AnimatedSwitcher(
-          duration: Duration(milliseconds: _desktopOs ? (Lite.on.value ? 0 : 200) : 550),
+          duration: Duration(milliseconds: _desktopOs ? 200 : 550),
           switchInCurve: Curves.easeOut,
           child: !_splashDone
               ? ListenableBuilder(

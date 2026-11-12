@@ -340,7 +340,7 @@ class _ChessCellState extends State<_ChessCell> {
     final buyer = (a['buyer'] as Map?)?['name'];
     final tip = '${tr('Kv.')} $no · ${rooms > 0 ? '$rooms ${tr('xona')}' : tr('Tijorat')} · ${area(a['area'] as num?)} m²\n${money(price)} ${tr("so'm")} · ${aptStatus(st)}${buyer != null ? '\n$buyer' : ''}';
     final lite = LiteScope.of(context);
-    final lift = _hover && widget.on && !lite;
+    final lift = _hover && widget.on;
     final cell = Tooltip(
         message: tip,
         waitDuration: const Duration(milliseconds: 400),
@@ -351,7 +351,7 @@ class _ChessCellState extends State<_ChessCell> {
           child: GestureDetector(
             onTap: widget.on ? widget.onTap : null,
             child: AnimatedContainer(
-              duration: lite ? Duration.zero : const Duration(milliseconds: 130),
+              duration: const Duration(milliseconds: 130),
               curve: Curves.easeOut,
               width: widget.w,
               height: widget.h,
@@ -361,7 +361,7 @@ class _ChessCellState extends State<_ChessCell> {
                 gradient: lite ? null : LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [g1, g2]),
                 borderRadius: BorderRadius.circular(11),
                 border: Border.all(color: overdue ? Colors.red.shade500 : (lift ? cs.primary : border), width: overdue || lift ? 1.8 : 1),
-                boxShadow: lift ? [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 14, offset: const Offset(0, 6))] : null, // soya faqat ustiga kelganda (90+ katakda doim soya — qimmat)
+                boxShadow: lift && !lite ? [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 14, offset: const Offset(0, 6))] : null, // soya faqat ustiga kelganda (90+ katakda doim soya — qimmat)
               ),
               child: Stack(children: [
                 Center(

@@ -251,24 +251,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (_ops.isEmpty) const _Empty("Operatsiya yo'q"),
           for (final o in _ops) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), child: _OpRow(o)),
         ]);
-    // Chap: kassa + obyektlar + oxirgi operatsiyalar; o'ng: smena + hozir ishda + yangi lidlar (ikkala ustun to'lib turadi, bo'sh joy qolmaydi)
-    final left = <Widget>[
-      if (me.role == 'manager' && me.can('sales:read')) ...[SalesGlance(session: s, onTap: () => widget.onOpen?.call('Sotuv')), const SizedBox(height: 14)],
-      if (cash != null) ...[cash, const SizedBox(height: 14)],
-      if (me.can('objects:read') && _objs.isNotEmpty) ...[objectsGrid(), const SizedBox(height: 22)],
-      if (me.can('cash:read')) opsCol(),
-    ];
-    final right = <Widget>[
-      if (me.can('shift:write')) ...[ShiftCard(session: s), const SizedBox(height: 14)],
-      if (me.can('attendance:read') && _now.isNotEmpty) ...[
+    // Bo'limlar ikki ustunga balans bilan taqsimlanadi (taxminiy balandlik bo'yicha: qisqa ustunga keyingisi) — bo'sh joy qolmaydi
+    final showWork = me.can('attendance:read') && _now.isNotEmpty;
+    final workW = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (showWork) ...[
         _Section(title: 'Hozir ishda', trailing: '${_now.length} kishi', onTap: () => widget.onOpen?.call('Davomat')),
         for (var i = 0; i < _now.take(5).length; i++) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11), onTap: () => _openWorker(_now[i]), child: _WorkingRow(_now[i])),
         if (_now.length > 5) Padding(padding: const EdgeInsets.only(left: 6, bottom: 8), child: Text('+${_now.length - 5} ${tr('kishi yana')}', style: TextStyle(color: cs.outline, fontSize: 12.5))),
-        const SizedBox(height: 14),
       ],
-      if (me.can('leads:read')) leadsCol(),
-    ];
+    ]);
+    final colL = <Widget>[], colR = <Widget>[];
+    double hL = 0, hR = 0;
+    void put(Widget w, double h, {int? side}) {
+      final toLeft = side != null ? side == 0 : (hL / 11 <= hR / 9);
+      final box = Padding(padding: const EdgeInsets.only(bottom: 16), child: w);
+      if (toLeft) {
+        colL.add(box);
+        hL += h + 16;
+      } else {
+        colR.add(box);
+        hR += h + 16;
+      }
+    }
 
+    if (me.can('shift:write')) put(ShiftCard(session: s), 210, side: 1);
+    if (cash != null) put(cash, 190, side: 0);
+    if (me.role == 'manager' && me.can('sales:read')) put(SalesGlance(session: s, onTap: () => widget.onOpen?.call('Sotuv')), 150);
+    if (me.can('objects:read') && _objs.isNotEmpty) put(objectsGrid(), (_objs.length == 1 ? 1 : (_objs.length + 1) ~/ 2) * 126.0);
+    if (showWork) put(workW, 60 + _now.take(5).length * 64 + (_now.length > 5 ? 30 : 0));
+    if (me.can('leads:read')) put(leadsCol(), 60 + (_leads.isEmpty ? 1 : _leads.length) * 66);
+    if (me.can('cash:read')) put(opsCol(), 60 + (_ops.isEmpty ? 1 : _ops.length) * 66);
+    final left = colL, right = colR;
 
     final tiles = LayoutBuilder(builder: (context, bc) {
       final cols = (bc.maxWidth / 118).floor().clamp(4, 9);

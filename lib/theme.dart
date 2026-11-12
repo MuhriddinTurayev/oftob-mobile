@@ -368,6 +368,7 @@ class DesktopPageTransitions extends PageTransitionsBuilder {
       return LayoutBuilder(builder: (context, bc) {
         final w = bc.maxWidth.isFinite ? (bc.maxWidth * 0.56).clamp(560.0, 780.0).clamp(0.0, bc.maxWidth) : 680.0;
         final dark = Theme.of(context).brightness == Brightness.dark;
+        final lite = LiteScope.of(context);
         return Align(
           alignment: Alignment.centerRight,
           child: SlideTransition(
@@ -380,7 +381,9 @@ class DesktopPageTransitions extends PageTransitionsBuilder {
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: const BorderRadius.horizontal(left: Radius.circular(30)),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.55 : 0.22), blurRadius: 40, offset: const Offset(-8, 0))],
+                    // yengil rejimda katta xira soya o'rniga ingichka chiziq (soya har kadrda qimmat)
+                    border: lite ? Border(left: BorderSide(color: Colors.black.withValues(alpha: dark ? 0.5 : 0.14), width: 1)) : null,
+                    boxShadow: lite ? null : [BoxShadow(color: Colors.black.withValues(alpha: dark ? 0.55 : 0.22), blurRadius: 40, offset: const Offset(-8, 0))],
                   ),
                   child: ClipRRect(borderRadius: const BorderRadius.horizontal(left: Radius.circular(30)), child: GlassBackdrop(child: child)),
                 ),

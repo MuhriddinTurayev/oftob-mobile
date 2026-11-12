@@ -40,7 +40,7 @@ class Lite {
   }
 
   /// Animatsiya davomiyligi: yengil rejimda — nol
-  static Duration d(Duration x) => on.value ? Duration.zero : x;
+  static Duration d(Duration x) => x; // animatsiyalar yengil rejimda ham qoladi (faqat siljish/shaffoflik — arzon); og'ir narsalar (xira, soya, gradient) o'chadi
 
   /* ---------------- kadr tezligini o'lchash ---------------- */
 

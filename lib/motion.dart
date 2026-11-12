@@ -28,18 +28,7 @@ class _TappableState extends State<Tappable> {
   @override
   Widget build(BuildContext context) {
     final clickable = widget.onTap != null || widget.onLongPress != null;
-    if (LiteScope.of(context)) {
-      // yengil rejim: kichrayish, ko'tarilish, shaffoflik animatsiyasi yo'q — faqat bosish
-      return MouseRegion(
-        cursor: clickable ? SystemMouseCursors.click : MouseCursor.defer,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: widget.onTap == null ? null : () => widget.onTap!(),
-          onLongPress: widget.onLongPress == null ? null : () => widget.onLongPress!(),
-          child: widget.child,
-        ),
-      );
-    }
+    final lite = LiteScope.of(context); // yengil rejim: faqat bosilganda kichrayish (arzon); hover kattalashish va shaffoflik qatlami yo'q
     return MouseRegion(
       cursor: clickable ? SystemMouseCursors.click : MouseCursor.defer,
       onEnter: clickable ? (_) => setState(() => _hover = true) : null,
@@ -62,10 +51,10 @@ class _TappableState extends State<Tappable> {
               widget.onLongPress!();
             },
       child: AnimatedScale(
-        scale: _down ? widget.scale : (_hover ? 1.012 : 1),
+        scale: _down ? widget.scale : (_hover && !lite ? 1.012 : 1),
         duration: Duration(milliseconds: _down ? 90 : 220),
         curve: _down ? Curves.easeOut : Curves.easeOutBack,
-        child: AnimatedOpacity(opacity: _down ? 0.88 : 1, duration: const Duration(milliseconds: 120), child: widget.child),
+        child: lite ? widget.child : AnimatedOpacity(opacity: _down ? 0.88 : 1, duration: const Duration(milliseconds: 120), child: widget.child),
       ),
       ),
     );
