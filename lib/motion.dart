@@ -51,7 +51,7 @@ class _TappableState extends State<Tappable> {
               widget.onLongPress!();
             },
       child: AnimatedScale(
-        scale: _down ? widget.scale : (_hover && !lite ? 1.012 : 1),
+        scale: _down ? widget.scale : (_hover ? 1.02 : 1),
         duration: Duration(milliseconds: _down ? 90 : 220),
         curve: _down ? Curves.easeOut : Curves.easeOutBack,
         child: lite ? widget.child : AnimatedOpacity(opacity: _down ? 0.88 : 1, duration: const Duration(milliseconds: 120), child: widget.child),
@@ -61,9 +61,9 @@ class _TappableState extends State<Tappable> {
   }
 }
 
-/// Oldin ro'yxat qatorlari ketma-ket «ko'tarilib» chiqardi — har ochilishda kadr tushirardi. Endi darhol ko'rinadi
-/// (chaqiruvlar o'zgarmasligi uchun nom qoldirildi).
-class Reveal extends StatelessWidget {
+/// Kompyuterda: birinchi 8 element ketma-ket yumshoq paydo bo'ladi (shaffoflik + biroz siljish: arzon, GPU'ni yuklamaydi).
+/// Telefonda va 8-elementdan keyin — darhol ko'rinadi (ro'yxat aylantirilganda kadr tushmasin).
+class Reveal extends StatefulWidget {
   const Reveal({super.key, required this.child, this.index = 0, this.dy = 22});
 
   final Widget child;
@@ -71,7 +71,39 @@ class Reveal extends StatelessWidget {
   final double dy;
 
   @override
-  Widget build(BuildContext context) => child;
+  State<Reveal> createState() => _RevealState();
+}
+
+class _RevealState extends State<Reveal> with SingleTickerProviderStateMixin {
+  AnimationController? _c;
+  late final Animation<double> _a;
+
+  @override
+  void initState() {
+    super.initState();
+    if (Lite.desktop && widget.index < 8) {
+      final delay = widget.index * 45;
+      final total = 260 + delay;
+      _c = AnimationController(vsync: this, duration: Duration(milliseconds: total));
+      _a = CurvedAnimation(parent: _c!, curve: Interval(delay / total, 1, curve: Curves.easeOutCubic));
+      _c!.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_c == null) return widget.child;
+    return FadeTransition(
+      opacity: _a,
+      child: SlideTransition(position: Tween<Offset>(begin: const Offset(0, 0.025), end: Offset.zero).animate(_a), child: widget.child),
+    );
+  }
 }
 
 /// Raqam darhol ko'rsatiladi (oldin 0 dan sanalardi — har ochilishda ~1 soniya qayta chizish).
@@ -117,8 +149,22 @@ class AnimatedTabs extends StatefulWidget {
   State<AnimatedTabs> createState() => _AnimatedTabsState();
 }
 
-class _AnimatedTabsState extends State<AnimatedTabs> {
+class _AnimatedTabsState extends State<AnimatedTabs> with SingleTickerProviderStateMixin {
   final Set<int> _built = {};
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 240), value: 1);
+  late final Animation<double> _fade = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
+
+  @override
+  void didUpdateWidget(AnimatedTabs old) {
+    super.didUpdateWidget(old);
+    if (old.index != widget.index && Lite.desktop) _c.forward(from: 0.0);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +174,17 @@ class _AnimatedTabsState extends State<AnimatedTabs> {
         if (_built.contains(i))
           Offstage(
             offstage: i != widget.index,
-            child: TickerMode(enabled: i == widget.index, child: widget.children[i]),
+            child: TickerMode(
+              enabled: i == widget.index,
+              // hamma bo'lim bir xil o'ramda (holati saqlanadi); animatsiya faqat faol bo'limga
+              child: FadeTransition(
+                opacity: i == widget.index ? Tween<double>(begin: 0.0, end: 1.0).animate(_fade) : kAlwaysCompleteAnimation,
+                child: SlideTransition(
+                  position: (i == widget.index ? Tween<Offset>(begin: const Offset(0, 0.012), end: Offset.zero).animate(_fade) : kAlwaysCompleteAnimation.drive(Tween<Offset>(begin: Offset.zero, end: Offset.zero))),
+                  child: widget.children[i],
+                ),
+              ),
+            ),
           ),
     ]);
   }

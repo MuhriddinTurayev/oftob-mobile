@@ -44,7 +44,7 @@ class ObjectsScreen extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.fromLTRB(12, 12, 12, NavInset.listBottom(context)),
           children: [
-            DeskGrid(minColumn: 470, maxColumns: 3, gap: 12, children: [
+            DeskGrid(minColumn: 380, maxColumns: 3, gap: 12, children: [
           for (var i = 0; i < objects.length; i++)
           Builder(builder: (context) {
             final o = objects[i];

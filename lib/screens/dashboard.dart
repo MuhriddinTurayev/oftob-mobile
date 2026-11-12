@@ -58,6 +58,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _leadsTotal = 0;
   List<Map<String, dynamic>> _leads = const [];
   List<Map<String, dynamic>> _ops = const [];
+  // kompyuter maketi: ikki ustun balandligini tenglash uchun ko'proq lid/operatsiya/ishdagilar (o'lchab to'ldiriladi)
+  List<Map<String, dynamic>> _leadsAll = const [];
+  List<Map<String, dynamic>> _opsAll = const [];
+  int _nLeads = 3, _nOps = 6, _nWork = 5;
+  final _kL = GlobalKey(), _kR = GlobalKey();
+  bool _balPending = false;
+  List<String> _flexL = [], _flexR = [];
+  final Map<String, int> _side = {}; // bo'lim -> ustun (0 chap, 1 o'ng): haqiqiy o'lchangan balandlikdan keyin aniqlanadi
+  final Map<String, GlobalKey> _secKeys = {};
+  final Map<String, int> _placed = {};
+  List<String> _secNames = [];
   List<Map<String, dynamic>> _objs = const [];
   List<Map<String, dynamic>> _now = const []; // hozir ishda: prorablar/ofis va ishchilar
   Timer? _clock;
@@ -140,6 +151,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _cash = m;
         _desks = n;
         _ops = ops.items.take(6).toList();
+        _opsAll = ops.items.take(15).toList();
       }),
       part(me.can('objects:read'), () async {
         final o = await api.objects();
@@ -192,6 +204,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final l = await api.leads();
         _leadsTotal = l.meta.total;
         _leads = l.items.take(3).toList();
+        _leadsAll = l.items.take(12).toList();
       }),
     ]);
     if (!mounted) return;
@@ -199,6 +212,103 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _loading = false;
       _error = tried > 0 && failed == tried ? _error : null;
     });
+  }
+
+  /// Ikki ustun balandligini o'lchaydi: past ustunga lid / operatsiya / ishdagilar qatorlarini qo'shadi (bo'sh joy qolmasin)
+  void _balance() {
+    _balPending = false;
+    if (!mounted) return;
+    final bl = _kL.currentContext?.findRenderObject();
+    final br = _kR.currentContext?.findRenderObject();
+    if (bl is! RenderBox || br is! RenderBox || !bl.hasSize || !br.hasSize) return;
+    // 0) bo'limlarni haqiqiy balandligi bo'yicha ustunlarga qayta taqsimlash (eng past umumiy balandlik)
+    final hs = <String, double>{};
+    final cur0 = <String, int>{};
+    for (final n in _secNames) {
+      final rb = _secKeys[n]?.currentContext?.findRenderObject();
+      if (rb is! RenderBox || !rb.hasSize) {
+        hs.clear();
+        break;
+      }
+      hs[n] = rb.size.height;
+      cur0[n] = _placed[n] ?? 0;
+    }
+    if (hs.length == _secNames.length && hs.length >= 2 && hs.length <= 8) {
+      final fixed = {'shift': 1, 'cash': 0};
+      double cost(Map<String, int> m) {
+        double l = 0, r = 0;
+        for (final n in _secNames) {
+          if (m[n] == 0) {
+            l += hs[n]!;
+          } else {
+            r += hs[n]!;
+          }
+        }
+        return math.max(l, r);
+      }
+
+      final names = _secNames;
+      var best = Map<String, int>.from(cur0);
+      var bestCost = cost(best);
+      final curCost = bestCost;
+      for (var mask = 0; mask < (1 << names.length); mask++) {
+        final m = <String, int>{};
+        var ok = true;
+        for (var i = 0; i < names.length; i++) {
+          final v = (mask >> i) & 1;
+          final f = fixed[names[i]];
+          if (f != null && f != v) {
+            ok = false;
+            break;
+          }
+          m[names[i]] = v;
+        }
+        if (!ok) continue;
+        final c = cost(m);
+        if (c < bestCost - 1) {
+          bestCost = c;
+          best = m;
+        }
+      }
+      if (bestCost < curCost - 40) {
+        setState(() => _side..clear()..addAll(best));
+        return;
+      }
+    }
+    final diff = bl.size.height - br.size.height; // >0: chap ustun uzunroq
+    final gap = diff.abs();
+    final shorter = diff > 0 ? _flexR : _flexL;
+    final longer = diff > 0 ? _flexL : _flexR;
+    double rowH(String f) => f == 'work' ? 87 : 78;
+    int cur(String f) => f == 'leads' ? _nLeads : (f == 'ops' ? _nOps : _nWork);
+    int most(String f) => f == 'leads' ? _leadsAll.length : (f == 'ops' ? _opsAll.length : math.min(_now.length, 9));
+    int base(String f) => f == 'leads' ? 3 : (f == 'ops' ? 6 : 5);
+    void put(String f, int v) {
+      if (f == 'leads') {
+        _nLeads = v;
+      } else if (f == 'ops') {
+        _nOps = v;
+      } else {
+        _nWork = v;
+      }
+    }
+
+    // 1) past ustunga qator qo'shish
+    for (final f in shorter.reversed) {
+      final k = (gap / rowH(f)).floor();
+      final room = most(f) - cur(f);
+      if (k > 0 && room > 0) {
+        setState(() => put(f, cur(f) + math.min(k, room)));
+        return;
+      }
+    }
+    // 2) uzun ustun juda oshib ketgan bo'lsa (oyna kengligi o'zgargan) — bittadan kamaytirish
+    for (final f in longer.reversed) {
+      if (cur(f) > base(f) && gap > rowH(f) * 1.2) {
+        setState(() => put(f, cur(f) - 1));
+        return;
+      }
+    }
   }
 
   /// Kompyuter maketi: tepada qidiruv, statistika qatori; keyin chapda kassa+obyektlar, o'ngda ish kuni+hozir ishda;
@@ -225,7 +335,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     Widget objectsGrid() => LayoutBuilder(builder: (context, bc) {
-          final cols = _objs.length == 1 ? 1 : 2;
+          final cols = (_objs.length == 1 || bc.maxWidth < 560) ? 1 : 2;
           final w = (bc.maxWidth - 14 * (cols - 1)) / cols;
           return Wrap(spacing: 14, runSpacing: 14, children: [for (final o in _objs) SizedBox(width: w, height: 112, child: _ObjectCard(o, onTap: () => widget.onOpen?.call('Obyektlar')))]);
         });
@@ -244,44 +354,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Widget leadsCol() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _Section(title: 'Yangi lidlar', trailing: '$_leadsTotal ta', onTap: () => widget.onOpen?.call('Lidlar')),
           if (_leads.isEmpty) const _Empty("Hozircha lid yo'q"),
-          for (final l in _leads) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), child: _LeadRow(l)),
+          for (final l in _leadsAll.take(_nLeads)) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), child: _LeadRow(l)),
         ]);
     Widget opsCol() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _Section(title: 'Oxirgi operatsiyalar', onTap: () => widget.onOpen?.call('Kassa')),
           if (_ops.isEmpty) const _Empty("Operatsiya yo'q"),
-          for (final o in _ops) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), child: _OpRow(o)),
+          for (final o in _opsAll.take(_nOps)) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), child: _OpRow(o)),
         ]);
     // Bo'limlar ikki ustunga balans bilan taqsimlanadi (taxminiy balandlik bo'yicha: qisqa ustunga keyingisi) — bo'sh joy qolmaydi
     final showWork = me.can('attendance:read') && _now.isNotEmpty;
     final workW = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (showWork) ...[
         _Section(title: 'Hozir ishda', trailing: '${_now.length} kishi', onTap: () => widget.onOpen?.call('Davomat')),
-        for (var i = 0; i < _now.take(5).length; i++) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11), onTap: () => _openWorker(_now[i]), child: _WorkingRow(_now[i])),
-        if (_now.length > 5) Padding(padding: const EdgeInsets.only(left: 6, bottom: 8), child: Text('+${_now.length - 5} ${tr('kishi yana')}', style: TextStyle(color: cs.outline, fontSize: 12.5))),
+        for (var i = 0; i < _now.take(_nWork).length; i++) GlassRow(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11), onTap: () => _openWorker(_now[i]), child: _WorkingRow(_now[i])),
+        if (_now.length > _nWork) Padding(padding: const EdgeInsets.only(left: 6, bottom: 8), child: Text('+${_now.length - _nWork} ${tr('kishi yana')}', style: TextStyle(color: cs.outline, fontSize: 12.5))),
       ],
     ]);
     final colL = <Widget>[], colR = <Widget>[];
     double hL = 0, hR = 0;
-    void put(Widget w, double h, {int? side}) {
-      final toLeft = side != null ? side == 0 : (hL / 11 <= hR / 9);
-      final box = Padding(padding: const EdgeInsets.only(bottom: 16), child: w);
+    final flexL = <String>[], flexR = <String>[];
+    final names = <String>[];
+    void put(String name, Widget w, double h, {int? side, String? flex}) {
+      names.add(name);
+      final sd = side ?? _side[name];
+      final toLeft = sd != null ? sd == 0 : (hL / 11 <= hR / 9);
+      _placed[name] = toLeft ? 0 : 1;
+      final box = Padding(key: _secKeys.putIfAbsent(name, GlobalKey.new), padding: const EdgeInsets.only(bottom: 16), child: Reveal(index: 1 + colL.length + colR.length, child: w));
       if (toLeft) {
         colL.add(box);
         hL += h + 16;
+        if (flex != null) flexL.add(flex);
       } else {
         colR.add(box);
         hR += h + 16;
+        if (flex != null) flexR.add(flex);
       }
     }
 
-    if (me.can('shift:write')) put(ShiftCard(session: s), 210, side: 1);
-    if (cash != null) put(cash, 190, side: 0);
-    if (me.role == 'manager' && me.can('sales:read')) put(SalesGlance(session: s, onTap: () => widget.onOpen?.call('Sotuv')), 150);
-    if (me.can('objects:read') && _objs.isNotEmpty) put(objectsGrid(), (_objs.length == 1 ? 1 : (_objs.length + 1) ~/ 2) * 126.0);
-    if (showWork) put(workW, 60 + _now.take(5).length * 64 + (_now.length > 5 ? 30 : 0));
-    if (me.can('leads:read')) put(leadsCol(), 60 + (_leads.isEmpty ? 1 : _leads.length) * 66);
-    if (me.can('cash:read')) put(opsCol(), 60 + (_ops.isEmpty ? 1 : _ops.length) * 66);
+    if (me.can('shift:write')) put('shift', ShiftCard(session: s), 130, side: 1);
+    if (cash != null) put('cash', cash, 160, side: 0);
+    if (me.role == 'manager' && me.can('sales:read')) put('sales', SalesGlance(session: s, onTap: () => widget.onOpen?.call('Sotuv')), 150);
+    if (me.can('objects:read') && _objs.isNotEmpty) put('objects', objectsGrid(), (_objs.length == 1 ? 1 : (_objs.length + 1) ~/ 2) * 126.0);
+    if (showWork) put('work', workW, 60 + _now.take(_nWork).length * 87 + (_now.length > _nWork ? 30 : 0), flex: 'work');
+    if (me.can('leads:read')) put('leads', leadsCol(), 60 + (_leadsAll.isEmpty ? 1 : _leadsAll.take(_nLeads).length) * 78, flex: 'leads');
+    if (me.can('cash:read')) put('ops', opsCol(), 60 + (_opsAll.isEmpty ? 1 : _opsAll.take(_nOps).length) * 78, flex: 'ops');
     final left = colL, right = colR;
+    _flexL = flexL;
+    _flexR = flexR;
+    _secNames = names;
+    if (!_balPending) {
+      _balPending = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _balance());
+    }
 
     final tiles = LayoutBuilder(builder: (context, bc) {
       final cols = (bc.maxWidth / 118).floor().clamp(4, 9);
@@ -299,18 +423,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (!searching) TgConnectBanner(session: s),
           const SizedBox(height: 4),
           if (!searching) ...[
-            if (stats.isNotEmpty) statRow(),
+            if (stats.isNotEmpty) Reveal(child: statRow()),
             if (left.isNotEmpty || right.isNotEmpty)
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if (left.isNotEmpty) Expanded(flex: 11, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: left)),
+                if (left.isNotEmpty) Expanded(flex: 11, child: Column(key: _kL, crossAxisAlignment: CrossAxisAlignment.stretch, children: left)),
                 if (left.isNotEmpty && right.isNotEmpty) const SizedBox(width: 20),
-                if (right.isNotEmpty) Expanded(flex: 9, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: right)),
+                if (right.isNotEmpty) Expanded(flex: 9, child: Column(key: _kR, crossAxisAlignment: CrossAxisAlignment.stretch, children: right)),
               ]),
           ],
           if (services.isNotEmpty) ...[
             const SizedBox(height: 24),
             _Section(title: 'Xizmatlar'),
-            tiles,
+            Reveal(index: 5, child: tiles),
           ] else if (searching)
             const Padding(padding: EdgeInsets.all(32), child: Center(child: Text("Hech narsa topilmadi"))),
         ],

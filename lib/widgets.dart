@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/rendering.dart';
 
 
 import 'api.dart';
@@ -183,10 +185,121 @@ class DeskGrid extends StatelessWidget {
     return LayoutBuilder(builder: (context, bc) {
       final cols = ((bc.maxWidth + gap) / (minColumn + gap)).floor().clamp(1, maxColumns);
       if (cols == 1) return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
-      final w = (bc.maxWidth - gap * (cols - 1)) / cols;
-      return Wrap(spacing: gap, children: [for (final c in children) SizedBox(width: w, child: c)]);
+      // har qatordagi kartalar bir xil balandlikda (past-baland bo'lmasin, bo'sh joy qolmasin)
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        for (var i = 0; i < children.length; i += cols) _EqualRow(cols: cols, gap: gap, children: children.sublist(i, math.min(i + cols, children.length))),
+      ]);
     });
   }
+}
+
+/// Bir qatordagi elementlarni teng kenglikda joylaydi va hammasini eng baland element balandligiga tenglaydi
+/// (IntrinsicHeight ishlatilmaydi — ichida LayoutBuilder bo'lgan elementlar ham xavfsiz).
+class _EqualRow extends MultiChildRenderObjectWidget {
+  const _EqualRow({required this.cols, required this.gap, required super.children});
+
+  final int cols;
+  final double gap;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderEqualRow(cols, gap);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderEqualRow renderObject) {
+    renderObject
+      ..cols = cols
+      ..gap = gap;
+  }
+}
+
+class _EqualParentData extends ContainerBoxParentData<RenderBox> {}
+
+class _RenderEqualRow extends RenderBox with ContainerRenderObjectMixin<RenderBox, _EqualParentData>, RenderBoxContainerDefaultsMixin<RenderBox, _EqualParentData> {
+  _RenderEqualRow(this._cols, this._gap);
+
+  int _cols;
+  double _gap;
+
+  set cols(int v) {
+    if (v == _cols) return;
+    _cols = v;
+    markNeedsLayout();
+  }
+
+  set gap(double v) {
+    if (v == _gap) return;
+    _gap = v;
+    markNeedsLayout();
+  }
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _EqualParentData) child.parentData = _EqualParentData();
+  }
+
+  double _colW(double maxW) => (maxW - _gap * (_cols - 1)) / _cols;
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final w = _colW(constraints.maxWidth);
+    var h = 0.0;
+    var c = firstChild;
+    while (c != null) {
+      h = math.max(h, c.getDryLayout(BoxConstraints(minWidth: w, maxWidth: w)).height);
+      c = (c.parentData! as _EqualParentData).nextSibling;
+    }
+    return constraints.constrain(Size(constraints.maxWidth, h));
+  }
+
+  @override
+  void performLayout() {
+    final w = _colW(constraints.maxWidth);
+    var h = 0.0;
+    var c = firstChild;
+    while (c != null) {
+      c.layout(BoxConstraints(minWidth: w, maxWidth: w), parentUsesSize: true);
+      h = math.max(h, c.size.height);
+      c = (c.parentData! as _EqualParentData).nextSibling;
+    }
+    var i = 0;
+    c = firstChild;
+    while (c != null) {
+      if (c.size.height != h) c.layout(BoxConstraints.tightFor(width: w, height: h), parentUsesSize: true);
+      (c.parentData! as _EqualParentData).offset = Offset(i * (w + _gap), 0);
+      i++;
+      c = (c.parentData! as _EqualParentData).nextSibling;
+    }
+    size = constraints.constrain(Size(constraints.maxWidth, h));
+  }
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _intrinsicH(width);
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => _intrinsicH(width);
+
+  double _intrinsicH(double width) {
+    final w = _colW(width);
+    var h = 0.0;
+    var c = firstChild;
+    while (c != null) {
+      h = math.max(h, c.getMaxIntrinsicHeight(w));
+      c = (c.parentData! as _EqualParentData).nextSibling;
+    }
+    return h;
+  }
+
+  @override
+  double computeMinIntrinsicWidth(double height) => 0;
+
+  @override
+  double computeMaxIntrinsicWidth(double height) => 0;
+
+  @override
+  void paint(PaintingContext context, Offset offset) => defaultPaint(context, offset);
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) => defaultHitTestChildren(result, position: position);
 }
 
 class ErrorView extends StatelessWidget {
