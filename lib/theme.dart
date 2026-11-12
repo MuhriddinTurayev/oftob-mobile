@@ -10,6 +10,7 @@ import 'package:flutter/rendering.dart' show RenderProxyBox;
 import 'package:flutter/services.dart';
 
 import 'l10n.dart';
+import 'lite.dart';
 import 'motion.dart';
 
 /// Brend ranglari (logotip: to'q yashil + sariq) va «shisha» (glass) uslubi:
@@ -152,9 +153,13 @@ class GlassBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final lite = LiteScope.of(context);
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(statusBarColor: Colors.transparent, systemNavigationBarColor: Colors.transparent, systemNavigationBarDividerColor: Colors.transparent),
       child: Stack(fit: StackFit.expand, children: [
+        if (lite)
+          ColoredBox(color: _base(dark)[1], child: const SizedBox.expand()) // yengil rejim: tekis fon
+        else
         RepaintBoundary(
           child: LayoutBuilder(
             builder: (context, bc) => CustomPaint(painter: _BackdropPainter(dark, _image(dark, bc.biggest)), child: const SizedBox.expand()),
@@ -235,9 +240,11 @@ class Glass extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final lite = LiteScope.of(context);
     final br = BorderRadius.circular(radius);
-    final fill = tint;
-    final fillGradient = gradient ?? (tint != null ? null : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? const [Color(0xB31A2542), Color(0x99111A33)] : [Colors.white.withValues(alpha: blur ? 0.6 : 0.62), Colors.white.withValues(alpha: blur ? 0.26 : 0.3)]));
+    // yengil rejim: tekis rang (gradient, xira qilish, soya, kesish yo'q) — kuchsiz video-kartada ham silliq
+    final fill = lite ? (tint ?? (dark ? const Color(0xE61A2542) : const Color(0xE6FFFFFF))) : tint;
+    final fillGradient = lite ? null : gradient ?? (tint != null ? null : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? const [Color(0xB31A2542), Color(0x99111A33)] : [Colors.white.withValues(alpha: blur ? 0.6 : 0.62), Colors.white.withValues(alpha: blur ? 0.26 : 0.3)]));
     Widget body = DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: br,
@@ -247,13 +254,13 @@ class Glass extends StatelessWidget {
       ),
       child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
     );
-    if (blur) {
+    if (blur && !lite) {
       body = BackdropFilter(filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14), child: body);
     }
-    if (blur || clip) body = ClipRRect(borderRadius: br, child: body);
+    if ((blur && !lite) || clip) body = ClipRRect(borderRadius: br, child: body);
     Widget out = Container(
       margin: margin,
-      decoration: shadow ? BoxDecoration(borderRadius: br, boxShadow: [BoxShadow(color: (dark ? Colors.black : const Color(0xFF1E3A8A)).withValues(alpha: dark ? 0.35 : 0.12), blurRadius: 18, offset: const Offset(0, 7))]) : null,
+      decoration: shadow && !lite ? BoxDecoration(borderRadius: br, boxShadow: [BoxShadow(color: (dark ? Colors.black : const Color(0xFF1E3A8A)).withValues(alpha: dark ? 0.35 : 0.12), blurRadius: 18, offset: const Offset(0, 7))]) : null,
       child: body,
     );
     if (onTap != null || onLongPress != null) {

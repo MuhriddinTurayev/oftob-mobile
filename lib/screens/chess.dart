@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../format.dart';
 import '../l10n.dart';
 import '../pulse.dart';
+import '../lite.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -338,7 +339,8 @@ class _ChessCellState extends State<_ChessCell> {
     final price = (a['price'] as num?) ?? 0;
     final buyer = (a['buyer'] as Map?)?['name'];
     final tip = '${tr('Kv.')} $no · ${rooms > 0 ? '$rooms ${tr('xona')}' : tr('Tijorat')} · ${area(a['area'] as num?)} m²\n${money(price)} ${tr("so'm")} · ${aptStatus(st)}${buyer != null ? '\n$buyer' : ''}';
-    final lift = _hover && widget.on;
+    final lite = LiteScope.of(context);
+    final lift = _hover && widget.on && !lite;
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 160),
       opacity: widget.on ? 1 : 0.2,
@@ -352,7 +354,7 @@ class _ChessCellState extends State<_ChessCell> {
           child: GestureDetector(
             onTap: widget.on ? widget.onTap : null,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 130),
+              duration: lite ? Duration.zero : const Duration(milliseconds: 130),
               curve: Curves.easeOut,
               width: widget.w,
               height: widget.h,

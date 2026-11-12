@@ -11,6 +11,7 @@ import 'dart:async';
 import '../api.dart';
 import '../offline.dart';
 import '../prefetch.dart';
+import '../lite.dart';
 import '../pulse.dart';
 import '../session.dart';
 import 'attendance.dart';
@@ -114,7 +115,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? _syncTimer;
 
   /// Biror o'zgarish bo'ldi — bosh sahifa (kassa, smena, lidlar, hozir ishda...) jimgina yangilanadi
-  void _onLeadPulse() => _dashRefresh.value++;
+  DateTime _lastDash = DateTime(2000);
+  Timer? _dashT;
+  void _onLeadPulse() {
+    final gap = Duration(seconds: Lite.on.value ? 8 : 3);
+    final wait = gap - DateTime.now().difference(_lastDash);
+    if (wait <= Duration.zero) {
+      _lastDash = DateTime.now();
+      _dashRefresh.value++;
+    } else {
+      _dashT ??= Timer(wait, () {
+        _dashT = null;
+        _lastDash = DateTime.now();
+        if (mounted) _dashRefresh.value++;
+      });
+    }
+  }
 
   /// Ilova oxirgi marta ekranga chiqqan payt (Firebase push bilan takrorni oldini olish uchun)
   DateTime _fgSince = DateTime.now().toUtc();
@@ -148,6 +164,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (ApiClient.onExpired == _expired) ApiClient.onExpired = null;
     HardwareKeyboard.instance.removeHandler(_hotkey);
     WidgetsBinding.instance.removeObserver(this);
+    _dashT?.cancel();
     _syncTimer?.cancel();
     _nc.dispose();
     super.dispose();
@@ -983,6 +1000,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   _ThemeDot(icon: Icons.light_mode_rounded, tip: 'Kun', on: tm == ThemeMode.light, onTap: () => ThemeController.set(ThemeMode.light), size: 30),
                   const SizedBox(width: 5),
                   _ThemeDot(icon: Icons.dark_mode_rounded, tip: 'Tun', on: tm == ThemeMode.dark, onTap: () => ThemeController.set(ThemeMode.dark), size: 30),
+                  const SizedBox(width: 10),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: Lite.on,
+                    builder: (_, lite, _) => _ThemeDot(icon: Icons.bolt_rounded, tip: lite ? 'Yengil rejim: yoqilgan (bosing — o\'chirish)' : 'Yengil rejim (kuchsiz kompyuter uchun)', on: lite, onTap: () => Lite.setManual(!lite), size: 30),
+                  ),
                 ]),
               ),
             ),

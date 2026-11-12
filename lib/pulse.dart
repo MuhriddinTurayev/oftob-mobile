@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'lite.dart';
 import 'offline.dart';
 import 'push.dart';
 import 'session.dart';
@@ -28,6 +29,7 @@ class Pulse {
   static int _fails = 0;
   static bool _legacy = false; // eski server: lidlar + smena pulsi
   static int _legacyTick = 0;
+  static int _n = 0;
 
   static ValueNotifier<int>? _of(String k) => switch (k) {
         'leads' => leads,
@@ -58,6 +60,7 @@ class Pulse {
   static Future<void> _poll(Session s) async {
     final api = s.api;
     if (api == null || _busy || !Offline.online.value) return;
+    if (Lite.on.value && (_n++ % 2 == 1)) return; // yengil rejim: har 4 soniyada
     _busy = true;
     try {
       Map<String, String>? cur;

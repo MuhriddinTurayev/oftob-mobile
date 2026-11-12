@@ -17,18 +17,21 @@ import 'assistant.dart';
 import 'fcm.dart';
 import 'push.dart';
 import 'splash.dart';
+import 'lite.dart';
 import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await L.load(); // saqlangan (yoki telefon) tili birinchi kadrdan to'g'ri bo'lsin
   await ThemeController.load();
+  await Lite.load(); // kuchsiz kompyuter uchun «yengil rejim» (avval o'lchangan bo'lsa — birinchi kadrdan yoqiq)
   await Push.init(); // telefon bildirishnomalari va ilova yopiq paytdagi tekshiruv (Android)
   await Fcm.init(); // Firebase push (sozlangan bo'lsa): ilova yopiq / telefon qulflangan bo'lsa ham darhol
   final session = Session()..restore();
   L.notifier.addListener(session.refreshMe); // til o'zgarsa — rol nomi kabi server matnlari yangi tilda olinadi
   if (_fpsLog) _startFpsLog();
   runApp(OftobApp(session: session));
+  WidgetsBinding.instance.addPostFrameCallback((_) => Lite.startMonitor()); // birinchi daqiqalarda kadr tezligi o'lchanadi
 }
 
 /// Faqat sinov qurilmasida (--dart-define=OFTOB_FPSLOG=true): har soniyada nechta kadr chizilgani va eng sekin kadr.
@@ -135,7 +138,8 @@ class _OftobAppState extends State<OftobApp> {
             final ai = _splashDone ? _assistant() : null;
             // klaviatura: bo'sh joyga bosish yoki «Tayyor» bilan yopiladi (iPhone raqam klaviaturasida yopish tugmasi yo'q)
             final mq = MediaQuery.of(context);
-            return MediaQuery(
+            return LiteScope(
+              child: MediaQuery(
               data: mq.copyWith(textScaler: mq.textScaler.clamp(minScaleFactor: 0.85, maxScaleFactor: 1.15)),
               child: KeyboardDismiss(
                 child: Stack(children: [
@@ -149,11 +153,12 @@ class _OftobAppState extends State<OftobApp> {
                   if (ai != null) AiBubble(controller: ai, navigatorKey: _navKey),
                 ]),
               ),
+            ),
             );
           },
         ),
         home: AnimatedSwitcher(
-          duration: Duration(milliseconds: _desktopOs ? 200 : 550),
+          duration: Duration(milliseconds: _desktopOs ? (Lite.on.value ? 0 : 200) : 550),
           switchInCurve: Curves.easeOut,
           child: !_splashDone
               ? ListenableBuilder(
