@@ -746,6 +746,30 @@ class NavInset extends InheritedWidget {
   bool updateShouldNotify(NavInset old) => old.inset != inset;
 }
 
+/// Ro'yxatning tepa chetini yumshoq so'ndiradi: aylantirganda kartalar sarlavha tagida keskin «kesilib» qolmaydi, silliq yo'qoladi.
+class SoftEdge extends StatelessWidget {
+  const SoftEdge({super.key, required this.child, this.top = 18, this.enabled = true});
+
+  final Widget child;
+  final double top;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled) return child;
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (r) => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: const [Color(0x00FFFFFF), Color(0xFFFFFFFF)],
+        stops: [0, r.height <= 0 ? 0 : (top / r.height).clamp(0.0, 1.0)],
+      ).createShader(r),
+      child: child,
+    );
+  }
+}
+
 /// Shaffof shisha suzuvchi tugma (orqasidagi ro'yxat xira ko'rinadi).
 class GlassFab extends StatelessWidget {
   const GlassFab({super.key, required this.onPressed, required this.icon, required this.label});

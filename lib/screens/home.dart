@@ -1199,7 +1199,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final content = Column(children: [
       _header(i, moreIndex, tabs),
       OfflineBar(onTap: () => _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s)))),
-      Expanded(child: NavInset(inset: wide ? 0 : NavInset.bar, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()]))),
+      Expanded(child: SoftEdge(enabled: !wide, child: NavInset(inset: wide ? 0 : NavInset.bar, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()])))),
     ]);
     if (wide) {
       return DeskShell(child: CallbackShortcuts(
