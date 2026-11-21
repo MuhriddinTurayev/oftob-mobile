@@ -762,11 +762,13 @@ class TopGlass extends StatelessWidget {
   final ValueChanged<double> onHeight;
   final Widget child;
 
+  static const double _fadeH = 44; // panel ostidagi yumshoq o'tish balandligi
+  static const _ease = [1.0, 0.896, 0.648, 0.352, 0.104, 0.0]; // smoothstep
+
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
     final tint = dark ? const Color(0xFF0B1631) : const Color(0xFFEAF1FF);
-    final line = dark ? const Color(0xFFFFFFFF) : const Color(0xFFFFFFFF);
     return Stack(clipBehavior: Clip.none, children: [
       Positioned.fill(
         child: IgnorePointer(
@@ -774,16 +776,43 @@ class TopGlass extends StatelessWidget {
             valueListenable: t,
             builder: (context, v, _) {
               if (v <= 0) return const SizedBox.shrink();
-              return Stack(children: [
+              final a = (dark ? 0.5 : 0.4) * v;
+              const bands = [16.0, 13.0, 10.0, 7.5, 5.5, 3.6, 2.1, 0.9];
+              const bandH = _fadeH / 8;
+              return Stack(clipBehavior: Clip.none, children: [
                 Positioned.fill(
                   child: ClipRect(
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 18 * v, sigmaY: 18 * v, tileMode: TileMode.clamp),
-                      child: ColoredBox(color: tint.withValues(alpha: (dark ? 0.5 : 0.4) * v)),
+                      child: ColoredBox(color: tint.withValues(alpha: a)),
                     ),
                   ),
                 ),
-                Positioned(left: 0, right: 0, bottom: 0, height: 0.7, child: ColoredBox(color: line.withValues(alpha: (dark ? 0.14 : 0.8) * v))),
+                // pastki cheti keskin «kesilmasin»: xira kuchi va rangi pastga qarab silliq (smoothstep) yo'qoladi — chiziq ham yo'q
+                for (var i = 0; i < bands.length; i++)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: -(i + 1) * bandH - 0.5,
+                    height: bandH + 0.5,
+                    child: ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: bands[i] * v, sigmaY: bands[i] * v, tileMode: TileMode.clamp), child: const SizedBox.expand())),
+                  ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: -_fadeH,
+                  height: _fadeH,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [for (final k in _ease) tint.withValues(alpha: a * k)],
+                        stops: const [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
               ]);
             },
           ),
