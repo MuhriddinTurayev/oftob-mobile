@@ -438,7 +438,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ]),
           ),
         );
-    return ListView(
+    // Builder: bu usul HomeScreen State'ida — shu yerdagi `context` NavInset'dan YUQORIDA, shuning uchun tepa bo'sh joyni pastdagi kontekstdan olamiz
+    return Builder(builder: (context) => ListView(
       padding: EdgeInsets.fromLTRB(16, 4 + NavInset.topOf(context), 16, NavInset.listBottom(context)),
       children: [
         Glass(
@@ -512,7 +513,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           },
         ),
       ],
-    );
+    ));
   }
 
   /// Kompyuter: «Yana» — profil va sozlamalar tepada, guruhlar kartochka to'rida (ichidagi bo'limlar ochiq ko'rinadi, bosilsa — yon panelda ochiladi)
