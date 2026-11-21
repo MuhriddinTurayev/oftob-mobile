@@ -406,7 +406,7 @@ class _FutureBodyState<T> extends State<FutureBody<T>> {
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null && _data == null) return ErrorView(message: _error!, onRetry: _reload);
-    return RefreshIndicator(onRefresh: _reload, child: widget.builder(context, _data as T, _reload));
+    return RefreshIndicator(onRefresh: _reload, edgeOffset: NavInset.topOf(context), child: widget.builder(context, _data as T, _reload));
   }
 }
 

@@ -309,7 +309,7 @@ class _CashScreenState extends State<CashScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+          padding: EdgeInsets.fromLTRB(16, 4 + NavInset.topOf(context), 8, 0),
           child: Row(children: [
             Expanded(child: const Text('Kassalar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
             IconButton(onPressed: _refreshAll, icon: const Icon(Icons.refresh)),

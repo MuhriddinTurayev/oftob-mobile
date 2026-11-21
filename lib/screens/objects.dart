@@ -38,11 +38,11 @@ class ObjectsScreen extends StatelessWidget {
       load: () => session.api!.objects(),
       builder: (context, objects, _) {
         if (objects.isEmpty) {
-          return ListView(children: const [Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Obyektlar yo\'q')))]);
+          return ListView(padding: EdgeInsets.only(top: NavInset.topOf(context)), children: const [Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Obyektlar yo\'q')))]);
         }
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(12, 12, 12, NavInset.listBottom(context)),
+          padding: EdgeInsets.fromLTRB(12, 12 + NavInset.topOf(context), 12, NavInset.listBottom(context)),
           children: [
             DeskGrid(minColumn: 380, maxColumns: 3, gap: 12, children: [
           for (var i = 0; i < objects.length; i++)

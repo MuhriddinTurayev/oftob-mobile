@@ -439,7 +439,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         );
     return ListView(
-      padding: EdgeInsets.fromLTRB(16, 4, 16, NavInset.listBottom(context)),
+      padding: EdgeInsets.fromLTRB(16, 4 + NavInset.topOf(context), 16, NavInset.listBottom(context)),
       children: [
         Glass(
           radius: 26,
@@ -828,6 +828,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// (null — oddiy tab). Ichkaridan ochiladigan tafsilotlar (xonadon, hujjat…) esa yon panelda.
   final _secN = ValueNotifier<String?>(null);
 
+  /// Telefon: tepa shisha panelning balandligi va aylantirilganlik darajasi (0..1) — har bir tab uchun alohida eslab qolinadi
+  final _hdrH = ValueNotifier<double>(0);
+  final _glassT = ValueNotifier<double>(0);
+  final Map<int, double> _tabT = {};
+  int _curTab = 0;
+  int _shownTab = 0;
+
+  bool _onTabScroll(ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    final ro = n.context?.findRenderObject();
+    if (ro is! RenderBox || !ro.attached) return false;
+    // faqat ekran tepasigacha cho'zilgan (sarlavha ostiga kiradigan) ro'yxatlar; sarlavha ostidagi boshqa ro'yxatlar emas
+    if (ro.localToGlobal(Offset.zero).dy > 1.5) return false;
+    final v = (n.metrics.pixels / 16).clamp(0.0, 1.0);
+    final old = _tabT[_curTab] ?? 0;
+    if ((v - old).abs() < 0.02 && v != 0 && v != 1) return false;
+    _tabT[_curTab] = v;
+    _glassT.value = v;
+    return false;
+  }
+
   /// Yon menyuda yig'ilgan guruhlar
   final Set<String> _railClosed = {};
 
@@ -1196,11 +1217,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final moreIndex = tabs.length; // oxirgi — «Yana»
     final i = _index.clamp(0, moreIndex);
     final wide = MediaQuery.sizeOf(context).width >= _wide;
-    final content = Column(children: [
-      _header(i, moreIndex, tabs),
-      OfflineBar(onTap: () => _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s)))),
-      Expanded(child: SoftEdge(enabled: !wide, resetKey: i, child: NavInset(inset: wide ? 0 : NavInset.bar, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()])))),
-    ]);
+    _curTab = i;
+    if (_shownTab != i) {
+      _shownTab = i;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _glassT.value = _tabT[i] ?? 0);
+    }
     if (wide) {
       return DeskShell(child: CallbackShortcuts(
         bindings: {
@@ -1235,7 +1256,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     return Scaffold(
       extendBody: true, // tarkib suzuvchi panel ostidan o'tadi (xira ko'rinadi)
-      body: SafeArea(bottom: false, child: content),
+      // Telegramdagidek: ro'yxat ekran tepasigacha cho'ziladi, tepada esa shisha panel (status satri + sarlavha) — kontent uning ostidan o'tib xira ko'rinadi
+      body: ValueListenableBuilder<double>(
+        valueListenable: _hdrH,
+        builder: (context, hh, _) {
+          final topPad = MediaQuery.paddingOf(context).top;
+          return Stack(children: [
+            Positioned.fill(
+              child: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _onTabScroll,
+                  child: NavInset(inset: NavInset.bar, top: hh > 0 ? hh : topPad + 64, child: AnimatedTabs(index: i, children: [for (final t in tabs) t.builder(s), _moreTab()])),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: TopGlass(
+                t: _glassT,
+                onHeight: (v) {
+                  if (v != _hdrH.value) _hdrH.value = v;
+                },
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  SizedBox(height: topPad),
+                  _header(i, moreIndex, tabs),
+                  OfflineBar(onTap: () => _nav.push(DeskRoute<void>(builder: (_) => SyncScreen(session: s)))),
+                ]),
+              ),
+            ),
+          ]);
+        },
+      ),
       bottomNavigationBar: GlassNavBar(
         index: i,
         onTap: (v) {

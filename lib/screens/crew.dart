@@ -186,9 +186,10 @@ class _CrewScreenState extends State<CrewScreen> {
     }
     return RefreshIndicator(
       onRefresh: () => _load(quiet: true),
+      edgeOffset: NavInset.topOf(context),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.only(bottom: NavInset.listBottom(context)),
+        padding: EdgeInsets.only(top: NavInset.topOf(context), bottom: NavInset.listBottom(context)),
         children: [
           if (_money)
             Padding(

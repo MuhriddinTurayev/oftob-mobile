@@ -727,9 +727,14 @@ class HeroGlass extends StatelessWidget {
 /// Pastki suzuvchi panel egallagan joy: bosh sahifaning tablarida bor (panel ostida kontent o'tadi), «Yana»dan ochilgan to'liq sahifalarda yo'q.
 /// Suzuvchi tugmalar va ro'yxatlarning pastki bo'sh joyi shunga qarab moslashadi.
 class NavInset extends InheritedWidget {
-  const NavInset({super.key, required this.inset, required super.child});
+  const NavInset({super.key, required this.inset, this.top = 0, required super.child});
 
   final double inset;
+
+  /// Tepadagi shisha sarlavha panelining balandligi (status satri bilan): ro'yxatlar shu panel TAGIDAN boshlanadi va aylantirganda panel ostiga kiradi.
+  final double top;
+
+  static double topOf(BuildContext context) => context.dependOnInheritedWidgetOfExactType<NavInset>()?.top ?? 0;
 
   static const double bar = 92;
 
@@ -743,103 +748,79 @@ class NavInset extends InheritedWidget {
   }
 
   @override
-  bool updateShouldNotify(NavInset old) => old.inset != inset;
+  bool updateShouldNotify(NavInset old) => old.inset != inset || old.top != top;
 }
 
 /// Ro'yxatning tepa chetini yumshoq so'ndiradi: aylantirganda kartalar sarlavha tagida keskin «kesilib» qolmaydi, silliq yo'qoladi.
-/// Telegramdagidek: ro'yxat sarlavha tagiga kirganda tepa cheti (44px) xira (blur) bo'lib, fon rangiga silliq «eriydi» — kartalar
-/// shaffof bo'lib oq dog' qoldirmaydi, keskin kesilmaydi. Ro'yxat eng tepada turganda hech narsa yo'q (birinchi karta toza),
-/// aylantirgan sari asta-sekin kuchayadi. Xira qatlam faqat shu kichik polosada (butun ekranda emas) — iPhone'da yengil.
-/// [resetKey] o'zgarsa (bo'lim almashsa) nolga qaytadi.
-class SoftEdge extends StatefulWidget {
-  const SoftEdge({super.key, required this.child, this.top = 44, this.enabled = true, this.resetKey});
+/// Telegramdagidek tepa shisha panel (status satri + sarlavha): ro'yxat uning tagidan o'tganda kontent xira (blur) ko'rinadi.
+/// Ro'yxat eng tepada turganda panel butunlay shaffof (oddiy sarlavha), aylantirgan sari [t] 0..1 bo'yicha xira va rangli qatlam kuchayadi.
+/// Xira faqat panel o'lchamida (butun ekranda emas) — iPhone'da yengil.
+class TopGlass extends StatelessWidget {
+  const TopGlass({super.key, required this.t, required this.onHeight, required this.child});
 
+  final ValueNotifier<double> t;
+  final ValueChanged<double> onHeight;
   final Widget child;
-  final double top;
-  final bool enabled;
-  final Object? resetKey;
-
-  @override
-  State<SoftEdge> createState() => _SoftEdgeState();
-}
-
-class _SoftEdgeState extends State<SoftEdge> {
-  final ValueNotifier<double> _t = ValueNotifier(0);
-
-  @override
-  void didUpdateWidget(SoftEdge old) {
-    super.didUpdateWidget(old);
-    if (old.resetKey != widget.resetKey) _t.value = 0;
-  }
-
-  @override
-  void dispose() {
-    _t.dispose();
-    super.dispose();
-  }
-
-  bool _onScroll(ScrollNotification n) {
-    if (n.metrics.axis != Axis.vertical) return false;
-    final v = (n.metrics.pixels / 36).clamp(0.0, 1.0);
-    if ((v - _t.value).abs() > 0.02 || (v == 0 && _t.value != 0) || (v == 1 && _t.value != 1)) _t.value = v;
-    return false;
-  }
-
-  // xira polosalar: tepada kuchli, pastga qarab kuchsizlanadi (progressiv blur: BackdropFilter + ShaderMask birga ishlamaydi, shuning uchun bosqichma-bosqich)
-  static const _sigma = [11.0, 7.5, 4.5, 2.0];
-  // smoothstep(x) = x²(3−2x): rang qatlami silliq yo'qoladi
-  static const _stops = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
-  static const _alpha = [1.0, 0.896, 0.648, 0.352, 0.104, 0.0];
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.enabled) return widget.child;
     final dark = context.isDark;
-    // fon rangiga yaqin qatlam: xira bo'lgan karta chetini fonga silliq «eritadi» (oq dog' / bulut bo'lib qolmaydi)
-    final tint = dark ? const Color(0xFF0B1631) : const Color(0xFFDCE6F6);
-    return NotificationListener<ScrollNotification>(
-      onNotification: _onScroll,
-      child: Stack(fit: StackFit.passthrough, children: [
-        widget.child,
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          height: widget.top,
-          child: IgnorePointer(
-            child: ValueListenableBuilder<double>(
-              valueListenable: _t,
-              builder: (context, t, _) {
-                if (t <= 0) return const SizedBox.shrink();
-                final band = widget.top / _sigma.length;
-                return Stack(children: [
-                  for (var i = 0; i < _sigma.length; i++)
-                    Positioned(
-                      top: band * i,
-                      left: 0,
-                      right: 0,
-                      height: band + (i == _sigma.length - 1 ? 0 : 0.5), // polosalar orasida chiziq qolmasin
-                      child: ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: _sigma[i] * t, sigmaY: _sigma[i] * t, tileMode: TileMode.clamp), child: const SizedBox.expand())),
-                    ),
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [for (final a in _alpha) tint.withValues(alpha: a * 0.62 * t)],
-                          stops: _stops,
-                        ),
-                      ),
+    final tint = dark ? const Color(0xFF0B1631) : const Color(0xFFEAF1FF);
+    final line = dark ? const Color(0xFFFFFFFF) : const Color(0xFFFFFFFF);
+    return Stack(clipBehavior: Clip.none, children: [
+      Positioned.fill(
+        child: IgnorePointer(
+          child: ValueListenableBuilder<double>(
+            valueListenable: t,
+            builder: (context, v, _) {
+              if (v <= 0) return const SizedBox.shrink();
+              return Stack(children: [
+                Positioned.fill(
+                  child: ClipRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 18 * v, sigmaY: 18 * v, tileMode: TileMode.clamp),
+                      child: ColoredBox(color: tint.withValues(alpha: (dark ? 0.5 : 0.4) * v)),
                     ),
                   ),
-                ]);
-              },
-            ),
+                ),
+                Positioned(left: 0, right: 0, bottom: 0, height: 0.7, child: ColoredBox(color: line.withValues(alpha: (dark ? 0.14 : 0.8) * v))),
+              ]);
+            },
           ),
         ),
-      ]),
-    );
+      ),
+      _SizeReporter(onSize: onHeight, child: child),
+    ]);
+  }
+}
+
+/// Bolasining balandligini (layoutdan keyin) xabar beradi — ro'yxatlarning tepa bo'sh joyi shunga moslanadi.
+class _SizeReporter extends SingleChildRenderObjectWidget {
+  const _SizeReporter({required this.onSize, super.child});
+
+  final ValueChanged<double> onSize;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderSizeReporter(onSize);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderSizeReporter r) => r.onSize = onSize;
+}
+
+class _RenderSizeReporter extends RenderProxyBox {
+  _RenderSizeReporter(this.onSize);
+
+  ValueChanged<double> onSize;
+  double _last = -1;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final h = size.height;
+    if (h != _last) {
+      _last = h;
+      WidgetsBinding.instance.addPostFrameCallback((_) => onSize(h));
+    }
   }
 }
 
