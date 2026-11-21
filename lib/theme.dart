@@ -1,4 +1,4 @@
-import 'dart:ui' as ui show Image, PictureRecorder;
+﻿import 'dart:ui' as ui show Image, PictureRecorder;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -13,10 +13,10 @@ import 'l10n.dart';
 import 'lite.dart';
 import 'motion.dart';
 
-/// Brend ranglari (logotip: to'q yashil + sariq) va «shisha» (glass) uslubi:
+/// Brend ranglari (logotip: to'q yashil + sariq) va В«shishaВ» (glass) uslubi:
 /// yumshoq gradient fon, yarim shaffof oq kartalar, suzuvchi pastki panel.
 class Brand {
-  /// Asosiy rang (nomi tarixiy: avval yashil edi) — yangi logodagi ko'k
+  /// Asosiy rang (nomi tarixiy: avval yashil edi) вЂ” yangi logodagi ko'k
   static const green = Color(0xFF2563EB);
   static const greenDark = Color(0xFF1E3A8A);
   static const amber = Color(0xFFF2A900);
@@ -29,16 +29,16 @@ class Brand {
   /// Logodagi to'q ko'k (yorug' fondagi matn va belgilar)
   static const navy = Color(0xFF11265C);
 
-  /// Logo: yorug' fonda — to'q ko'k, tungi rejimda — oq
+  /// Logo: yorug' fonda вЂ” to'q ko'k, tungi rejimda вЂ” oq
   static String logo(bool dark) => dark ? 'assets/brand/logo_white.png' : 'assets/brand/logo_navy.png';
   static String mark(bool dark) => dark ? 'assets/brand/mark_white.png' : 'assets/brand/mark_navy.png';
 }
 
-/// Mavzu ranglari: yorug' va qorong'i rejimda o'qiladigan «siyoh» va shaffof belgi (pill) ranglari.
+/// Mavzu ranglari: yorug' va qorong'i rejimda o'qiladigan В«siyohВ» va shaffof belgi (pill) ranglari.
 extension GlassColors on BuildContext {
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
 
-  /// Shisha kartadagi asosiy yirik matn rangi (yorug'da — to'q ko'k, qorong'ida — och havorang)
+  /// Shisha kartadagi asosiy yirik matn rangi (yorug'da вЂ” to'q ko'k, qorong'ida вЂ” och havorang)
   Color get ink => isDark ? const Color(0xFFE3ECFF) : const Color(0xFF0F2350);
 
   /// Ikkinchi darajali matn (yorliqlar)
@@ -69,7 +69,7 @@ class ThemeController {
   }
 }
 
-/// Hamma sahifalar uchun umumiy «soat»: fon sharlari bir xil fazada sekin suzadi (sahifa almashganda ham sakramaydi).
+/// Hamma sahifalar uchun umumiy В«soatВ»: fon sharlari bir xil fazada sekin suzadi (sahifa almashganda ham sakramaydi).
 class BackdropClock {
   static final ValueNotifier<double> t = ValueNotifier(0);
   static Ticker? _ticker;
@@ -97,7 +97,7 @@ class _Provider implements TickerProvider {
 ///
 /// TEZLIK: fon bir marta kichik rasmga chiziladi va keyin har kadrda faqat shu bitta rasm cho'ziladi.
 /// Oldin har kadrda 6 ta to'liq ekranli gradient qatlami qayta chizilardi (iPhone'dagi Impeller'da RepaintBoundary
-/// rasmni saqlab qolmaydi) — 120 Hz ekranda bu GPU'ni to'ldirib, ro'yxat siljiganda kadrlar tushib qolardi.
+/// rasmni saqlab qolmaydi) вЂ” 120 Hz ekranda bu GPU'ni to'ldirib, ro'yxat siljiganda kadrlar tushib qolardi.
 class GlassBackdrop extends StatelessWidget {
   const GlassBackdrop({super.key, required this.child});
 
@@ -105,7 +105,7 @@ class GlassBackdrop extends StatelessWidget {
 
   static final Map<String, ui.Image> _cache = {};
 
-  /// Oxirgi chizilgan fon rasmi (tun/kun) — «xira shisha» panellar o'z ostidagi fon bo'lagini shundan oladi
+  /// Oxirgi chizilgan fon rasmi (tun/kun) вЂ” В«xira shishaВ» panellar o'z ostidagi fon bo'lagini shundan oladi
   static final Map<bool, ui.Image> latest = {};
 
   static List<Color> _base(bool dark) => dark ? const [Color(0xFF070D1C), Color(0xFF0B1631), Color(0xFF09122A)] : const [Color(0xFFC9D7EE), Color(0xFFDCE6F6), Color(0xFFEEF3FB)];
@@ -126,7 +126,7 @@ class GlassBackdrop extends StatelessWidget {
     }
   }
 
-  /// Fon rasmi (ekranning yarim o'lchamida — gradient silliq, kattalashtirilganda farqi ko'rinmaydi). Xato bo'lsa null.
+  /// Fon rasmi (ekranning yarim o'lchamida вЂ” gradient silliq, kattalashtirilganda farqi ko'rinmaydi). Xato bo'lsa null.
   static ui.Image? _image(bool dark, Size size) {
     if (!size.isFinite || size.isEmpty) return null;
     final w = (size.width / 2).ceil(), h = (size.height / 2).ceil();
@@ -206,7 +206,7 @@ class GlassTransitions extends PageTransitionsBuilder {
   }
 }
 
-/// Shisha karta: yarim shaffof oq, yupqa oq chegara, yumshoq soya. [blur] — orqasidagi narsani xira qiladi (suzuvchi panellar uchun).
+/// Shisha karta: yarim shaffof oq, yupqa oq chegara, yumshoq soya. [blur] вЂ” orqasidagi narsani xira qiladi (suzuvchi panellar uchun).
 class Glass extends StatelessWidget {
   const Glass({
     super.key,
@@ -234,7 +234,7 @@ class Glass extends StatelessWidget {
   final Gradient? gradient;
   final bool shadow;
 
-  /// Ichidagi narsa burchakdan chiqib ketsa (masalan, HeroGlass doiralari). Oddiy kartada kesish yo'q — har bir kesish GPU'ga qimmat.
+  /// Ichidagi narsa burchakdan chiqib ketsa (masalan, HeroGlass doiralari). Oddiy kartada kesish yo'q вЂ” har bir kesish GPU'ga qimmat.
   final bool clip;
 
   @override
@@ -242,7 +242,7 @@ class Glass extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final lite = LiteScope.of(context);
     final br = BorderRadius.circular(radius);
-    // yengil rejim: tekis rang (gradient, xira qilish, soya, kesish yo'q) — kuchsiz video-kartada ham silliq
+    // yengil rejim: tekis rang (gradient, xira qilish, soya, kesish yo'q) вЂ” kuchsiz video-kartada ham silliq
     final fill = lite ? (tint ?? (dark ? const Color(0xE61A2542) : const Color(0xE6FFFFFF))) : tint;
     final fillGradient = lite ? null : gradient ?? (tint != null ? null : LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: dark ? const [Color(0xB31A2542), Color(0x99111A33)] : [Colors.white.withValues(alpha: blur ? 0.6 : 0.62), Colors.white.withValues(alpha: blur ? 0.26 : 0.3)]));
     Widget body = DecoratedBox(
@@ -297,9 +297,9 @@ class GlassIconButton extends StatelessWidget {
 }
 
 
-/// Ilovaning barcha sahifa yo'nalishi. Telefonda — oddiy sahifa. Kompyuter qobig'i ichida (yon menyu bor, oyna keng) —
-/// YON PANEL: asosiy bo'lim (Bosh, Yana, Lidlar…) ko'rinib turadi, ochilgan sahifa o'ng tomonda qulay kenglikdagi panelda chiqadi;
-/// panel tashqarisi bosilsa yopiladi. Boshqa joyda (kirish oynalari) — markazda qulay kenglikda.
+/// Ilovaning barcha sahifa yo'nalishi. Telefonda вЂ” oddiy sahifa. Kompyuter qobig'i ichida (yon menyu bor, oyna keng) вЂ”
+/// YON PANEL: asosiy bo'lim (Bosh, Yana, LidlarвЂ¦) ko'rinib turadi, ochilgan sahifa o'ng tomonda qulay kenglikdagi panelda chiqadi;
+/// panel tashqarisi bosilsa yopiladi. Boshqa joyda (kirish oynalari) вЂ” markazda qulay kenglikda.
 class DeskRoute<T> extends MaterialPageRoute<T> {
   DeskRoute({required super.builder, super.settings, super.fullscreenDialog, this.full = false});
 
@@ -335,7 +335,7 @@ class DeskRoute<T> extends MaterialPageRoute<T> {
 }
 
 /// Kompyuter qobig'i (yon menyu + ichki navigator) ichida ekanligini bildiradi: ichkarida ochilgan sahifalar o'z fonini chizmaydi
-/// (fon butun oyna uchun bitta — yon menyu va sahifalar ostida uzluksiz).
+/// (fon butun oyna uchun bitta вЂ” yon menyu va sahifalar ostida uzluksiz).
 class DeskShell extends InheritedWidget {
   const DeskShell({super.key, required super.child});
 
@@ -409,12 +409,12 @@ class NavItem {
 
 /// Pastki panel uchun qisqa nomlar (to'liq nom sahifa sarlavhasida qoladi)
 const _navShort = {
-  'ru': {'Davomat': 'Явка'},
+  'ru': {'Davomat': 'РЇРІРєР°'},
 };
 
 String navLabel(String label) => _navShort[L.code]?[label] ?? tr(label);
 
-/// Suzuvchi shisha pastki panel (HEMIS uslubi): tanlangan bo'lim yumshoq «tabletka» ichida.
+/// Suzuvchi shisha pastki panel (HEMIS uslubi): tanlangan bo'lim yumshoq В«tabletkaВ» ichida.
 class GlassNavBar extends StatelessWidget {
   const GlassNavBar({super.key, required this.items, required this.index, required this.onTap});
 
@@ -439,7 +439,7 @@ class GlassNavBar extends StatelessWidget {
               builder: (context, bc) {
                 final w = bc.maxWidth / items.length;
                 return Stack(children: [
-                  // tanlangan bo'lim ostidagi «tabletka» — bo'limlar orasida sirpanib yuradi
+                  // tanlangan bo'lim ostidagi В«tabletkaВ» вЂ” bo'limlar orasida sirpanib yuradi
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 380),
                     curve: Curves.easeOutBack,
@@ -466,7 +466,7 @@ class GlassNavBar extends StatelessWidget {
                             AnimatedDefaultTextStyle(
                               duration: const Duration(milliseconds: 250),
                               style: TextStyle(fontSize: 11, fontWeight: i == index ? FontWeight.w800 : FontWeight.w600, color: i == index ? cs.primary : cs.outline),
-                              // uzun so'z kesilmasin («Посещаем…»): pastki panel uchun qisqa nom, baribir sig'masa — kichrayadi
+                              // uzun so'z kesilmasin (В«РџРѕСЃРµС‰Р°РµРјвЂ¦В»): pastki panel uchun qisqa nom, baribir sig'masa вЂ” kichrayadi
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 3),
                                 child: FittedBox(fit: BoxFit.scaleDown, child: Text(navLabel(items[i].label), maxLines: 1, softWrap: false)),
@@ -495,7 +495,7 @@ class IconTile extends StatelessWidget {
   final double size;
   final double? iconSize;
 
-  /// Brend ranglari ko'k oilasiga keltiriladi (bir xil, toza ko'rinish); semantik ranglar (yashil — kirim, qizil — chiqim) o'zgarmaydi
+  /// Brend ranglari ko'k oilasiga keltiriladi (bir xil, toza ko'rinish); semantik ranglar (yashil вЂ” kirim, qizil вЂ” chiqim) o'zgarmaydi
   static Color tone(Color c) => switch (c.toARGB32()) {
         0xFF2563EB || 0xFF3B82F6 => const Color(0xFF3478F6),
         0xFF0EA5E9 => const Color(0xFF1EA7E8),
@@ -522,7 +522,7 @@ class IconTile extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: r,
         gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_shade(c, dark ? 0.08 : 0.16), c, _shade(c, -0.14)]),
-        // yumshoq rangli nur (plitka «suzib» turadi)
+        // yumshoq rangli nur (plitka В«suzibВ» turadi)
         boxShadow: [BoxShadow(color: c.withValues(alpha: dark ? 0.28 : 0.34), blurRadius: size * 0.32, offset: Offset(0, size * 0.1))],
       ),
       foregroundDecoration: BoxDecoration(
@@ -540,8 +540,8 @@ class AppTheme {
   static ThemeData build(Brightness b) {
     final dark = b == Brightness.dark;
     final text = dark ? const Color(0xFFE8EEFC) : const Color(0xFF0E1B3D);
-    final card = dark ? const Color(0xA61A2542) : const Color(0x99FFFFFF); // yarim shaffof («shisha»)
-    final solid = dark ? const Color(0xFF121A31) : const Color(0xFFF5F8FE); // dialog, varaq, menyu — shaffof emas
+    final card = dark ? const Color(0xA61A2542) : const Color(0x99FFFFFF); // yarim shaffof (В«shishaВ»)
+    final solid = dark ? const Color(0xFF121A31) : const Color(0xFFF5F8FE); // dialog, varaq, menyu вЂ” shaffof emas
     final border = dark ? const Color(0x1FFFFFFF) : const Color(0x161E3A8A);
     final primary = dark ? const Color(0xFF6EA8FF) : Brand.green;
     final onTint = dark ? const Color(0xFFBFD6FF) : const Color(0xFF1D4ED8); // ko'k fondagi matn
@@ -566,7 +566,7 @@ class AppTheme {
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
-      scaffoldBackgroundColor: Colors.transparent, // fon — GlassBackdrop (har sahifada)
+      scaffoldBackgroundColor: Colors.transparent, // fon вЂ” GlassBackdrop (har sahifada)
       canvasColor: solid,
       visualDensity: VisualDensity.standard,
       textTheme: Typography.material2021(platform: TargetPlatform.android).black.apply(bodyColor: text, displayColor: text).copyWith(
@@ -724,7 +724,7 @@ class HeroGlass extends StatelessWidget {
 }
 
 
-/// Pastki suzuvchi panel egallagan joy: bosh sahifaning tablarida bor (panel ostida kontent o'tadi), «Yana»dan ochilgan to'liq sahifalarda yo'q.
+/// Pastki suzuvchi panel egallagan joy: bosh sahifaning tablarida bor (panel ostida kontent o'tadi), В«YanaВ»dan ochilgan to'liq sahifalarda yo'q.
 /// Suzuvchi tugmalar va ro'yxatlarning pastki bo'sh joyi shunga qarab moslashadi.
 class NavInset extends InheritedWidget {
   const NavInset({super.key, required this.inset, this.top = 0, required super.child});
@@ -751,10 +751,12 @@ class NavInset extends InheritedWidget {
   bool updateShouldNotify(NavInset old) => old.inset != inset || old.top != top;
 }
 
-/// Ro'yxatning tepa chetini yumshoq so'ndiradi: aylantirganda kartalar sarlavha tagida keskin «kesilib» qolmaydi, silliq yo'qoladi.
-/// Telegramdagidek tepa shisha panel (status satri + sarlavha): ro'yxat uning tagidan o'tganda kontent xira (blur) ko'rinadi.
-/// Ro'yxat eng tepada turganda panel butunlay shaffof (oddiy sarlavha), aylantirgan sari [t] 0..1 bo'yicha xira va rangli qatlam kuchayadi.
-/// Xira faqat panel o'lchamida (butun ekranda emas) — iPhone'da yengil.
+/// Telegramdagidek tepa shisha panel (status satri + sarlavha): ro'yxat uning tagidan o'tganda kontent xira (blur) bo'lib sezilarli darajada ko'rinadi.
+/// Ro'yxat eng tepada turganda panel butunlay shaffof (oddiy sarlavha), aylantirgan sari [t] 0..1 bo'yicha xira va rang kuchayadi.
+///
+/// В«ChiziqВ» bo'lmasligi uchun: xira faqat panelning o'zida (past chetida u allaqachon qalin rang bilan yopilgan), rang esa ILOVA FONINING
+/// aynan o'sha bo'lagi bilan chiziladi va panel ostida [_fadeH] px davomida silliq (smoothstep) yo'qoladi вЂ” chegarada xira/o'tkir farqi ko'rinmaydi.
+/// Xira faqat panel o'lchamida (butun ekranda emas) вЂ” iPhone'da yengil.
 class TopGlass extends StatelessWidget {
   const TopGlass({super.key, required this.t, required this.onHeight, required this.child});
 
@@ -762,13 +764,12 @@ class TopGlass extends StatelessWidget {
   final ValueChanged<double> onHeight;
   final Widget child;
 
-  static const double _fadeH = 44; // panel ostidagi yumshoq o'tish balandligi
-  static const _ease = [1.0, 0.896, 0.648, 0.352, 0.104, 0.0]; // smoothstep
+  static const double _fadeH = 52; // panel ostidagi yumshoq o'tish balandligi
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    final tint = dark ? const Color(0xFF0B1631) : const Color(0xFFEAF1FF);
+    final screenH = MediaQuery.sizeOf(context).height;
     return Stack(clipBehavior: Clip.none, children: [
       Positioned.fill(
         child: IgnorePointer(
@@ -776,42 +777,31 @@ class TopGlass extends StatelessWidget {
             valueListenable: t,
             builder: (context, v, _) {
               if (v <= 0) return const SizedBox.shrink();
-              final a = (dark ? 0.5 : 0.4) * v;
-              const bands = [16.0, 13.0, 10.0, 7.5, 5.5, 3.6, 2.1, 0.9];
-              const bandH = _fadeH / 8;
               return Stack(clipBehavior: Clip.none, children: [
                 Positioned.fill(
-                  child: ClipRect(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 18 * v, sigmaY: 18 * v, tileMode: TileMode.clamp),
-                      child: ColoredBox(color: tint.withValues(alpha: a)),
-                    ),
-                  ),
+                  child: ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 7 * v, sigmaY: 7 * v, tileMode: TileMode.clamp), child: const SizedBox.expand())),
                 ),
-                // pastki cheti keskin «kesilmasin»: xira kuchi va rangi pastga qarab silliq (smoothstep) yo'qoladi — chiziq ham yo'q
-                for (var i = 0; i < bands.length; i++)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: -(i + 1) * bandH - 0.5,
-                    height: bandH + 0.5,
-                    child: ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: bands[i] * v, sigmaY: bands[i] * v, tileMode: TileMode.clamp), child: const SizedBox.expand())),
-                  ),
+                // ostidagi o'tish: ikki keng polosa, xira kuchi bosqichma-bosqich 7 → 3.5 → 1.5 → 0 (keng polosalar: tor bo'laklarda chekka xatolari bo'lmasin)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: -_fadeH / 2,
+                  height: _fadeH / 2,
+                  child: ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 3.5 * v, sigmaY: 3.5 * v, tileMode: TileMode.clamp), child: const SizedBox.expand())),
+                ),
                 Positioned(
                   left: 0,
                   right: 0,
                   bottom: -_fadeH,
-                  height: _fadeH,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [for (final k in _ease) tint.withValues(alpha: a * k)],
-                        stops: const [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-                      ),
-                    ),
-                  ),
+                  height: _fadeH / 2,
+                  child: ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 1.5 * v, sigmaY: 1.5 * v, tileMode: TileMode.clamp), child: const SizedBox.expand())),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: -_fadeH,
+                  child: CustomPaint(painter: _BgFadePainter(dark: dark, v: v, fadeH: _fadeH, screenH: screenH)),
                 ),
               ]);
             },
@@ -823,7 +813,52 @@ class TopGlass extends StatelessWidget {
   }
 }
 
-/// Bolasining balandligini (layoutdan keyin) xabar beradi — ro'yxatlarning tepa bo'sh joyi shunga moslanadi.
+/// Ekran tepasidagi fon bo'lagini (GlassBackdrop rasmi) chizadi va uni pastga qarab silliq shaffoflashtiradi.
+class _BgFadePainter extends CustomPainter {
+  _BgFadePainter({required this.dark, required this.v, required this.fadeH, required this.screenH});
+
+  final bool dark;
+  final double v;
+  final double fadeH;
+  final double screenH;
+
+  static const _ease = [1.0, 0.896, 0.648, 0.352, 0.104, 0.0]; // smoothstep
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final rect = Offset.zero & size;
+    final a = (dark ? 0.74 : 0.7) * v;
+    canvas.saveLayer(rect, Paint());
+    final img = GlassBackdrop.latest[dark];
+    if (img != null && screenH > 0) {
+      final srcH = (img.height * size.height / screenH).clamp(1.0, img.height.toDouble());
+      canvas.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), srcH), rect, Paint()..filterQuality = FilterQuality.medium);
+    } else {
+      canvas.drawRect(rect, Paint()..color = dark ? const Color(0xFF0B1631) : const Color(0xFFDCE6F6));
+    }
+    final total = size.height;
+    final s0 = ((total - fadeH) / total).clamp(0.0, 1.0); // so'nish panelning pastki chetidan boshlanadi
+    final span = 1.0 - s0;
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..blendMode = BlendMode.dstIn
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [for (final k in _ease) Color.fromRGBO(255, 255, 255, a * k)],
+          stops: [for (var i = 0; i < _ease.length; i++) s0 + span * i / (_ease.length - 1)],
+        ).createShader(rect),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_BgFadePainter old) => old.dark != dark || old.v != v || old.screenH != screenH || old.fadeH != fadeH;
+}
+
+/// Bolasining balandligini (layoutdan keyin) xabar beradi вЂ” ro'yxatlarning tepa bo'sh joyi shunga moslanadi.
 class _SizeReporter extends SingleChildRenderObjectWidget {
   const _SizeReporter({required this.onSize, super.child});
 
@@ -891,8 +926,8 @@ class GlassFab extends StatelessWidget {
 }
 
 
-/// «Xira shisha» panel (pastki menyu): ostidagi fonning silliq rangli bo'lagi + yarim shaffof qatlam + yupqa chegara.
-/// Haqiqiy BackdropFilter iPhone'da har kadrda butun ekranni qayta ishlaydi (qotish va qizish) — bu esa bitta tayyor rasmni
+/// В«Xira shishaВ» panel (pastki menyu): ostidagi fonning silliq rangli bo'lagi + yarim shaffof qatlam + yupqa chegara.
+/// Haqiqiy BackdropFilter iPhone'da har kadrda butun ekranni qayta ishlaydi (qotish va qizish) вЂ” bu esa bitta tayyor rasmni
 /// chizadi, ko'rinishi esa xira shishaga o'xshaydi: fon ranglari ko'rinadi, ortidagi matn esa xalaqit bermaydi.
 class FrostPanel extends StatelessWidget {
   const FrostPanel({super.key, required this.radius, this.padding = EdgeInsets.zero, required this.child});
@@ -967,7 +1002,7 @@ class _RenderFrost extends RenderProxyBox {
       final dst = Rect.fromLTWH(offset.dx - g.dx, offset.dy - g.dy, _screen.width, _screen.height);
       c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), dst, Paint()..filterQuality = FilterQuality.medium);
     }
-    // xira qatlam: tunda to'q, kunduzi oq — matn va ikonkalar aniq o'qiladi
+    // xira qatlam: tunda to'q, kunduzi oq вЂ” matn va ikonkalar aniq o'qiladi
     c.drawRect(rect, Paint()
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
