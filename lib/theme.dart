@@ -747,8 +747,10 @@ class NavInset extends InheritedWidget {
 }
 
 /// Ro'yxatning tepa chetini yumshoq so'ndiradi: aylantirganda kartalar sarlavha tagida keskin «kesilib» qolmaydi, silliq yo'qoladi.
-/// Telegramdagidek: ro'yxat sarlavha tagiga kirganda tepa chet uzun va silliq (smoothstep) so'nadi. Ro'yxat eng tepada turganda
-/// so'nish yo'q (birinchi karta xira bo'lib qolmasin), aylantirgan sari asta-sekin kuchayadi. [resetKey] o'zgarsa (bo'lim almashsa) nolga qaytadi.
+/// Telegramdagidek: ro'yxat sarlavha tagiga kirganda tepa cheti (44px) xira (blur) bo'lib, fon rangiga silliq «eriydi» — kartalar
+/// shaffof bo'lib oq dog' qoldirmaydi, keskin kesilmaydi. Ro'yxat eng tepada turganda hech narsa yo'q (birinchi karta toza),
+/// aylantirgan sari asta-sekin kuchayadi. Xira qatlam faqat shu kichik polosada (butun ekranda emas) — iPhone'da yengil.
+/// [resetKey] o'zgarsa (bo'lim almashsa) nolga qaytadi.
 class SoftEdge extends StatefulWidget {
   const SoftEdge({super.key, required this.child, this.top = 44, this.enabled = true, this.resetKey});
 
@@ -783,31 +785,60 @@ class _SoftEdgeState extends State<SoftEdge> {
     return false;
   }
 
+  // xira polosalar: tepada kuchli, pastga qarab kuchsizlanadi (progressiv blur: BackdropFilter + ShaderMask birga ishlamaydi, shuning uchun bosqichma-bosqich)
+  static const _sigma = [11.0, 7.5, 4.5, 2.0];
+  // smoothstep(x) = x²(3−2x): rang qatlami silliq yo'qoladi
   static const _stops = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
-  static const _alpha = [0.0, 0.104, 0.352, 0.648, 0.896, 1.0]; // smoothstep(x) = x²(3−2x)
+  static const _alpha = [1.0, 0.896, 0.648, 0.352, 0.104, 0.0];
 
   @override
   Widget build(BuildContext context) {
     if (!widget.enabled) return widget.child;
+    final dark = context.isDark;
+    // fon rangiga yaqin qatlam: xira bo'lgan karta chetini fonga silliq «eritadi» (oq dog' / bulut bo'lib qolmaydi)
+    final tint = dark ? const Color(0xFF0B1631) : const Color(0xFFDCE6F6);
     return NotificationListener<ScrollNotification>(
       onNotification: _onScroll,
-      child: ValueListenableBuilder<double>(
-        valueListenable: _t,
-        child: widget.child,
-        builder: (context, t, child) => ShaderMask(
-          blendMode: BlendMode.dstIn,
-          shaderCallback: (r) {
-            final h = r.height <= 0 ? 0.0 : (widget.top * t / r.height).clamp(0.0, 1.0);
-            return LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [for (final a in _alpha) Color.fromRGBO(255, 255, 255, a)],
-              stops: [for (final s in _stops) s * h],
-            ).createShader(r);
-          },
-          child: child,
+      child: Stack(fit: StackFit.passthrough, children: [
+        widget.child,
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: widget.top,
+          child: IgnorePointer(
+            child: ValueListenableBuilder<double>(
+              valueListenable: _t,
+              builder: (context, t, _) {
+                if (t <= 0) return const SizedBox.shrink();
+                final band = widget.top / _sigma.length;
+                return Stack(children: [
+                  for (var i = 0; i < _sigma.length; i++)
+                    Positioned(
+                      top: band * i,
+                      left: 0,
+                      right: 0,
+                      height: band + (i == _sigma.length - 1 ? 0 : 0.5), // polosalar orasida chiziq qolmasin
+                      child: ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: _sigma[i] * t, sigmaY: _sigma[i] * t, tileMode: TileMode.clamp), child: const SizedBox.expand())),
+                    ),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [for (final a in _alpha) tint.withValues(alpha: a * 0.62 * t)],
+                          stops: _stops,
+                        ),
+                      ),
+                    ),
+                  ),
+                ]);
+              },
+            ),
+          ),
         ),
-      ),
+      ]),
     );
   }
 }
