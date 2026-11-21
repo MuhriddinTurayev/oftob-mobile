@@ -6,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/scheduler.dart' show Ticker, TickerProvider, TickerCallback;
-import 'package:flutter/rendering.dart' show RenderProxyBox;
+import 'package:flutter/rendering.dart' show PaintingContext, RenderProxyBox;
 import 'package:flutter/services.dart';
 
 import 'l10n.dart';
@@ -751,12 +751,12 @@ class NavInset extends InheritedWidget {
   bool updateShouldNotify(NavInset old) => old.inset != inset || old.top != top;
 }
 
-/// Telegramdagidek tepa shisha panel (status satri + sarlavha): ro'yxat uning tagidan o'tganda kontent xira (blur) bo'lib sezilarli darajada ko'rinadi.
-/// Ro'yxat eng tepada turganda panel butunlay shaffof (oddiy sarlavha), aylantirgan sari [t] 0..1 bo'yicha xira va rang kuchayadi.
+/// Telegramdagidek tepa panel (status satri + sarlavha): ro'yxat uning TAGIDAN o'tadi va fonga silliq «eriydi».
+/// Ro'yxat eng tepada turganda panel ko'rinmaydi (oddiy sarlavha), aylantirgan sari [t] 0..1 bo'yicha kuchayadi.
 ///
-/// В«ChiziqВ» bo'lmasligi uchun: xira faqat panelning o'zida (past chetida u allaqachon qalin rang bilan yopilgan), rang esa ILOVA FONINING
-/// aynan o'sha bo'lagi bilan chiziladi va panel ostida [_fadeH] px davomida silliq (smoothstep) yo'qoladi вЂ” chegarada xira/o'tkir farqi ko'rinmaydi.
-/// Xira faqat panel o'lchamida (butun ekranda emas) вЂ” iPhone'da yengil.
+/// Xira (blur) ataylab ishlatilmaydi: iPhone'da har bir xira qatlamning chegarasida «xira chiziq» paydo bo'ladi. Buning o'rniga panel ostidagi
+/// kontent ilova fonining AYNAN o'sha bo'lagi bilan yopiladi va [_fadeH] px davomida silliq (smoothstep) ochiladi — chegara va chiziq yo'q,
+/// iPhone'da ham juda yengil (kichik hudud, xira yo'q).
 class TopGlass extends StatelessWidget {
   const TopGlass({super.key, required this.t, required this.onHeight, required this.child});
 
@@ -769,42 +769,17 @@ class TopGlass extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    final screenH = MediaQuery.sizeOf(context).height;
+    final screen = MediaQuery.sizeOf(context);
     return Stack(clipBehavior: Clip.none, children: [
-      Positioned.fill(
+      Positioned(
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: -_fadeH,
         child: IgnorePointer(
           child: ValueListenableBuilder<double>(
             valueListenable: t,
-            builder: (context, v, _) {
-              if (v <= 0) return const SizedBox.shrink();
-              return Stack(clipBehavior: Clip.none, children: [
-                Positioned.fill(
-                  child: ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 7 * v, sigmaY: 7 * v, tileMode: TileMode.clamp), child: const SizedBox.expand())),
-                ),
-                // ostidagi o'tish: ikki keng polosa, xira kuchi bosqichma-bosqich 7 → 3.5 → 1.5 → 0 (keng polosalar: tor bo'laklarda chekka xatolari bo'lmasin)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: -_fadeH / 2,
-                  height: _fadeH / 2,
-                  child: ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 3.5 * v, sigmaY: 3.5 * v, tileMode: TileMode.clamp), child: const SizedBox.expand())),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: -_fadeH,
-                  height: _fadeH / 2,
-                  child: ClipRect(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 1.5 * v, sigmaY: 1.5 * v, tileMode: TileMode.clamp), child: const SizedBox.expand())),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  bottom: -_fadeH,
-                  child: CustomPaint(painter: _BgFadePainter(dark: dark, v: v, fadeH: _fadeH, screenH: screenH)),
-                ),
-              ]);
-            },
+            builder: (context, v, _) => v <= 0 ? const SizedBox.shrink() : _BgFade(dark: dark, alpha: 0.93 * v, fadeH: _fadeH, screen: screen),
           ),
         ),
       ),
@@ -813,34 +788,152 @@ class TopGlass extends StatelessWidget {
   }
 }
 
-/// Ekran tepasidagi fon bo'lagini (GlassBackdrop rasmi) chizadi va uni pastga qarab silliq shaffoflashtiradi.
-class _BgFadePainter extends CustomPainter {
-  _BgFadePainter({required this.dark, required this.v, required this.fadeH, required this.screenH});
+/// To'liq ekranli ro'yxatning tepa cheti: aylantirganda kontent sarlavha tagida keskin «kesilmaydi», fonga silliq (smoothstep) eriydi.
+/// Butun ilovada [_DesktopScroll] (main.dart) orqali har bir to'liq sahifa ro'yxatiga avtomatik qo'llanadi; ekran tepasigacha cho'zilgan
+/// ro'yxatlarda ([TopGlass] bor) va kichik/ichki ro'yxatlarda ishlamaydi.
+class SoftTop extends StatefulWidget {
+  const SoftTop({super.key, required this.child});
 
-  final bool dark;
-  final double v;
-  final double fadeH;
-  final double screenH;
-
-  static const _ease = [1.0, 0.896, 0.648, 0.352, 0.104, 0.0]; // smoothstep
+  final Widget child;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    if (size.isEmpty) return;
-    final rect = Offset.zero & size;
-    final a = (dark ? 0.74 : 0.7) * v;
-    canvas.saveLayer(rect, Paint());
-    final img = GlassBackdrop.latest[dark];
-    if (img != null && screenH > 0) {
-      final srcH = (img.height * size.height / screenH).clamp(1.0, img.height.toDouble());
-      canvas.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), srcH), rect, Paint()..filterQuality = FilterQuality.medium);
+  State<SoftTop> createState() => _SoftTopState();
+}
+
+class _SoftTopState extends State<SoftTop> {
+  final ValueNotifier<double> _t = ValueNotifier(0);
+  static const double _h = 40;
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0 || n.metrics.axis != Axis.vertical) return false;
+    final ro = n.context?.findRenderObject();
+    if (ro is! RenderBox || !ro.attached || !ro.hasSize) return false;
+    final screen = MediaQuery.sizeOf(context);
+    if (ro.size.width < screen.width * 0.95 || ro.size.height < 160) return false; // faqat to'liq kenglikdagi katta ro'yxatlar
+    if (ro.localToGlobal(Offset.zero).dy <= 1.5) return false; // ekran tepasigacha cho'zilgan — buni TopGlass qiladi
+    final v = (n.metrics.pixels / 16).clamp(0.0, 1.0);
+    if ((v - _t.value).abs() > 0.02 || (v == 0 && _t.value != 0) || (v == 1 && _t.value != 1)) _t.value = v;
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final screen = MediaQuery.sizeOf(context);
+    return NotificationListener<ScrollNotification>(
+      onNotification: _onScroll,
+      child: Stack(fit: StackFit.passthrough, children: [
+        widget.child,
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: _h,
+          child: IgnorePointer(
+            child: ValueListenableBuilder<double>(
+              valueListenable: _t,
+              builder: (context, v, _) => v <= 0 ? const SizedBox.shrink() : _BgFade(dark: dark, alpha: v, fadeH: _h, screen: screen),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Ekrandagi o'z joyidagi ilova foni bo'lagini (GlassBackdrop rasmi) chizadi va uni pastki [fadeH] px da silliq shaffoflashtiradi.
+class _BgFade extends LeafRenderObjectWidget {
+  const _BgFade({required this.dark, required this.alpha, required this.fadeH, required this.screen});
+
+  final bool dark;
+  final double alpha;
+  final double fadeH;
+  final Size screen;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderBgFade(dark, alpha, fadeH, screen);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderBgFade r) {
+    r
+      ..dark = dark
+      ..alpha = alpha
+      ..fadeH = fadeH
+      ..screen = screen;
+  }
+}
+
+class _RenderBgFade extends RenderBox {
+  _RenderBgFade(this._dark, this._alpha, this._fadeH, this._screen);
+
+  bool _dark;
+  double _alpha;
+  double _fadeH;
+  Size _screen;
+
+  static const _ease = [1.0, 0.896, 0.648, 0.352, 0.104, 0.0]; // smoothstep(x) = x²(3−2x)
+
+  set dark(bool v) {
+    if (v == _dark) return;
+    _dark = v;
+    markNeedsPaint();
+  }
+
+  set alpha(double v) {
+    if (v == _alpha) return;
+    _alpha = v;
+    markNeedsPaint();
+  }
+
+  set fadeH(double v) {
+    if (v == _fadeH) return;
+    _fadeH = v;
+    markNeedsPaint();
+  }
+
+  set screen(Size v) {
+    if (v == _screen) return;
+    _screen = v;
+    markNeedsPaint();
+  }
+
+  @override
+  bool get sizedByParent => true;
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) => constraints.biggest;
+
+  @override
+  bool hitTestSelf(Offset position) => false;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (size.isEmpty || _alpha <= 0) return;
+    final c = context.canvas;
+    final rect = offset & size;
+    final a = _alpha.clamp(0.0, 1.0);
+    c.saveLayer(rect, Paint());
+    final img = GlassBackdrop.latest[_dark];
+    if (img != null && _screen.width > 0 && _screen.height > 0) {
+      final g = localToGlobal(Offset.zero);
+      final dst = Rect.fromLTWH(offset.dx - g.dx, offset.dy - g.dy, _screen.width, _screen.height);
+      c.save();
+      c.clipRect(rect);
+      c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), dst, Paint()..filterQuality = FilterQuality.medium);
+      c.restore();
     } else {
-      canvas.drawRect(rect, Paint()..color = dark ? const Color(0xFF0B1631) : const Color(0xFFDCE6F6));
+      c.drawRect(rect, Paint()..color = _dark ? const Color(0xFF0B1631) : const Color(0xFFDCE6F6));
     }
     final total = size.height;
-    final s0 = ((total - fadeH) / total).clamp(0.0, 1.0); // so'nish panelning pastki chetidan boshlanadi
+    final s0 = ((total - _fadeH) / total).clamp(0.0, 1.0);
     final span = 1.0 - s0;
-    canvas.drawRect(
+    c.drawRect(
       rect,
       Paint()
         ..blendMode = BlendMode.dstIn
@@ -851,11 +944,8 @@ class _BgFadePainter extends CustomPainter {
           stops: [for (var i = 0; i < _ease.length; i++) s0 + span * i / (_ease.length - 1)],
         ).createShader(rect),
     );
-    canvas.restore();
+    c.restore();
   }
-
-  @override
-  bool shouldRepaint(_BgFadePainter old) => old.dark != dark || old.v != v || old.screenH != screenH || old.fadeH != fadeH;
 }
 
 /// Bolasining balandligini (layoutdan keyin) xabar beradi вЂ” ro'yxatlarning tepa bo'sh joyi shunga moslanadi.

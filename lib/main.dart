@@ -59,6 +59,15 @@ class _DesktopScroll extends MaterialScrollBehavior {
 
   @override
   Set<PointerDeviceKind> get dragDevices => {...super.dragDevices, PointerDeviceKind.mouse, PointerDeviceKind.trackpad, PointerDeviceKind.stylus};
+
+  /// Telefon: har bir to'liq sahifadagi vertikal ro'yxatning tepa cheti aylantirganda keskin «kesilmay», fonga silliq eriydi (Telegramdagidek).
+  @override
+  Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) {
+    final w = super.buildOverscrollIndicator(context, child, details);
+    if (_desktopOs || axisDirectionToAxis(details.direction) != Axis.vertical) return w;
+    if (ModalRoute.of(context) is! PageRoute) return w; // oynalar va pastki varaqlarda emas
+    return SoftTop(child: w);
+  }
 }
 
 class OftobApp extends StatefulWidget {
