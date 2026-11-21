@@ -747,25 +747,67 @@ class NavInset extends InheritedWidget {
 }
 
 /// Ro'yxatning tepa chetini yumshoq so'ndiradi: aylantirganda kartalar sarlavha tagida keskin «kesilib» qolmaydi, silliq yo'qoladi.
-class SoftEdge extends StatelessWidget {
-  const SoftEdge({super.key, required this.child, this.top = 18, this.enabled = true});
+/// Telegramdagidek: ro'yxat sarlavha tagiga kirganda tepa chet uzun va silliq (smoothstep) so'nadi. Ro'yxat eng tepada turganda
+/// so'nish yo'q (birinchi karta xira bo'lib qolmasin), aylantirgan sari asta-sekin kuchayadi. [resetKey] o'zgarsa (bo'lim almashsa) nolga qaytadi.
+class SoftEdge extends StatefulWidget {
+  const SoftEdge({super.key, required this.child, this.top = 44, this.enabled = true, this.resetKey});
 
   final Widget child;
   final double top;
   final bool enabled;
+  final Object? resetKey;
+
+  @override
+  State<SoftEdge> createState() => _SoftEdgeState();
+}
+
+class _SoftEdgeState extends State<SoftEdge> {
+  final ValueNotifier<double> _t = ValueNotifier(0);
+
+  @override
+  void didUpdateWidget(SoftEdge old) {
+    super.didUpdateWidget(old);
+    if (old.resetKey != widget.resetKey) _t.value = 0;
+  }
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    final v = (n.metrics.pixels / 36).clamp(0.0, 1.0);
+    if ((v - _t.value).abs() > 0.02 || (v == 0 && _t.value != 0) || (v == 1 && _t.value != 1)) _t.value = v;
+    return false;
+  }
+
+  static const _stops = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
+  static const _alpha = [0.0, 0.104, 0.352, 0.648, 0.896, 1.0]; // smoothstep(x) = x²(3−2x)
 
   @override
   Widget build(BuildContext context) {
-    if (!enabled) return child;
-    return ShaderMask(
-      blendMode: BlendMode.dstIn,
-      shaderCallback: (r) => LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: const [Color(0x00FFFFFF), Color(0xFFFFFFFF)],
-        stops: [0, r.height <= 0 ? 0 : (top / r.height).clamp(0.0, 1.0)],
-      ).createShader(r),
-      child: child,
+    if (!widget.enabled) return widget.child;
+    return NotificationListener<ScrollNotification>(
+      onNotification: _onScroll,
+      child: ValueListenableBuilder<double>(
+        valueListenable: _t,
+        child: widget.child,
+        builder: (context, t, child) => ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (r) {
+            final h = r.height <= 0 ? 0.0 : (widget.top * t / r.height).clamp(0.0, 1.0);
+            return LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [for (final a in _alpha) Color.fromRGBO(255, 255, 255, a)],
+              stops: [for (final s in _stops) s * h],
+            ).createShader(r);
+          },
+          child: child,
+        ),
+      ),
     );
   }
 }
